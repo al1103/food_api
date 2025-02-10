@@ -9,6 +9,8 @@ npm install
 npm i -g nodemon
 ```
 
+link hướng dẫn import file sql : https://www.youtube.com/watch?v=QdKOqlD_3jw
+
 ## ⚙️ Configure Environment Variables
 
 1. Create a `.env` file in the root directory.
