@@ -1,15 +1,17 @@
 const sql = require("mssql");
 
 const config = {
-  server: "ZILONG\\SQLEXPRESS",
-  database: "food",
-  user: "sa",
-  password: "sa",
+  server: process.env.DB_SERVER || "localhost",
+  database: process.env.DB_NAME || "food-api",
+  user: process.env.DB_USER || "sa",
+  password: process.env.DB_PASSWORD || "123123Abc.",
   options: {
     encrypt: true,
     trustServerCertificate: true,
+    enableArithAbort: true,
   },
 };
+
 const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then((pool) => {
