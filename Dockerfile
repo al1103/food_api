@@ -2,24 +2,22 @@ FROM node:18-alpine
 
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for development)
-RUN npm install && \
-    npm install -g nodemon
+# Install build dependencies for bcrypt
+RUN apk add --no-cache make gcc g++ python3 libc6-compat
 
-# Copy application files
+# Install npm packages
+RUN npm install
+# Force bcrypt to rebuild from source
+RUN npm rebuild bcrypt --build-from-source
+
+# Copy application code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /usr/src/app
-
-USER nodejs
-
+# Expose the port the app runs on
 EXPOSE 3000
 
-# Use conditional command based on NODE_ENV
-CMD ["sh", "-c", "if [ \"$NODE_ENV\" = \"production\" ]; then npm start; else npm run dev; fi"]
+# Command to run the application
+CMD ["npm", "run", "dev"]
