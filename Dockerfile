@@ -5,8 +5,8 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && \
+# Install dependencies (including dev dependencies for development)
+RUN npm install && \
     npm install -g nodemon
 
 # Copy application files
@@ -21,4 +21,5 @@ USER nodejs
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+# Use conditional command based on NODE_ENV
+CMD ["sh", "-c", "if [ \"$NODE_ENV\" = \"production\" ]; then npm start; else npm run dev; fi"]
