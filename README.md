@@ -1,5 +1,3 @@
-# Messenger API - README
-
 ## 📌 Install Dependencies
 
 To install all required dependencies, run:
