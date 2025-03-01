@@ -10,10 +10,10 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - DB_SERVER=${DB_SERVER}  # Lấy từ .env
+      - DB_SERVER=${DB_SERVER}
       - DB_USER=sa
-      - DB_PASSWORD=${DB_PASSWORD}  # Lấy từ .env
-      - DB_NAME=${DB_NAME}  # Lấy từ .env
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
       - API_KEY=${API_KEY}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASS=${EMAIL_PASS}
@@ -37,7 +37,8 @@ services:
     hostname: sql1
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${DB_PASSWORD}  # Lấy từ .env
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+      - MSSQL_PID=Developer
     ports:
       - "1433:1433"
     volumes:
@@ -45,7 +46,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "123123Abc." -Q "SELECT 1" || exit 1
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "${DB_PASSWORD}" -Q "SELECT 1" || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
