@@ -11,6 +11,8 @@ npm i -g nodemon
 
 link hướng dẫn import file sql : https://www.youtube.com/watch?v=QdKOqlD_3jw
 
+link test postman: '/postman/Restaurant.json'
+
 ## ⚙️ Configure Environment Variables
 
 1. Create a `.env` file in the root directory.
