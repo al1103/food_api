@@ -1,12 +1,12 @@
 const sql = require("mssql");
 
 const config = {
-  server: process.env.DB_SERVER || "localhost",
-  database: process.env.DB_NAME || "food-api",
+  server: process.env.DB_SERVER || "db", // Đổi 'localhost' thành 'db'
+  database: process.env.DB_NAME || "food",
   user: process.env.DB_USER || "sa",
   password: process.env.DB_PASSWORD || "123123Abc.",
   options: {
-    encrypt: true,
+    encrypt: false, // Nếu gặp lỗi chứng chỉ SSL, đặt false
     trustServerCertificate: true,
     enableArithAbort: true,
   },
