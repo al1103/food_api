@@ -1,5 +1,4 @@
 const { sql, poolPromise } = require("../config/database");
-const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 
 class UserModel {
@@ -20,14 +19,14 @@ class UserModel {
         throw new Error("Email hoặc tên người dùng đã tồn tại");
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // Removed bcrypt, using plain password
 
       await pool
         .request()
         .input("userId", sql.VarChar(36), userId)
         .input("username", sql.NVarChar(50), username)
         .input("email", sql.NVarChar(100), email)
-        .input("password", sql.NVarChar(255), hashedPassword)
+        .input("password", sql.NVarChar(255), password) // Changed from hashedPassword to password
         .input("fullName", sql.NVarChar(100), fullName)
         .input("phoneNumber", sql.VarChar(20), phoneNumber).query(`
           INSERT INTO Users (
