@@ -76,3 +76,4 @@ The API uses the following status codes:
 - For further information, check the API documentation.
 
 Happy Coding! 🚀
+ 

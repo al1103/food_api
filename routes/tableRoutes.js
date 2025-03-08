@@ -12,5 +12,4 @@ router.use(authMiddleware);
 router.post("/", tableController.createTable);
 router.put("/:id", tableController.updateTable);
 router.delete("/:id", tableController.deleteTable);
-
 module.exports = router;

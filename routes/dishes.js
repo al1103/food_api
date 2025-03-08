@@ -3,11 +3,11 @@ const router = express.Router();
 const dishesController = require("../controllers/dishesController");
 const authMiddleware = require("../middleware/auth");
 
-// Public routes
+// Public routes for viewing and searching dishes
 router.get("/", dishesController.getAllDishes);
 router.get("/:id", dishesController.getDishById);
 
-// Protected routes
+// Protected routes for creating, updating, and deleting dishes
 router.use(authMiddleware);
 router.post("/", dishesController.createDish);
 router.put("/:id", dishesController.updateDish);

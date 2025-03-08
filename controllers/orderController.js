@@ -1,11 +1,25 @@
 const OrderModel = require("../models/order_model");
+const { getPaginationParams } = require("../utils/pagination");
 
 exports.getAllOrders = async (req, res) => {
   try {
-    const orders = await OrderModel.getAllOrders();
+    const { page, limit, sortBy, sortOrder } = getPaginationParams(req);
+    const { status, startDate, endDate } = req.query;
+
+    const result = await OrderModel.getAllOrders({
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      status,
+      startDate,
+      endDate,
+    });
+
     res.json({
       status: "success",
-      data: orders,
+      data: result.orders,
+      pagination: result.pagination,
     });
   } catch (error) {
     res.status(500).json({
@@ -38,14 +52,26 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
+// Enhanced create order with line items
 exports.createOrder = async (req, res) => {
   try {
-    const { totalPrice } = req.body;
-    const userId = req.user.id; // From auth middleware
+    const { tableId, items, customerName, phoneNumber, note } = req.body;
+    const userId = req.user?.id; // Optional from auth middleware
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "Vui lòng chọn ít nhất một món ăn",
+      });
+    }
 
     const newOrder = await OrderModel.createOrder({
       userId,
-      totalPrice,
+      tableId,
+      items, // Array of {dishId, quantity, specialRequests}
+      customerName,
+      phoneNumber,
+      note,
     });
 
     res.status(201).json({
@@ -83,6 +109,26 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Lỗi khi cập nhật trạng thái đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
+// Add order statistics feature
+exports.getOrderStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const stats = await OrderModel.getOrderStatistics(startDate, endDate);
+
+    res.json({
+      status: "success",
+      data: stats,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Không thể lấy thống kê đơn hàng",
       error: error.message,
     });
   }

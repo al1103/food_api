@@ -5,6 +5,7 @@ const dishesRoutes = require("./dishes");
 const orderRoutes = require("./order");
 const orderDetailRoutes = require("./orderdetail");
 const reservationRoutes = require("./Reservations");
+const dashboardRoutes = require("./dashboard");
 
 function routes(app) {
   // User management
@@ -12,6 +13,7 @@ function routes(app) {
 
   // AI features
   app.use("/api/ai", aiRoutes);
+  app.use("/api/dashboard", dashboardRoutes);
 
   // Restaurant management
   app.use("/api/tables", tableRoutes);

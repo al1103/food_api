@@ -1,339 +1,745 @@
 {
   "info": {
-    "_postman_id": "6ab5178d-e582-4306-904b-cfb4970e1376",
-    "name": "Restaurant API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "36802882",
-    "_collection_link": "https://restaurant-3460.postman.co/workspace/restaurant-Workspace~f749173c-768c-4ed8-8244-0c4da3b86120/collection/36802882-6ab5178d-e582-4306-904b-cfb4970e1376?action=share&source=collection_link&creator=36802882"
+    "_postman_id": "7e5f3c86-2c47-4d94-8dbe-df5a39a8e722",
+    "name": "Restaurant API Test Collection",
+    "description": "Full test collection for restaurant management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Tables",
+      "name": "Authentication",
       "item": [
         {
-          "name": "Get All Tables",
+          "name": "Register User",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"Password123!\",\n    \"fullName\": \"Test User\",\n    \"phoneNumber\": \"1234567890\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/tables",
+              "raw": "{{base_url}}/api/users/register",
               "host": ["{{base_url}}"],
-              "path": ["api", "tables"]
-            }
+              "path": ["api", "users", "register"]
+            },
+            "description": "Register a new user"
           },
           "response": []
         },
         {
-          "name": "Get Table by ID",
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = JSON.parse(responseBody);",
+                  "if (jsonData.token) {",
+                  "    pm.environment.set(\"auth_token\", jsonData.token);",
+                  "}",
+                  "if (jsonData.refreshToken) {",
+                  "    pm.environment.set(\"refresh_token\", jsonData.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"Password123!\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/tables/{{tableId}}",
+              "raw": "{{base_url}}/api/users/login",
               "host": ["{{base_url}}"],
-              "path": ["api", "tables", "{{tableId}}"]
-            }
+              "path": ["api", "users", "login"]
+            },
+            "description": "Login with credentials and save token"
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication related endpoints"
+    },
+    {
+      "name": "Tables",
+      "item": [
+        {
+          "name": "Get All Tables (Pagination)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/tables?page=1&limit=10&sortBy=TableNumber&sortOrder=ASC",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tables"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "TableNumber"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "ASC"
+                }
+              ]
+            },
+            "description": "Get all tables with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Table Availability",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/tables/availability",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tables", "availability"]
+            },
+            "description": "Get current table availability"
           },
           "response": []
         },
         {
           "name": "Create Table",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"tableNumber\": 1,\n    \"capacity\": 4,\n    \"status\": \"available\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"tableNumber\": 1,\n    \"capacity\": 4,\n    \"status\": \"available\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/tables",
               "host": ["{{base_url}}"],
               "path": ["api", "tables"]
-            }
+            },
+            "description": "Create a new table"
           },
           "response": []
         },
         {
           "name": "Update Table",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"capacity\": 6,\n    \"status\": \"occupied\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"capacity\": 6,\n    \"status\": \"available\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/tables/{{tableId}}",
+              "raw": "{{base_url}}/api/tables/1",
               "host": ["{{base_url}}"],
-              "path": ["api", "tables", "{{tableId}}"]
-            }
+              "path": ["api", "tables", "1"]
+            },
+            "description": "Update a table's information"
           },
           "response": []
         }
-      ]
+      ],
+      "description": "Table management endpoints"
     },
     {
       "name": "Dishes",
       "item": [
         {
-          "name": "Get All Dishes",
+          "name": "Get All Dishes (Pagination + Filters)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/dishes",
+              "raw": "{{base_url}}/api/dishes?page=1&limit=10&sortBy=Price&sortOrder=DESC&category=Main&search=chicken",
               "host": ["{{base_url}}"],
-              "path": ["api", "dishes"]
-            }
+              "path": ["api", "dishes"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "Price"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "DESC"
+                },
+                {
+                  "key": "category",
+                  "value": "Main"
+                },
+                {
+                  "key": "search",
+                  "value": "chicken"
+                }
+              ]
+            },
+            "description": "Get all dishes with pagination, category and search filters"
           },
           "response": []
         },
         {
-          "name": "Get Dish by ID",
+          "name": "Get Popular Dishes",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/dishes/{{dishId}}",
+              "raw": "{{base_url}}/api/dishes/popular",
               "host": ["{{base_url}}"],
-              "path": ["api", "dishes", "{{dishId}}"]
-            }
+              "path": ["api", "dishes", "popular"]
+            },
+            "description": "Get the most popular dishes"
           },
           "response": []
         },
         {
           "name": "Create Dish",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Phở Bò\",\n    \"description\": \"Phở bò truyền thống\",\n    \"price\": 50000,\n    \"category\": \"Main\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"name\": \"Grilled Chicken Salad\",\n    \"description\": \"Freshly grilled chicken on a bed of mixed greens\",\n    \"price\": 12.99,\n    \"category\": \"Main\",\n    \"imageUrl\": \"https://example.com/images/chicken-salad.jpg\",\n    \"isAvailable\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/dishes",
               "host": ["{{base_url}}"],
               "path": ["api", "dishes"]
-            }
+            },
+            "description": "Create a new dish"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Dish Availability",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"isAvailable\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/dishes/1/availability",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dishes", "1", "availability"]
+            },
+            "description": "Update availability of a dish"
           },
           "response": []
         }
-      ]
+      ],
+      "description": "Dish management endpoints"
     },
     {
       "name": "Orders",
       "item": [
         {
-          "name": "Get All Orders",
+          "name": "Get All Orders (Pagination + Filters)",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/orders",
+              "raw": "{{base_url}}/api/orders?page=1&limit=10&sortBy=CreatedAt&sortOrder=DESC&status=pending&startDate=2023-01-01&endDate=2023-12-31",
               "host": ["{{base_url}}"],
-              "path": ["api", "orders"]
-            }
+              "path": ["api", "orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "CreatedAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "DESC"
+                },
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2023-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2023-12-31"
+                }
+              ]
+            },
+            "description": "Get all orders with pagination and filters"
           },
           "response": []
         },
         {
           "name": "Create Order",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"totalPrice\": 150000,\n    \"items\": [\n        {\n            \"dishId\": 1,\n            \"quantity\": 2\n        }\n    ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"tableId\": 1,\n    \"customerName\": \"John Doe\",\n    \"phoneNumber\": \"1234567890\",\n    \"note\": \"No onions please\",\n    \"items\": [\n        {\n            \"dishId\": 1,\n            \"quantity\": 2,\n            \"specialRequests\": \"Extra sauce\"\n        },\n        {\n            \"dishId\": 3,\n            \"quantity\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/orders",
               "host": ["{{base_url}}"],
               "path": ["api", "orders"]
-            }
+            },
+            "description": "Create a new order with items"
           },
           "response": []
         },
         {
           "name": "Update Order Status",
           "request": {
-            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"confirmed\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"status\": \"completed\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/orders/{{orderId}}/status",
+              "raw": "{{base_url}}/api/orders/1/status",
               "host": ["{{base_url}}"],
-              "path": ["api", "orders", "{{orderId}}", "status"]
-            }
+              "path": ["api", "orders", "1", "status"]
+            },
+            "description": "Update the status of an order"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/statistics?startDate=2023-01-01&endDate=2023-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "statistics"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2023-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2023-12-31"
+                }
+              ]
+            },
+            "description": "Get order statistics for a date range"
           },
           "response": []
         }
-      ]
+      ],
+      "description": "Order management endpoints"
     },
     {
       "name": "Reservations",
       "item": [
         {
-          "name": "Get All Reservations",
+          "name": "Get All Reservations (Pagination + Filters)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reservations?page=1&limit=10&sortBy=ReservationTime&sortOrder=ASC&status=confirmed&date=2023-03-15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "ReservationTime"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "ASC"
+                },
+                {
+                  "key": "status",
+                  "value": "confirmed"
+                },
+                {
+                  "key": "date",
+                  "value": "2023-03-15"
+                }
+              ]
+            },
+            "description": "Get all reservations with pagination and filters"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Table Availability",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/reservations",
+              "raw": "{{base_url}}/api/reservations/availability?date=2023-03-15&time=19:00&partySize=4",
               "host": ["{{base_url}}"],
-              "path": ["api", "reservations"]
-            }
+              "path": ["api", "reservations", "availability"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2023-03-15"
+                },
+                {
+                  "key": "time",
+                  "value": "19:00"
+                },
+                {
+                  "key": "partySize",
+                  "value": "4"
+                }
+              ]
+            },
+            "description": "Check table availability for a reservation"
           },
           "response": []
         },
         {
           "name": "Create Reservation",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"tableNumber\": 1,\n    \"reservationTime\": \"2024-01-20T19:00:00\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"tableId\": 1,\n    \"customerName\": \"Jane Smith\",\n    \"phoneNumber\": \"9876543210\",\n    \"reservationTime\": \"2023-03-15T19:00:00\",\n    \"partySize\": 4,\n    \"specialRequests\": \"Window seat preferred\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/reservations",
               "host": ["{{base_url}}"],
               "path": ["api", "reservations"]
-            }
+            },
+            "description": "Create a new reservation"
           },
           "response": []
         },
         {
           "name": "Update Reservation Status",
           "request": {
-            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"confirmed\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"status\": \"checked-in\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/reservations/{{reservationId}}/status",
+              "raw": "{{base_url}}/api/reservations/1/status",
               "host": ["{{base_url}}"],
-              "path": ["api", "reservations", "{{reservationId}}", "status"]
-            }
+              "path": ["api", "reservations", "1", "status"]
+            },
+            "description": "Update the status of a reservation"
           },
           "response": []
         }
-      ]
+      ],
+      "description": "Reservation management endpoints"
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "stats"]
+            },
+            "description": "Get restaurant dashboard statistics"
+          },
+          "response": []
+        }
+      ],
+      "description": "Dashboard analytics endpoints"
+    },
+    {
+      "name": "AI Features",
+      "item": [
+        {
+          "name": "Generate Menu Recommendations",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"preferences\": [\"vegetarian\", \"spicy\"],\n    \"allergies\": [\"peanuts\", \"shellfish\"],\n    \"maxPrice\": 25\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ai/recommendations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ai", "recommendations"]
+            },
+            "description": "Get personalized menu recommendations"
+          },
+          "response": []
+        }
+      ],
+      "description": "AI-powered features"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
     }
   ],
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:3000"
-    },
-    {
-      "key": "token",
-      "value": "your-jwt-token"
+      "value": "http://localhost:3000",
+      "type": "string"
     }
   ]
 }

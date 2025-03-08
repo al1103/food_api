@@ -2,10 +2,19 @@ const TableModel = require("../models/table_model");
 
 exports.getAllTables = async (req, res) => {
   try {
-    const tables = await TableModel.getAllTables();
+    const { page, limit, sortBy, sortOrder } = req.query;
+
+    const result = await TableModel.getAllTables(
+      page,
+      limit,
+      sortBy,
+      sortOrder
+    );
+
     res.json({
       status: "success",
-      data: tables,
+      data: result.tables,
+      pagination: result.pagination,
     });
   } catch (error) {
     res.status(500).json({
@@ -15,7 +24,6 @@ exports.getAllTables = async (req, res) => {
     });
   }
 };
-
 exports.getTableById = async (req, res) => {
   try {
     const table = await TableModel.getTableById(req.params.id);

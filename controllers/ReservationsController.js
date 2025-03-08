@@ -1,11 +1,24 @@
 const ReservationModel = require("../models/reservation_model");
+const { getPaginationParams } = require("../utils/pagination");
 
 exports.getAllReservations = async (req, res) => {
   try {
-    const reservations = await ReservationModel.getAllReservations();
+    const { page, limit, sortBy, sortOrder } = getPaginationParams(req);
+    const { status, date } = req.query;
+
+    const result = await ReservationModel.getAllReservations({
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      status,
+      date,
+    });
+
     res.json({
       status: "success",
-      data: reservations,
+      data: result.reservations,
+      pagination: result.pagination,
     });
   } catch (error) {
     res.status(500).json({
@@ -16,22 +29,48 @@ exports.getAllReservations = async (req, res) => {
   }
 };
 
+// Enhanced reservation creation
 exports.createReservation = async (req, res) => {
   try {
-    const { tableNumber, reservationTime } = req.body;
-    const userId = req.user.id; // Từ middleware auth
+    const {
+      tableId,
+      customerName,
+      phoneNumber,
+      reservationTime,
+      partySize,
+      specialRequests,
+    } = req.body;
 
-    if (!tableNumber || !reservationTime) {
+    const userId = req.user?.id; // Optional from auth middleware
+
+    if (!tableId || !reservationTime || !customerName || !phoneNumber) {
       return res.status(400).json({
         status: "error",
-        message: "Thiếu thông tin đặt bàn",
+        message: "Thiếu thông tin đặt bàn cần thiết",
+      });
+    }
+
+    // Check table availability
+    const isTableAvailable = await ReservationModel.checkTableAvailability(
+      tableId,
+      reservationTime
+    );
+
+    if (!isTableAvailable) {
+      return res.status(400).json({
+        status: "error",
+        message: "Bàn đã được đặt trong khung giờ này",
       });
     }
 
     const newReservation = await ReservationModel.createReservation({
       userId,
-      tableNumber,
+      tableId,
+      customerName,
+      phoneNumber,
       reservationTime,
+      partySize,
+      specialRequests,
     });
 
     res.status(201).json({
@@ -88,6 +127,40 @@ exports.deleteReservation = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Lỗi khi xóa đặt bàn",
+      error: error.message,
+    });
+  }
+};
+
+// Add availability check endpoint
+exports.checkAvailability = async (req, res) => {
+  try {
+    const { date, time, partySize } = req.query;
+
+    if (!date || !time || !partySize) {
+      return res.status(400).json({
+        status: "error",
+        message: "Vui lòng cung cấp ngày, giờ và số người",
+      });
+    }
+
+    const availableTables = await ReservationModel.findAvailableTables(
+      date,
+      time,
+      partySize
+    );
+
+    res.json({
+      status: "success",
+      data: {
+        available: availableTables.length > 0,
+        availableTables,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Không thể kiểm tra tình trạng sẵn có",
       error: error.message,
     });
   }
