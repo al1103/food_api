@@ -1,7 +1,7 @@
 const sql = require("mssql");
 
 const config = {
-  server: process.env.DB_SERVER || "db", // Đổi 'localhost' thành 'db'
+  server: process.env.DB_SERVER || "ZILONG\\SQLEXPRESS", // Đổi 'localhost' thành 'db'
   database: process.env.DB_NAME || "food",
   user: process.env.DB_USER || "sa",
   password: process.env.DB_PASSWORD || "123123Abc.",
