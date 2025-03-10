@@ -1,14 +1,14 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const rateLimit = require("express-rate-limit");
-const { poolPromise } = require("./config/database");
+const { pool } = require("./config/database");
 const routes = require("./routes");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
-
 const server = http.createServer(app);
 
 const corsOptions = {
@@ -32,23 +32,36 @@ app.use(limiter);
 app.use(bodyParser.json());
 app.use(cookieParser());
 
-poolPromise
-  .then(() => {
-    console.log("Database pool initialized");
-  })
-  .catch((err) => {
-    console.error("Error initializing database pool:", err);
-    process.exit(1);
-  });
-
-routes(app);
-
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Đã xảy ra lỗi!");
+// Simple database connection test before starting server
+pool.query("SELECT NOW()", (err, res) => {
+  if (err) {
+    console.error("❌ Database connection test failed:", err);
+  } else {
+    console.log("✅ Database connection test successful:", res.rows[0].now);
+    // Only start the server if the database connection is successful
+    startServer();
+  }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server đang chạy trên cổng ${PORT}`);
+function startServer() {
+  routes(app);
+
+  app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send("Đã xảy ra lỗi!");
+  });
+
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy trên cổng ${PORT}`);
+  });
+}
+
+// Handle graceful shutdown
+process.on("SIGINT", () => {
+  console.log("Shutting down gracefully...");
+  pool.end().then(() => {
+    console.log("Pool has ended");
+    process.exit(0);
+  });
 });

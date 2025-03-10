@@ -1,29 +1,29 @@
-const { sql, poolPromise } = require("../config/database");
+const { pool } = require("../config/database");
 
 class TableModel {
   static async getAllTables(
     page = 1,
     limit = 10,
-    sortBy = "TableNumber",
+    sortBy = "table_number",
     sortOrder = "ASC"
   ) {
     try {
-      const pool = await poolPromise;
-
       // Validate and sanitize inputs
       page = Math.max(1, parseInt(page));
       limit = Math.max(1, Math.min(100, parseInt(limit)));
 
       // Whitelist allowed sort columns to prevent SQL injection
       const allowedSortColumns = [
-        "TableID",
-        "TableNumber",
-        "Capacity",
-        "Status",
-        "CreatedAt",
-        "UpdatedAt",
+        "table_id",
+        "table_number",
+        "capacity",
+        "status",
+        "created_at",
+        "updated_at",
       ];
-      sortBy = allowedSortColumns.includes(sortBy) ? sortBy : "TableNumber";
+      sortBy = allowedSortColumns.includes(sortBy.toLowerCase())
+        ? sortBy.toLowerCase()
+        : "table_number";
 
       // Validate sort order
       sortOrder = sortOrder.toUpperCase() === "DESC" ? "DESC" : "ASC";
@@ -31,35 +31,32 @@ class TableModel {
       // Calculate offset
       const offset = (page - 1) * limit;
 
-      // Get total count for pagination metadata
-      const countResult = await pool.request().query(`
-        SELECT COUNT(*) AS TotalCount FROM Tables
-      `);
-      const totalCount = countResult.recordset[0].TotalCount;
+      // Get total count
+      const countResult = await pool.query(
+        "SELECT COUNT(*) AS total_count FROM tables"
+      );
+      const totalCount = parseInt(countResult.rows[0].total_count);
 
       // Get paginated data
-      const result = await pool
-        .request()
-        .input("offset", sql.Int, offset)
-        .input("limit", sql.Int, limit).query(`
-          SELECT 
-            TableID,
-            TableNumber,
-            Capacity,
-            Status,
-            CreatedAt,
-            UpdatedAt
-          FROM Tables
-          ORDER BY ${sortBy} ${sortOrder}
-          OFFSET @offset ROWS
-          FETCH NEXT @limit ROWS ONLY
-        `);
+      const result = await pool.query(
+        `SELECT 
+          table_id AS "TableID",
+          table_number AS "TableNumber",
+          capacity AS "Capacity",
+          status AS "Status",
+          created_at AS "CreatedAt",
+          updated_at AS "UpdatedAt"
+        FROM tables
+        ORDER BY ${sortBy} ${sortOrder}
+        LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
 
       // Calculate pagination metadata
       const totalPages = Math.ceil(totalCount / limit);
 
       return {
-        tables: result.recordset,
+        tables: result.rows,
         pagination: {
           totalItems: totalCount,
           totalPages: totalPages,
@@ -77,11 +74,20 @@ class TableModel {
 
   static async getTableById(id) {
     try {
-      const pool = await poolPromise;
-      const result = await pool.request().input("tableId", sql.Int, id).query(`
-          SELECT * FROM Tables WHERE TableID = @tableId
-        `);
-      return result.recordset[0];
+      const result = await pool.query(
+        `SELECT 
+          table_id AS "TableID",
+          table_number AS "TableNumber",
+          capacity AS "Capacity",
+          status AS "Status",
+          created_at AS "CreatedAt",
+          updated_at AS "UpdatedAt"
+        FROM tables 
+        WHERE table_id = $1`,
+        [id]
+      );
+
+      return result.rows[0];
     } catch (error) {
       console.error("Lỗi khi lấy thông tin bàn:", error);
       throw error;
@@ -90,21 +96,20 @@ class TableModel {
 
   static async createTable(tableData) {
     try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("tableNumber", sql.Int, tableData.tableNumber)
-        .input("capacity", sql.Int, tableData.capacity)
-        .input("status", sql.VarChar(20), tableData.status || "available")
-        .query(`
-          INSERT INTO Tables (
-            TableNumber, Capacity, Status, CreatedAt, UpdatedAt
-          ) VALUES (
-            @tableNumber, @capacity, @status, GETDATE(), GETDATE()
-          );
-          SELECT SCOPE_IDENTITY() AS TableID;
-        `);
-      return result.recordset[0];
+      const result = await pool.query(
+        `INSERT INTO tables (
+          table_number, capacity, status, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, NOW(), NOW()
+        ) RETURNING table_id AS "TableID"`,
+        [
+          tableData.tableNumber,
+          tableData.capacity,
+          tableData.status || "available",
+        ]
+      );
+
+      return result.rows[0];
     } catch (error) {
       console.error("Lỗi khi tạo bàn mới:", error);
       throw error;
@@ -113,18 +118,16 @@ class TableModel {
 
   static async updateTable(id, tableData) {
     try {
-      const pool = await poolPromise;
-      await pool
-        .request()
-        .input("tableId", sql.Int, id)
-        .input("capacity", sql.Int, tableData.capacity)
-        .input("status", sql.VarChar(20), tableData.status).query(`
-          UPDATE Tables 
-          SET Capacity = @capacity,
-              Status = @status,
-              UpdatedAt = GETDATE()
-          WHERE TableID = @tableId
-        `);
+      await pool.query(
+        `UPDATE tables SET
+          capacity = $1,
+          status = $2,
+          updated_at = NOW()
+        WHERE table_id = $3`,
+        [tableData.capacity, tableData.status, id]
+      );
+
+      return await this.getTableById(id);
     } catch (error) {
       console.error("Lỗi khi cập nhật bàn:", error);
       throw error;
@@ -133,11 +136,8 @@ class TableModel {
 
   static async deleteTable(id) {
     try {
-      const pool = await poolPromise;
-      await pool
-        .request()
-        .input("tableId", sql.Int, id)
-        .query("DELETE FROM Tables WHERE TableID = @tableId");
+      await pool.query("DELETE FROM tables WHERE table_id = $1", [id]);
+      return { message: "Xóa bàn thành công" };
     } catch (error) {
       console.error("Lỗi khi xóa bàn:", error);
       throw error;

@@ -1,43 +1,32 @@
-const { sql, poolPromise } = require("../config/database");
+const { pool } = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 
 class UserModel {
   static async register(username, email, password, fullName, phoneNumber) {
     try {
-      const pool = await poolPromise;
       const userId = uuidv4();
 
-      const existingUser = await pool
-        .request()
-        .input("username", sql.NVarChar(50), username)
-        .input("email", sql.NVarChar(100), email).query(`
-          SELECT 1 FROM Users 
-          WHERE Username = @username OR Email = @email;
-        `);
+      // Check if user exists
+      const existingUserResult = await pool.query(
+        `SELECT 1 FROM users 
+         WHERE username = $1 OR email = $2`,
+        [username, email]
+      );
 
-      if (existingUser.recordset.length > 0) {
+      if (existingUserResult.rows.length > 0) {
         throw new Error("Email hoặc tên người dùng đã tồn tại");
       }
 
-      // Removed bcrypt, using plain password
-
-      await pool
-        .request()
-        .input("userId", sql.VarChar(36), userId)
-        .input("username", sql.NVarChar(50), username)
-        .input("email", sql.NVarChar(100), email)
-        .input("password", sql.NVarChar(255), password) // Changed from hashedPassword to password
-        .input("fullName", sql.NVarChar(100), fullName)
-        .input("phoneNumber", sql.VarChar(20), phoneNumber).query(`
-          INSERT INTO Users (
-            UserID, Username, Email, Password, 
-            FullName, PhoneNumber, CreatedAt, UpdatedAt
-          ) 
-          VALUES (
-            @userId, @username, @email, @password,
-            @fullName, @phoneNumber, GETDATE(), GETDATE()
-          );
-        `);
+      // Insert new user
+      await pool.query(
+        `INSERT INTO users (
+          userid, username, email, password, 
+          fullname, phone_number, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, NOW(), NOW()
+        )`,
+        [userId, username, email, password, fullName, phoneNumber]
+      );
 
       return { userId, message: "Đăng ký thành công!" };
     } catch (error) {
@@ -48,20 +37,22 @@ class UserModel {
 
   static async login(email, password) {
     try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("email", sql.NVarChar(100), email).query(`
-          SELECT UserID, Email, Password, Username, FullName 
-          FROM Users WHERE Email = @email;
-        `);
+      const result = await pool.query(
+        `SELECT 
+          userid AS "UserID", 
+          email AS "Email", 
+          password AS "Password", 
+          username AS "Username", 
+          fullname AS "FullName"
+        FROM users 
+        WHERE email = $1`,
+        [email]
+      );
 
-      const user = result.recordset[0];
+      const user = result.rows[0];
 
       if (user) {
         const isValidPassword = password == user.Password;
-        // const isValidPassword = await bcrypt.compare(password, user.Password);
-        // console.log(isValidPassword);
 
         if (isValidPassword) {
           const { Password, ...userWithoutPassword } = user;
@@ -78,29 +69,24 @@ class UserModel {
 
   static async sendCode(email, code) {
     try {
-      const pool = await poolPromise;
+      // Delete any existing verification codes
+      await pool.query(`DELETE FROM verification_code WHERE email = $1`, [
+        email,
+      ]);
 
-      await pool.request().input("email", sql.NVarChar(255), email).query(`
-          DELETE FROM VerificationCode WHERE Email = @email;
-      `);
-
+      // Set expiration time
       const expirationTime = new Date();
       expirationTime.setMinutes(expirationTime.getMinutes() + 10);
 
-      await pool
-        .request()
-        .input("email", sql.NVarChar(255), email)
-        .input("code", sql.NVarChar(10), code)
-        .input("type", sql.VarChar(20), "register")
-        .input("expirationTime", sql.DateTime, expirationTime) // Sửa lại dòng này
-        .query(`
-    INSERT INTO VerificationCode (
-      Email, Code, Type, ExpirationTime, IsVerified, CreatedAt
-    ) 
-    VALUES (
-      @email, @code, @type, @expirationTime, 0, GETDATE()
-    );
-  `);
+      // Insert new code
+      await pool.query(
+        `INSERT INTO verification_code (
+          email, code, type, expiration_time, is_verified, created_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, NOW()
+        )`,
+        [email, code, "register", expirationTime, false]
+      );
     } catch (error) {
       console.error("Lỗi trong sendCode:", error);
       throw error;
@@ -109,17 +95,13 @@ class UserModel {
 
   static async verifyCode(email, code) {
     try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("email", sql.NVarChar(255), email)
-        .input("code", sql.NVarChar(10), code).query(`
-    SELECT * FROM VerificationCode 
-    WHERE Email = @email 
-    AND Code = @code 
-  `);
-      console.log(result);
-      return result.recordset.length > 0;
+      const result = await pool.query(
+        `SELECT * FROM verification_code 
+         WHERE email = $1 AND code = $2`,
+        [email, code]
+      );
+
+      return result.rows.length > 0;
     } catch (error) {
       console.error("Lỗi trong verifyCode:", error);
       throw error;
@@ -128,13 +110,11 @@ class UserModel {
 
   static async getUserByEmail(email) {
     try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("email", sql.NVarChar(255), email)
-        .query("SELECT * FROM Users WHERE Email = @email");
+      const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [
+        email,
+      ]);
 
-      return result.recordset[0] || null;
+      return result.rows[0] || null;
     } catch (error) {
       console.error("Lỗi trong getUserByEmail:", error);
       throw error;
@@ -143,46 +123,45 @@ class UserModel {
 
   static async getUserById(userId) {
     try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("userId", sql.VarChar(36), userId).query(`
-          SELECT 
-            UserID, Username, Email, FullName, PhoneNumber
-          FROM Users 
-          WHERE UserID = @userId;
-        `);
+      const result = await pool.query(
+        `SELECT 
+          userid AS "UserID", 
+          username AS "Username", 
+          email AS "Email", 
+          fullname AS "FullName", 
+          phone_number AS "PhoneNumber"
+        FROM users 
+        WHERE userid = $1`,
+        [userId]
+      );
 
-      return result.recordset[0] || null;
+      return result.rows[0] || null;
     } catch (error) {
       console.error("Lỗi trong getUserById:", error);
       throw error;
     }
   }
+
   static async deleteVerificationCode(email, code) {
     try {
-      const pool = await poolPromise;
-      await pool
-        .request()
-        .input("email", sql.NVarChar(255), email)
-        .input("code", sql.NVarChar(10), code)
-        .query(
-          `DELETE FROM VerificationCode WHERE Email = @email AND Code = @code`
-        );
+      await pool.query(
+        `DELETE FROM verification_code 
+         WHERE email = $1 AND code = $2`,
+        [email, code]
+      );
     } catch (error) {
       console.error("Lỗi trong deleteVerificationCode:", error);
       throw error;
     }
   }
+
   static async saveRefreshToken(userId, token) {
     try {
-      const pool = await poolPromise;
-      await pool
-        .request()
-        .input("userId", sql.VarChar(36), userId)
-        .input("token", sql.NVarChar(500), token).query(`
-          INSERT INTO RefreshTokens (UserID, Token) VALUES (@userId, @token);
-        `);
+      await pool.query(
+        `INSERT INTO refresh_tokens (userid, token) 
+         VALUES ($1, $2)`,
+        [userId, token]
+      );
     } catch (error) {
       console.error("Lỗi trong saveRefreshToken:", error);
       throw error;
