@@ -1,37 +1,285 @@
 const { pool } = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
+const { generateReferralCode } = require("../utils/referral");
 
 class UserModel {
-  static async register(username, email, password, fullName, phoneNumber) {
+  // Update the register method to handle referrals
+  static async register(
+    username,
+    email,
+    password,
+    fullName,
+    phoneNumber,
+    referralCode = null
+  ) {
     try {
       const userId = uuidv4();
+      // Generate a unique referral code for the new user
+      const userReferralCode = generateReferralCode();
 
-      // Check if user exists
-      const existingUserResult = await pool.query(
-        `SELECT 1 FROM users 
-         WHERE username = $1 OR email = $2`,
-        [username, email]
-      );
+      // Begin transaction
+      const client = await pool.connect();
 
-      if (existingUserResult.rows.length > 0) {
-        throw new Error("Email hoặc tên người dùng đã tồn tại");
+      try {
+        await client.query("BEGIN");
+
+        // Check if user exists
+        const existingUserResult = await client.query(
+          `SELECT 1 FROM users 
+           WHERE username = $1 OR email = $2`,
+          [username, email]
+        );
+
+        if (existingUserResult.rows.length > 0) {
+          throw new Error("Email hoặc tên người dùng đã tồn tại");
+        }
+
+        let referredByUserId = null;
+
+        // If referral code provided, find the referrer
+        if (referralCode) {
+          const referrerResult = await client.query(
+            `SELECT userid FROM users WHERE referralcode = $1`,
+            [referralCode]
+          );
+
+          if (referrerResult.rows.length > 0) {
+            referredByUserId = referrerResult.rows[0].userid;
+          }
+        }
+
+        // Insert new user
+        await client.query(
+          `INSERT INTO users (
+            userid, username, email, password, 
+            fullname, phonenumber, referralcode,
+            referralcodereferralcode, createdat, updatedat
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+          )`,
+          [
+            userId,
+            username,
+            email,
+            password,
+            fullName,
+            phoneNumber,
+            userReferralCode,
+            referredByUserId,
+          ]
+        );
+
+        // If referred by someone, create a referral record and add commission
+        if (referredByUserId) {
+          const commissionAmount = 50000; // 50,000 VND or whatever currency
+
+          // Create referral record
+          await client.query(
+            `INSERT INTO referrals (
+              referrerid, referredid, commission, status, createdat, updatedat
+            ) VALUES (
+              $1, $2, $3, 'completed', NOW(), NOW()
+            )`,
+            [referredByUserId, userId, commissionAmount]
+          );
+
+          // Add commission to referrer's wallet
+          await client.query(
+            `UPDATE users 
+             SET walletbalance = walletbalance + $1 
+             WHERE userid = $2`,
+            [commissionAmount, referredByUserId]
+          );
+
+          // Record the transaction
+          await client.query(
+            `INSERT INTO wallet_transactions (
+              userid, amount, transactiontype, referenceid, description, createdat
+            ) VALUES (
+              $1, $2, 'credit', $3, 'Hoa hồng giới thiệu người dùng mới', NOW()
+            )`,
+            [referredByUserId, commissionAmount, userId]
+          );
+        }
+
+        await client.query("COMMIT");
+
+        return {
+          userId,
+          referralCode: userReferralCode,
+          message: "Đăng ký thành công!",
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
       }
-
-      // Insert new user
-      await pool.query(
-        `INSERT INTO users (
-          userid, username, email, password, 
-          fullname, phone_number, created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, NOW(), NOW()
-        )`,
-        [userId, username, email, password, fullName, phoneNumber]
-      );
-
-      return { userId, message: "Đăng ký thành công!" };
     } catch (error) {
       console.error("Lỗi trong quá trình đăng ký:", error.message);
       throw new Error("Đăng ký thất bại. Vui lòng thử lại.");
+    }
+  }
+
+  // Add referral-related methods
+  static async getReferralInfo(userId) {
+    try {
+      // Get user's referral code
+      const userResult = await pool.query(
+        `SELECT referralcode, walletbalance FROM users WHERE userid = $1`,
+        [userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        throw new Error("Người dùng không tồn tại");
+      }
+
+      // Get referral statistics
+      const statsResult = await pool.query(
+        `SELECT 
+          COUNT(*) AS total_referrals,
+          SUM(commission) AS total_commission
+         FROM referrals 
+         WHERE referrerid = $1`,
+        [userId]
+      );
+
+      // Get recent referrals
+      const recentReferralsResult = await pool.query(
+        `SELECT 
+          ruserid, 
+          r.commission, 
+          r.status, 
+          r.createdat,
+          u.username,
+          u.fullname
+         FROM referrals r
+         JOIN users u ON r.referredid = u.userid
+         WHERE r.referrerid = $1
+         ORDER BY r.createdat DESC
+         LIMIT 10`,
+        [userId]
+      );
+
+      return {
+        referralCode: userResult.rows[0].referralcode,
+        walletBalance: userResult.rows[0].walletbalance,
+        totalReferrals: statsResult.rows[0].total_referrals,
+        totalCommission: statsResult.rows[0].total_commission,
+        recentReferrals: recentReferralsResult.rows,
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin giới thiệu:", error);
+      throw error;
+    }
+  }
+
+  static async getWalletTransactions(userId, page = 1, limit = 10) {
+    try {
+      page = Math.max(1, parseInt(page));
+      limit = Math.max(1, Math.min(100, parseInt(limit)));
+      const offset = (page - 1) * limit;
+
+      // Get total count
+      const countResult = await pool.query(
+        `SELECT COUNT(*) AS total_count FROM wallet_transactions WHERE userid = $1`,
+        [userId]
+      );
+
+      // Get transactions
+      const transactionsResult = await pool.query(
+        `SELECT 
+          id,
+          amount,
+          transactiontype,
+          referenceid,
+          description,
+          createdat
+         FROM wallet_transactions
+         WHERE userid = $1
+         ORDER BY createdat DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      );
+
+      const totalCount = parseInt(countResult.rows[0].total_count);
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return {
+        transactions: transactionsResult.rows,
+        pagination: {
+          totalItems: totalCount,
+          totalPages,
+          currentPage: page,
+          pageSize: limit,
+        },
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy lịch sử giao dịch:", error);
+      throw error;
+    }
+  }
+
+  static async withdrawFromWallet(userId, amount, bankDetails) {
+    try {
+      // Begin transaction
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        // Check if user has enough balance
+        const userResult = await client.query(
+          `SELECT walletbalance FROM users WHERE userid = $1`,
+          [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+          throw new Error("Người dùng không tồn tại");
+        }
+
+        const currentBalance = parseFloat(userResult.rows[0].walletbalance);
+
+        if (currentBalance < amount) {
+          throw new Error("Số dư không đủ để rút tiền");
+        }
+
+        // Update user's wallet balance
+        await client.query(
+          `UPDATE users SET walletbalance = walletbalance - $1 WHERE userid = $2`,
+          [amount, userId]
+        );
+
+        // Insert withdrawal request
+        const withdrawalResult = await client.query(
+          `INSERT INTO wallet_transactions (
+            userid, amount, transactiontype, description, createdat
+          ) VALUES (
+            $1, $2, 'withdrawal', $3, NOW()
+          ) RETURNING id`,
+          [
+            userId,
+            amount,
+            `Rút tiền đến tài khoản: ${bankDetails.bankName} - ${bankDetails.accountNumber}`,
+          ]
+        );
+
+        await client.query("COMMIT");
+
+        return {
+          transactionId: withdrawalResult.rows[0].userid,
+          amount,
+          message: "Yêu cầu rút tiền đã được gửi",
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Lỗi khi rút tiền:", error);
+      throw error;
     }
   }
 
@@ -81,7 +329,7 @@ class UserModel {
       // Insert new code
       await pool.query(
         `INSERT INTO verification_code (
-          email, code, type, expiration_time, is_verified, created_at
+          email, code, type, expiration_time, is_verified, createdat
         ) VALUES (
           $1, $2, $3, $4, $5, NOW()
         )`,
@@ -129,7 +377,7 @@ class UserModel {
           username AS "Username", 
           email AS "Email", 
           fullname AS "FullName", 
-          phone_number AS "PhoneNumber"
+          phonenumber AS "PhoneNumber"
         FROM users 
         WHERE userid = $1`,
         [userId]

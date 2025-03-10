@@ -18,7 +18,7 @@ exports.getAllFoods = async (req, res) => {
 
 exports.getFoodById = async (req, res) => {
   try {
-    const food = await FoodModel.getFoodById(req.params.id);
+    const food = await FoodModel.getFoodById(req.paramsuserid);
     if (!food) {
       return res.status(404).json({
         status: "error",
@@ -57,7 +57,7 @@ exports.createFood = async (req, res) => {
 
 exports.updateFood = async (req, res) => {
   try {
-    await FoodModel.updateFood(req.params.id, req.body);
+    await FoodModel.updateFood(req.paramsuserid, req.body);
     res.json({
       status: "success",
       message: "Cập nhật món ăn thành công",
@@ -73,7 +73,7 @@ exports.updateFood = async (req, res) => {
 
 exports.deleteFood = async (req, res) => {
   try {
-    await FoodModel.deleteFood(req.params.id);
+    await FoodModel.deleteFood(req.paramsuserid);
     res.json({
       status: "success",
       message: "Xóa món ăn thành công",

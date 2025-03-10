@@ -18,8 +18,8 @@ class TableModel {
         "table_number",
         "capacity",
         "status",
-        "created_at",
-        "updated_at",
+        "createdat",
+        "updatedat",
       ];
       sortBy = allowedSortColumns.includes(sortBy.toLowerCase())
         ? sortBy.toLowerCase()
@@ -44,8 +44,8 @@ class TableModel {
           table_number AS "TableNumber",
           capacity AS "Capacity",
           status AS "Status",
-          created_at AS "CreatedAt",
-          updated_at AS "UpdatedAt"
+          createdat AS "CreatedAt",
+          updatedat AS "UpdatedAt"
         FROM tables
         ORDER BY ${sortBy} ${sortOrder}
         LIMIT $1 OFFSET $2`,
@@ -80,8 +80,8 @@ class TableModel {
           table_number AS "TableNumber",
           capacity AS "Capacity",
           status AS "Status",
-          created_at AS "CreatedAt",
-          updated_at AS "UpdatedAt"
+          createdat AS "CreatedAt",
+          updatedat AS "UpdatedAt"
         FROM tables 
         WHERE table_id = $1`,
         [id]
@@ -98,7 +98,7 @@ class TableModel {
     try {
       const result = await pool.query(
         `INSERT INTO tables (
-          table_number, capacity, status, created_at, updated_at
+          table_number, capacity, status, createdat, updatedat
         ) VALUES (
           $1, $2, $3, NOW(), NOW()
         ) RETURNING table_id AS "TableID"`,
@@ -122,7 +122,7 @@ class TableModel {
         `UPDATE tables SET
           capacity = $1,
           status = $2,
-          updated_at = NOW()
+          updatedat = NOW()
         WHERE table_id = $3`,
         [tableData.capacity, tableData.status, id]
       );

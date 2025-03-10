@@ -37,8 +37,8 @@ class DishModel {
         "name",
         "price",
         "category",
-        "created_at",
-        "updated_at",
+        "createdat",
+        "updatedat",
       ];
       sortBy = allowedColumns.includes(sortBy.toLowerCase())
         ? sortBy.toLowerCase()
@@ -55,8 +55,8 @@ class DishModel {
           image_url AS "ImageURL",
           rating AS "Rating",
           category AS "Category",
-          created_at AS "CreatedAt",
-          updated_at AS "UpdatedAt"
+          createdat AS "CreatedAt",
+          updatedat AS "UpdatedAt"
         FROM dishes
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
@@ -114,8 +114,8 @@ class DishModel {
           image_url AS "ImageURL",
           rating AS "Rating",
           category AS "Category",
-          created_at AS "CreatedAt",
-          updated_at AS "UpdatedAt"
+          createdat AS "CreatedAt",
+          updatedat AS "UpdatedAt"
         FROM dishes 
         WHERE dish_id = $1`,
         [parsedId]
@@ -132,7 +132,7 @@ class DishModel {
     try {
       const result = await pool.query(
         `INSERT INTO dishes 
-          (name, description, price, image_url, category, created_at, updated_at)
+          (name, description, price, image_url, category, createdat, updatedat)
         VALUES 
           ($1, $2, $3, $4, $5, NOW(), NOW())
         RETURNING dish_id`,
@@ -166,7 +166,7 @@ class DishModel {
           price = $3,
           image_url = $4,
           category = $5,
-          updated_at = NOW()
+          updatedat = NOW()
         WHERE dish_id = $6`,
         [
           dishData.name,

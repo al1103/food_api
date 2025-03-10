@@ -32,7 +32,7 @@ exports.getAllOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
   try {
-    const order = await OrderModel.getOrderById(req.params.id);
+    const order = await OrderModel.getOrderById(req.paramsuserid);
     if (!order) {
       return res.status(404).json({
         status: "error",
@@ -56,7 +56,7 @@ exports.getOrderById = async (req, res) => {
 exports.createOrder = async (req, res) => {
   try {
     const { tableId, items, customerName, phoneNumber, note } = req.body;
-    const userId = req.user?.id; // Optional from auth middleware
+    const userId = req.user?.userid; // Optional from auth middleware
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
