@@ -41,7 +41,7 @@ exports.createReservation = async (req, res) => {
       specialRequests,
     } = req.body;
 
-    const userId = req.user?.id; // Optional from auth middleware
+    const userId = req.user?.userid; // Optional from auth middleware
 
     if (!tableId || !reservationTime || !customerName || !phoneNumber) {
       return res.status(400).json({

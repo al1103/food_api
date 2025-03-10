@@ -26,7 +26,7 @@ exports.getAllTables = async (req, res) => {
 };
 exports.getTableById = async (req, res) => {
   try {
-    const table = await TableModel.getTableById(req.params.id);
+    const table = await TableModel.getTableById(req.paramsuserid);
     if (!table) {
       return res.status(404).json({
         status: "error",
@@ -99,7 +99,7 @@ exports.updateTable = async (req, res) => {
 
 exports.deleteTable = async (req, res) => {
   try {
-    await TableModel.deleteTable(req.params.id);
+    await TableModel.deleteTable(req.paramsuserid);
     res.json({
       status: "success",
       message: "Xóa bàn thành công",

@@ -19,7 +19,7 @@ exports.getAllReservations = async (req, res) => {
 exports.createReservation = async (req, res) => {
   try {
     const { tableNumber, reservationTime } = req.body;
-    const userId = req.user.id; // Từ middleware auth
+    const userId = req.useruserid; // Từ middleware auth
 
     if (!tableNumber || !reservationTime) {
       return res.status(400).json({

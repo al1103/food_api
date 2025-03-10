@@ -31,7 +31,7 @@ exports.getAllDishes = async (req, res) => {
 
 exports.getDishById = async (req, res) => {
   try {
-    const dish = await DishModel.getDishById(req.params.id);
+    const dish = await DishModel.getDishById(req.paramsuserid);
     if (!dish) {
       return res.status(404).json({
         status: "error",
@@ -70,7 +70,7 @@ exports.createDish = async (req, res) => {
 
 exports.updateDish = async (req, res) => {
   try {
-    const updatedDish = await DishModel.updateDish(req.params.id, req.body);
+    const updatedDish = await DishModel.updateDish(req.paramsuserid, req.body);
     res.json({
       status: "success",
       message: "Cập nhật món ăn thành công",
@@ -87,7 +87,7 @@ exports.updateDish = async (req, res) => {
 
 exports.deleteDish = async (req, res) => {
   try {
-    const result = await DishModel.deleteDish(req.params.id);
+    const result = await DishModel.deleteDish(req.paramsuserid);
     res.json({
       status: "success",
       message: result.message,
