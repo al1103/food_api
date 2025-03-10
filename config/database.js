@@ -1,26 +1,43 @@
-const sql = require("mssql");
+const { Pool } = require("pg");
+require("dotenv").config();
 
 const config = {
-  server: process.env.DB_SERVER || "ZILONG\\SQLEXPRESS", // Đổi 'localhost' thành 'db'
+  user: process.env.DB_USER || "postgres",
+  host: process.env.DB_HOST || "localhost",
   database: process.env.DB_NAME || "food",
-  user: process.env.DB_USER || "sa",
   password: process.env.DB_PASSWORD || "123123Abc.",
-  options: {
-    encrypt: false, // Nếu gặp lỗi chứng chỉ SSL, đặt false
-    trustServerCertificate: true,
-    enableArithAbort: true,
-  },
+  port: process.env.DB_PORT || 5432,
+  // Add connection timeout and other settings
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000,
 };
 
-const poolPromise = new sql.ConnectionPool(config)
+// Create a connection pool
+const pool = new Pool(config);
+
+// Test the connection immediately
+pool
   .connect()
-  .then((pool) => {
-    console.log("Connected to MSSQL");
-    return pool;
+  .then((client) => {
+    console.log("🚀 Connected to PostgreSQL database");
+    client.release(); // Release the client back to the pool
   })
-  .catch((err) => console.log("Database Connection Failed! Bad Config: ", err));
+  .catch((err) => {
+    console.error("❌ Database Connection Failed:", err);
+  });
+
+// Export a function that returns a promise of a client from the pool
+const poolPromise = {
+  query: (text, params) => pool.query(text, params),
+  connect: () => pool.connect(),
+};
+
+// Handle pool errors
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle client", err);
+});
 
 module.exports = {
-  sql,
+  pool,
   poolPromise,
 };
