@@ -7,6 +7,7 @@ const config = {
   database: process.env.DB_NAME || "food",
   password: process.env.DB_PASSWORD || "123123Abc.",
   port: process.env.DB_PORT || 5432,
+  ssl: { rejectUnauthorized: false },
   // Add connection timeout and other settings
   connectionTimeoutMillis: 5000,
   idleTimeoutMillis: 30000,
