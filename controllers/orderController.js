@@ -68,7 +68,7 @@ exports.createOrder = async (req, res) => {
     const newOrder = await OrderModel.createOrder({
       userId,
       tableId,
-      items, // Array of {dishId, quantity, specialRequests}
+      items, // Array of {dish_id, quantity, specialRequests}
       customerName,
       phoneNumber,
       note,

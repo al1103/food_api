@@ -42,7 +42,7 @@ function createPagination(options = {}) {
 function getPaginationParams(req) {
   let page = parseInt(req.query.page) || 1;
   let limit = parseInt(req.query.limit) || 10;
-  const sortBy = req.query.sortBy || "CreatedAt";
+  const sortBy = req.query.sortBy || "created_at";
   const sortOrder = (req.query.sortOrder || "DESC").toUpperCase();
 
   // Sanitize inputs

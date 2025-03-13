@@ -12,8 +12,8 @@ class FoodModel {
           Price,
           Rating,
           ImageUrl,
-          CreatedAt,
-          UpdatedAt
+          created_at,
+          updated_at
         FROM Foods
         ORDER BY Name ASC
       `);
@@ -48,7 +48,7 @@ class FoodModel {
         .input("rating", sql.Decimal(3, 2), foodData.rating || 0)
         .input("imageUrl", sql.NVarChar(255), foodData.imageUrl).query(`
           INSERT INTO Foods (
-            Name, Description, Price, Rating, ImageUrl, CreatedAt, UpdatedAt
+            Name, Description, Price, Rating, ImageUrl, created_at, updated_at
           ) VALUES (
             @name, @description, @price, @rating, @imageUrl, GETDATE(), GETDATE()
           );
@@ -78,7 +78,7 @@ class FoodModel {
             Price = @price,
             Rating = @rating,
             ImageUrl = @imageUrl,
-            UpdatedAt = GETDATE()
+            updated_at = GETDATE()
           WHERE FoodID = @foodId
         `);
     } catch (error) {
