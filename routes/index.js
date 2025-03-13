@@ -1,3 +1,4 @@
+const express = require("express");
 const usersRouter = require("./userRoutes");
 const aiRoutes = require("./aiRoutes");
 const tableRoutes = require("./tableRoutes");
@@ -6,10 +7,14 @@ const orderRoutes = require("./order");
 const orderDetailRoutes = require("./orderdetail");
 const reservationRoutes = require("./Reservations");
 const dashboardRoutes = require("./dashboard");
+const adminRoutes = require("./adminRoutes"); // Add admin routes
 
 function routes(app) {
   // User management
   app.use("/api/users", usersRouter);
+
+  // Admin routes
+  app.use("/api/admin", adminRoutes);
 
   // AI features
   app.use("/api/ai", aiRoutes);

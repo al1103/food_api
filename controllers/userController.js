@@ -110,34 +110,47 @@ exports.verifyRegistration = async (req, res) => {
   }
 };
 
+// Update login method to include role
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await UserModel.login(email, password);
-    console.log("use login", user);
 
     if (!user) {
-      return res
-        .status(401)
-        .json({ error: "Thông tin đăng nhập không chính xác" });
+      return res.status(401).json({
+        status: "error",
+        message: "Thông tin đăng nhập không chính xác",
+      });
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = jwt.sign(user, process.env.REFRESH_SECRET_KEY);
+    const refreshToken = jwt.sign(
+      { userId: user.userId, username: user.username },
+      process.env.REFRESH_SECRET_KEY
+    );
 
-    refreshTokens.push(refreshToken);
+    // Save refresh token
+    await UserModel.saveRefreshToken(user.userId, refreshToken);
 
     return res.status(200).json({
+      status: "success",
       message: "Đăng nhập thành công",
       accessToken,
       refreshToken,
-      user,
+      user: {
+        userId: user.userId,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
-    return res
-      .status(500)
-      .json({ error: "Đã xảy ra lỗi trong quá trình đăng nhập" });
+    return res.status(500).json({
+      status: "error",
+      message: "Đã xảy ra lỗi trong quá trình đăng nhập",
+    });
   }
 };
 
@@ -154,8 +167,18 @@ exports.token = async (req, res) => {
   });
 };
 
+// Update the function to include role in token
 function generateAccessToken(user) {
-  return jwt.sign(user, process.env.JWT_SECRET_KEY, { expiresIn: "2h" });
+  return jwt.sign(
+    {
+      userId: user.userId,
+      username: user.username,
+      email: user.email,
+      role: user.role || "customer",
+    },
+    process.env.JWT_SECRET_KEY,
+    { expiresIn: "2h" }
+  );
 }
 
 exports.getReferralInfo = async (req, res) => {
