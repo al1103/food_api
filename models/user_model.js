@@ -3,14 +3,15 @@ const { v4: uuidv4 } = require("uuid");
 const { generateReferralCode } = require("../utils/referral");
 
 class UserModel {
-  // Update the register method to handle referrals
+  // Modify the register method to include role
   static async register(
     username,
     email,
     password,
     fullName,
     phoneNumber,
-    referralCode = null
+    referralCode = null,
+    role = "customer" // Default role is customer
   ) {
     try {
       const userId = uuidv4();
@@ -48,14 +49,14 @@ class UserModel {
           }
         }
 
-        // Insert new user
+        // Insert new user with role
         await client.query(
           `INSERT INTO users (
             user_id, username, email, password, 
             full_name, phone_number, referral_code,
-            referred_by, created_at, updated_at
+            referred_by, role, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
           )`,
           [
             userId,
@@ -66,6 +67,7 @@ class UserModel {
             phoneNumber,
             userReferralCode,
             referredByUserId,
+            role,
           ]
         );
 
@@ -283,6 +285,7 @@ class UserModel {
     }
   }
 
+  // Update the login method to return role information
   static async login(email, password) {
     try {
       const result = await pool.query(
@@ -291,7 +294,8 @@ class UserModel {
           email, 
           password, 
           username, 
-          full_name AS "fullName"
+          full_name AS "fullName",
+          role
         FROM users 
         WHERE email = $1`,
         [email]
@@ -381,6 +385,7 @@ class UserModel {
     }
   }
 
+  // Update the getUserById method to return role information
   static async getUserById(userId) {
     try {
       const result = await pool.query(
@@ -391,7 +396,8 @@ class UserModel {
           full_name AS "fullName", 
           phone_number AS "phoneNumber",
           referral_code AS "referralCode",
-          wallet_balance AS "walletBalance"
+          wallet_balance AS "walletBalance",
+          role
         FROM users 
         WHERE user_id = $1`,
         [userId]
@@ -426,6 +432,98 @@ class UserModel {
       );
     } catch (error) {
       console.error("Lỗi trong saveRefreshToken:", error);
+      throw error;
+    }
+  }
+
+  // Add method to get all users (for admin)
+  static async getAllUsers(page = 1, limit = 10) {
+    try {
+      page = Math.max(1, parseInt(page));
+      limit = Math.max(1, Math.min(100, parseInt(limit)));
+      const offset = (page - 1) * limit;
+
+      // Get total count for pagination
+      const countResult = await pool.query(
+        "SELECT COUNT(*) AS total FROM users"
+      );
+      const totalCount = parseInt(countResult.rows[0].total);
+
+      // Get paginated users
+      const result = await pool.query(
+        `SELECT 
+          user_id AS "userId",
+          username,
+          email,
+          full_name AS "fullName",
+          phone_number AS "phoneNumber",
+          role,
+          referral_code AS "referralCode",
+          wallet_balance AS "walletBalance",
+          created_at AS "createdAt"
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+
+      return {
+        users: result.rows,
+        pagination: {
+          totalItems: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: page,
+          pageSize: limit,
+        },
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách người dùng:", error);
+      throw error;
+    }
+  }
+
+  // Add method to update user role (admin only)
+  static async updateUserRole(userId, role) {
+    try {
+      if (!["admin", "customer", "staff"].includes(role)) {
+        throw new Error(
+          "Vai trò không hợp lệ. Phải là admin, customer hoặc staff."
+        );
+      }
+
+      const result = await pool.query(
+        `UPDATE users SET role = $1, updated_at = NOW() 
+         WHERE user_id = $2 
+         RETURNING user_id`,
+        [role, userId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Không tìm thấy người dùng với ID đã cung cấp");
+      }
+
+      return await this.getUserById(userId);
+    } catch (error) {
+      console.error("Lỗi khi cập nhật vai trò người dùng:", error);
+      throw error;
+    }
+  }
+
+  // Add method to delete user (admin only)
+  static async deleteUser(userId) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM users WHERE user_id = $1 RETURNING user_id",
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Không tìm thấy người dùng với ID đã cung cấp");
+      }
+
+      return { message: "Xóa người dùng thành công" };
+    } catch (error) {
+      console.error("Lỗi khi xóa người dùng:", error);
       throw error;
     }
   }

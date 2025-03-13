@@ -288,10 +288,3 @@ FROM order_details od
 JOIN orders o ON od.order_id = o.order_id
 JOIN dishes d ON od.dish_id = d.dish_id;
 
--- Grant appropriate permissions
--- GRANT ALL PRIVILEGES ON DATABASE food_db TO your_user;
--- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO your_user;
--- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO your_user;
-
--- Print success message
-SELECT 'Restaurant API Database Setup Completed Successfully!' AS "Result";
