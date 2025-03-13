@@ -1,24 +1,55 @@
-const { sql, poolPromise } = require("../config/database");
+const { pool } = require("../config/database");
 
 class ReservationModel {
-  static async getAllReservations() {
+  static async getAllReservations(page = 1, limit = 10) {
     try {
-      const pool = await poolPromise;
-      const result = await pool.request().query(`
-        SELECT 
-          r.ReservationID,
-          r.UserID,
-          u.Username,
-          r.TableNumber,
-          r.ReservationTime,
-          r.Status,
-          r.CreatedAt,
-          r.UpdatedAt
-        FROM Reservations r
-        JOIN Users u ON r.UserID = u.UserID
-        ORDER BY r.ReservationTime DESC
-      `);
-      return result.recordset;
+      // Validate and sanitize inputs
+      page = Math.max(1, parseInt(page));
+      limit = Math.max(1, Math.min(100, parseInt(limit)));
+      const offset = (page - 1) * limit;
+
+      // Get total count
+      const countResult = await pool.query(
+        "SELECT COUNT(*) AS total_count FROM reservations"
+      );
+      const totalCount = parseInt(countResult.rows[0].total_count);
+
+      // Get paginated data with user information
+      const result = await pool.query(
+        `SELECT 
+          r.reservation_id AS "reservationId",
+          r.user_id AS "userId",
+          u.username,
+          r.table_id AS "tableId",
+          r.reservation_time AS "reservationTime",
+          r.status,
+          r.party_size AS "partySize",
+          r.customer_name AS "customerName",
+          r.phone_number AS "phoneNumber",
+          r.special_requests AS "specialRequests",
+          r.created_at AS "createdAt",
+          r.updated_at AS "updatedAt"
+        FROM reservations r
+        JOIN users u ON r.user_id = u.user_id
+        ORDER BY r.reservation_time DESC
+        LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return {
+        reservations: result.rows,
+        pagination: {
+          totalItems: totalCount,
+          totalPages: totalPages,
+          currentPage: page,
+          pageSize: limit,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      };
     } catch (error) {
       console.error("Lỗi khi lấy danh sách đặt bàn:", error);
       throw error;
@@ -27,42 +58,72 @@ class ReservationModel {
 
   static async createReservation(reservationData) {
     try {
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("userId", sql.VarChar(36), reservationData.userId)
-        .input("tableNumber", sql.Int, reservationData.tableNumber)
-        .input(
-          "reservationTime",
-          sql.DateTime,
-          new Date(reservationData.reservationTime)
-        )
-        .input("status", sql.VarChar(20), "pending").query(`
-          INSERT INTO Reservations (
-            UserID, TableNumber, ReservationTime, Status, CreatedAt, UpdatedAt
-          ) VALUES (
-            @userId, @tableNumber, @reservationTime, @status, GETDATE(), GETDATE()
-          );
-          SELECT SCOPE_IDENTITY() AS ReservationID;
-        `);
-      return result.recordset[0];
+      const result = await pool.query(
+        `INSERT INTO reservations (
+          user_id, table_id, reservation_time, party_size,
+          status, customer_name, phone_number, special_requests, 
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+        ) RETURNING reservation_id AS "reservationId"`,
+        [
+          reservationData.userId,
+          reservationData.tableId,
+          new Date(reservationData.reservationTime),
+          reservationData.partySize,
+          "pending",
+          reservationData.customerName,
+          reservationData.phoneNumber,
+          reservationData.specialRequests || null,
+        ]
+      );
+
+      return result.rows[0];
     } catch (error) {
       console.error("Lỗi khi tạo đặt bàn:", error);
       throw error;
     }
   }
 
+  static async getReservationById(id) {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          r.reservation_id AS "reservationId",
+          r.user_id AS "userId",
+          u.username,
+          r.table_id AS "tableId",
+          r.reservation_time AS "reservationTime",
+          r.status,
+          r.party_size AS "partySize",
+          r.customer_name AS "customerName",
+          r.phone_number AS "phoneNumber",
+          r.special_requests AS "specialRequests",
+          r.created_at AS "createdAt",
+          r.updated_at AS "updatedAt"
+        FROM reservations r
+        JOIN users u ON r.user_id = u.user_id
+        WHERE r.reservation_id = $1`,
+        [id]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin đặt bàn:", error);
+      throw error;
+    }
+  }
+
   static async updateReservationStatus(id, status) {
     try {
-      const pool = await poolPromise;
-      await pool
-        .request()
-        .input("reservationId", sql.Int, id)
-        .input("status", sql.VarChar(20), status).query(`
-          UPDATE Reservations 
-          SET Status = @status, UpdatedAt = GETDATE()
-          WHERE ReservationID = @reservationId
-        `);
+      await pool.query(
+        `UPDATE reservations 
+         SET status = $1, updated_at = NOW()
+         WHERE reservation_id = $2`,
+        [status, id]
+      );
+
+      return await this.getReservationById(id);
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái đặt bàn:", error);
       throw error;

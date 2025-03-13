@@ -33,12 +33,12 @@ class DishModel {
 
       // Validate sortBy and sortOrder to prevent SQL injection
       const allowedColumns = [
-        "dishid",
+        "dish_id",
         "name",
         "price",
         "category",
-        "createdat",
-        "updatedat",
+        "created_at",
+        "updated_at",
       ];
       sortBy = allowedColumns.includes(sortBy.toLowerCase())
         ? sortBy.toLowerCase()
@@ -48,15 +48,15 @@ class DishModel {
       // Data query with pagination
       const dataQuery = `
         SELECT 
-          dishid AS "DishID",
-          name AS "Name",
-          description AS "Description",
-          price AS "Price",
-          image_url AS "ImageURL",
-          rating AS "Rating",
-          category AS "Category",
-          createdat AS "CreatedAt",
-          updatedat AS "UpdatedAt"
+          dish_id AS "dishId",
+          name AS "name",
+          description AS "description",
+          price AS "price",
+          image_url AS "imageUrl",
+          rating AS "rating",
+          category AS "category",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
         FROM dishes
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
@@ -107,17 +107,17 @@ class DishModel {
 
       const result = await pool.query(
         `SELECT 
-          dishid AS "DishID",
-          name AS "Name",
-          description AS "Description",
-          price AS "Price",
-          image_url AS "ImageURL",
-          rating AS "Rating",
-          category AS "Category",
-          createdat AS "CreatedAt",
-          updatedat AS "UpdatedAt"
+          dish_id AS "dishId",
+          name AS "name",
+          description AS "description",
+          price AS "price",
+          image_url AS "imageUrl",
+          rating AS "rating",
+          category AS "category",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
         FROM dishes 
-        WHERE dishid = $1`,
+        WHERE dish_id = $1`,
         [parsedId]
       );
 
@@ -132,10 +132,10 @@ class DishModel {
     try {
       const result = await pool.query(
         `INSERT INTO dishes 
-          (name, description, price, image_url, category, createdat, updatedat)
+          (name, description, price, image_url, category, created_at, updated_at)
         VALUES 
           ($1, $2, $3, $4, $5, NOW(), NOW())
-        RETURNING dishid`,
+        RETURNING dish_id`,
         [
           dishData.name,
           dishData.description,
@@ -145,7 +145,7 @@ class DishModel {
         ]
       );
 
-      const newDishId = result.rows[0].dishid;
+      const newDishId = result.rows[0].dish_id;
       return await this.getDishById(newDishId);
     } catch (error) {
       console.error("Lỗi khi tạo món ăn:", error);
@@ -166,8 +166,8 @@ class DishModel {
           price = $3,
           image_url = $4,
           category = $5,
-          updatedat = NOW()
-        WHERE dishid = $6`,
+          updated_at = NOW()
+        WHERE dish_id = $6`,
         [
           dishData.name,
           dishData.description,
@@ -190,7 +190,7 @@ class DishModel {
       const parsedId = parseInt(id);
       if (isNaN(parsedId)) throw new Error(`Invalid dish id: ${id}`);
 
-      await pool.query("DELETE FROM dishes WHERE dishid = $1", [parsedId]);
+      await pool.query("DELETE FROM dishes WHERE dish_id = $1", [parsedId]);
 
       return { message: "Xóa món ăn thành công" };
     } catch (error) {

@@ -330,7 +330,7 @@ exports.resetPassword = async (req, res) => {
 
     // Update password in database
     await pool.query(
-      `UPDATE users SET password = $1, updatedat = NOW() WHERE email = $2`,
+      `UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2`,
       [newPassword, decoded.email]
     );
 
@@ -454,8 +454,8 @@ exports.updateUserProfile = async (req, res) => {
       });
     }
 
-    // Add updatedat timestamp and remove trailing comma
-    updateString += `updatedat = NOW()`;
+    // Add updated_at timestamp and remove trailing comma
+    updateString += `updated_at = NOW()`;
 
     // Update user in database
     await pool.query(

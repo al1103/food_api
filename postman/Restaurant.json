@@ -358,7 +358,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/orders?page=1&limit=10&sortBy=CreatedAt&sortOrder=DESC&status=pending&startDate=2023-01-01&endDate=2023-12-31",
+              "raw": "{{base_url}}/api/orders?page=1&limit=10&sortBy=created_at&sortOrder=DESC&status=pending&startDate=2023-01-01&endDate=2023-12-31",
               "host": ["{{base_url}}"],
               "path": ["api", "orders"],
               "query": [
@@ -372,7 +372,7 @@
                 },
                 {
                   "key": "sortBy",
-                  "value": "CreatedAt"
+                  "value": "created_at"
                 },
                 {
                   "key": "sortOrder",
@@ -418,7 +418,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"tableId\": 1,\n    \"customerName\": \"John Doe\",\n    \"phoneNumber\": \"1234567890\",\n    \"note\": \"No onions please\",\n    \"items\": [\n        {\n            \"dishId\": 1,\n            \"quantity\": 2,\n            \"specialRequests\": \"Extra sauce\"\n        },\n        {\n            \"dishId\": 3,\n            \"quantity\": 1\n        }\n    ]\n}"
+              "raw": "{\n    \"tableId\": 1,\n    \"customerName\": \"John Doe\",\n    \"phoneNumber\": \"1234567890\",\n    \"note\": \"No onions please\",\n    \"items\": [\n        {\n            \"dish_id\": 1,\n            \"quantity\": 2,\n            \"specialRequests\": \"Extra sauce\"\n        },\n        {\n            \"dish_id\": 3,\n            \"quantity\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/orders",

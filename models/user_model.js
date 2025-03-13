@@ -39,21 +39,21 @@ class UserModel {
         // If referral code provided, find the referrer
         if (referralCode) {
           const referrerResult = await client.query(
-            `SELECT userid FROM users WHERE referralcode = $1`,
+            `SELECT user_id FROM users WHERE referral_code = $1`,
             [referralCode]
           );
 
           if (referrerResult.rows.length > 0) {
-            referredByUserId = referrerResult.rows[0].userid;
+            referredByUserId = referrerResult.rows[0].user_id;
           }
         }
 
         // Insert new user
         await client.query(
           `INSERT INTO users (
-            userid, username, email, password, 
-            fullname, phonenumber, referralcode,
-            referralcodereferralcode, createdat, updatedat
+            user_id, username, email, password, 
+            full_name, phone_number, referral_code,
+            referred_by, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
           )`,
@@ -76,7 +76,7 @@ class UserModel {
           // Create referral record
           await client.query(
             `INSERT INTO referrals (
-              referrerid, referredid, commission, status, createdat, updatedat
+              referrer_id, referred_id, commission, status, created_at, updated_at
             ) VALUES (
               $1, $2, $3, 'completed', NOW(), NOW()
             )`,
@@ -86,15 +86,15 @@ class UserModel {
           // Add commission to referrer's wallet
           await client.query(
             `UPDATE users 
-             SET walletbalance = walletbalance + $1 
-             WHERE userid = $2`,
+             SET wallet_balance = wallet_balance + $1 
+             WHERE user_id = $2`,
             [commissionAmount, referredByUserId]
           );
 
           // Record the transaction
           await client.query(
             `INSERT INTO wallet_transactions (
-              userid, amount, transactiontype, referenceid, description, createdat
+              user_id, amount, transaction_type, reference_id, description, created_at
             ) VALUES (
               $1, $2, 'credit', $3, 'Hoa hồng giới thiệu người dùng mới', NOW()
             )`,
@@ -126,7 +126,7 @@ class UserModel {
     try {
       // Get user's referral code
       const userResult = await pool.query(
-        `SELECT referralcode, walletbalance FROM users WHERE userid = $1`,
+        `SELECT referral_code, wallet_balance FROM users WHERE user_id = $1`,
         [userId]
       );
 
@@ -140,32 +140,32 @@ class UserModel {
           COUNT(*) AS total_referrals,
           SUM(commission) AS total_commission
          FROM referrals 
-         WHERE referrerid = $1`,
+         WHERE referrer_id = $1`,
         [userId]
       );
 
       // Get recent referrals
       const recentReferralsResult = await pool.query(
         `SELECT 
-          ruserid, 
+          r.id, 
           r.commission, 
           r.status, 
-          r.createdat,
+          r.created_at,
           u.username,
-          u.fullname
+          u.full_name
          FROM referrals r
-         JOIN users u ON r.referredid = u.userid
-         WHERE r.referrerid = $1
-         ORDER BY r.createdat DESC
+         JOIN users u ON r.referred_id = u.user_id
+         WHERE r.referrer_id = $1
+         ORDER BY r.created_at DESC
          LIMIT 10`,
         [userId]
       );
 
       return {
-        referralCode: userResult.rows[0].referralcode,
-        walletBalance: userResult.rows[0].walletbalance,
-        totalReferrals: statsResult.rows[0].total_referrals,
-        totalCommission: statsResult.rows[0].total_commission,
+        referralCode: userResult.rows[0].referral_code,
+        walletBalance: userResult.rows[0].wallet_balance,
+        totalReferrals: parseInt(statsResult.rows[0].total_referrals),
+        totalCommission: parseFloat(statsResult.rows[0].total_commission) || 0,
         recentReferrals: recentReferralsResult.rows,
       };
     } catch (error) {
@@ -182,7 +182,7 @@ class UserModel {
 
       // Get total count
       const countResult = await pool.query(
-        `SELECT COUNT(*) AS total_count FROM wallet_transactions WHERE userid = $1`,
+        `SELECT COUNT(*) AS total_count FROM wallet_transactions WHERE user_id = $1`,
         [userId]
       );
 
@@ -191,13 +191,13 @@ class UserModel {
         `SELECT 
           id,
           amount,
-          transactiontype,
-          referenceid,
+          transaction_type AS "transactionType",
+          reference_id AS "referenceId",
           description,
-          createdat
+          created_at AS "createdAt"
          FROM wallet_transactions
-         WHERE userid = $1
-         ORDER BY createdat DESC
+         WHERE user_id = $1
+         ORDER BY created_at DESC
          LIMIT $2 OFFSET $3`,
         [userId, limit, offset]
       );
@@ -230,7 +230,7 @@ class UserModel {
 
         // Check if user has enough balance
         const userResult = await client.query(
-          `SELECT walletbalance FROM users WHERE userid = $1`,
+          `SELECT wallet_balance FROM users WHERE user_id = $1`,
           [userId]
         );
 
@@ -238,7 +238,7 @@ class UserModel {
           throw new Error("Người dùng không tồn tại");
         }
 
-        const currentBalance = parseFloat(userResult.rows[0].walletbalance);
+        const currentBalance = parseFloat(userResult.rows[0].wallet_balance);
 
         if (currentBalance < amount) {
           throw new Error("Số dư không đủ để rút tiền");
@@ -246,14 +246,14 @@ class UserModel {
 
         // Update user's wallet balance
         await client.query(
-          `UPDATE users SET walletbalance = walletbalance - $1 WHERE userid = $2`,
+          `UPDATE users SET wallet_balance = wallet_balance - $1 WHERE user_id = $2`,
           [amount, userId]
         );
 
         // Insert withdrawal request
         const withdrawalResult = await client.query(
           `INSERT INTO wallet_transactions (
-            userid, amount, transactiontype, description, createdat
+            user_id, amount, transaction_type, description, created_at
           ) VALUES (
             $1, $2, 'withdrawal', $3, NOW()
           ) RETURNING id`,
@@ -267,7 +267,7 @@ class UserModel {
         await client.query("COMMIT");
 
         return {
-          transactionId: withdrawalResult.rows[0].userid,
+          transactionId: withdrawalResult.rows[0].id,
           amount,
           message: "Yêu cầu rút tiền đã được gửi",
         };
@@ -287,11 +287,11 @@ class UserModel {
     try {
       const result = await pool.query(
         `SELECT 
-          userid AS "UserID", 
-          email AS "Email", 
-          password AS "Password", 
-          username AS "Username", 
-          fullname AS "FullName"
+          user_id AS "userId", 
+          email, 
+          password, 
+          username, 
+          full_name AS "fullName"
         FROM users 
         WHERE email = $1`,
         [email]
@@ -300,10 +300,10 @@ class UserModel {
       const user = result.rows[0];
 
       if (user) {
-        const isValidPassword = password == user.Password;
+        const isValidPassword = password === user.password;
 
         if (isValidPassword) {
-          const { Password, ...userWithoutPassword } = user;
+          const { password, ...userWithoutPassword } = user;
           return userWithoutPassword;
         }
       }
@@ -318,7 +318,7 @@ class UserModel {
   static async sendCode(email, code) {
     try {
       // Delete any existing verification codes
-      await pool.query(`DELETE FROM verification_code WHERE email = $1`, [
+      await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
         email,
       ]);
 
@@ -328,8 +328,8 @@ class UserModel {
 
       // Insert new code
       await pool.query(
-        `INSERT INTO verification_code (
-          email, code, type, expiration_time, is_verified, createdat
+        `INSERT INTO verification_codes (
+          email, code, type, expiration_time, is_verified, created_at
         ) VALUES (
           $1, $2, $3, $4, $5, NOW()
         )`,
@@ -344,7 +344,7 @@ class UserModel {
   static async verifyCode(email, code) {
     try {
       const result = await pool.query(
-        `SELECT * FROM verification_code 
+        `SELECT * FROM verification_codes 
          WHERE email = $1 AND code = $2`,
         [email, code]
       );
@@ -358,9 +358,21 @@ class UserModel {
 
   static async getUserByEmail(email) {
     try {
-      const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [
-        email,
-      ]);
+      const result = await pool.query(
+        `SELECT 
+          user_id AS "userId", 
+          email, 
+          password,
+          username, 
+          full_name AS "fullName", 
+          phone_number AS "phoneNumber",
+          referral_code AS "referralCode",
+          wallet_balance AS "walletBalance",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM users WHERE email = $1`,
+        [email]
+      );
 
       return result.rows[0] || null;
     } catch (error) {
@@ -373,13 +385,15 @@ class UserModel {
     try {
       const result = await pool.query(
         `SELECT 
-          userid AS "UserID", 
-          username AS "Username", 
-          email AS "Email", 
-          fullname AS "FullName", 
-          phonenumber AS "PhoneNumber"
+          user_id AS "userId", 
+          username, 
+          email, 
+          full_name AS "fullName", 
+          phone_number AS "phoneNumber",
+          referral_code AS "referralCode",
+          wallet_balance AS "walletBalance"
         FROM users 
-        WHERE userid = $1`,
+        WHERE user_id = $1`,
         [userId]
       );
 
@@ -393,7 +407,7 @@ class UserModel {
   static async deleteVerificationCode(email, code) {
     try {
       await pool.query(
-        `DELETE FROM verification_code 
+        `DELETE FROM verification_codes 
          WHERE email = $1 AND code = $2`,
         [email, code]
       );
@@ -406,8 +420,8 @@ class UserModel {
   static async saveRefreshToken(userId, token) {
     try {
       await pool.query(
-        `INSERT INTO refresh_tokens (userid, token) 
-         VALUES ($1, $2)`,
+        `INSERT INTO refresh_tokens (user_id, token, created_at) 
+         VALUES ($1, $2, NOW())`,
         [userId, token]
       );
     } catch (error) {

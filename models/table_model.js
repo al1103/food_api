@@ -18,8 +18,8 @@ class TableModel {
         "table_number",
         "capacity",
         "status",
-        "createdat",
-        "updatedat",
+        "created_at",
+        "updated_at",
       ];
       sortBy = allowedSortColumns.includes(sortBy.toLowerCase())
         ? sortBy.toLowerCase()
@@ -40,12 +40,12 @@ class TableModel {
       // Get paginated data
       const result = await pool.query(
         `SELECT 
-          table_id AS "TableID",
-          table_number AS "TableNumber",
-          capacity AS "Capacity",
-          status AS "Status",
-          createdat AS "CreatedAt",
-          updatedat AS "UpdatedAt"
+          table_id AS "tableId",
+          table_number AS "tableNumber",
+          capacity,
+          status,
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
         FROM tables
         ORDER BY ${sortBy} ${sortOrder}
         LIMIT $1 OFFSET $2`,
@@ -76,12 +76,12 @@ class TableModel {
     try {
       const result = await pool.query(
         `SELECT 
-          table_id AS "TableID",
-          table_number AS "TableNumber",
-          capacity AS "Capacity",
-          status AS "Status",
-          createdat AS "CreatedAt",
-          updatedat AS "UpdatedAt"
+          table_id AS "tableId",
+          table_number AS "tableNumber",
+          capacity,
+          status,
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
         FROM tables 
         WHERE table_id = $1`,
         [id]
@@ -98,10 +98,10 @@ class TableModel {
     try {
       const result = await pool.query(
         `INSERT INTO tables (
-          table_number, capacity, status, createdat, updatedat
+          table_number, capacity, status, created_at, updated_at
         ) VALUES (
           $1, $2, $3, NOW(), NOW()
-        ) RETURNING table_id AS "TableID"`,
+        ) RETURNING table_id AS "tableId"`,
         [
           tableData.tableNumber,
           tableData.capacity,
@@ -109,7 +109,7 @@ class TableModel {
         ]
       );
 
-      return result.rows[0];
+      return await this.getTableById(result.rows[0].tableId);
     } catch (error) {
       console.error("Lỗi khi tạo bàn mới:", error);
       throw error;
@@ -122,7 +122,7 @@ class TableModel {
         `UPDATE tables SET
           capacity = $1,
           status = $2,
-          updatedat = NOW()
+          updated_at = NOW()
         WHERE table_id = $3`,
         [tableData.capacity, tableData.status, id]
       );
