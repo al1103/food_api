@@ -33,7 +33,7 @@ class DishModel {
 
       // Validate sortBy and sortOrder to prevent SQL injection
       const allowedColumns = [
-        "dish_id",
+        "dishid",
         "name",
         "price",
         "category",
@@ -48,7 +48,7 @@ class DishModel {
       // Data query with pagination
       const dataQuery = `
         SELECT 
-          dish_id AS "DishID",
+          dishid AS "DishID",
           name AS "Name",
           description AS "Description",
           price AS "Price",
@@ -107,7 +107,7 @@ class DishModel {
 
       const result = await pool.query(
         `SELECT 
-          dish_id AS "DishID",
+          dishid AS "DishID",
           name AS "Name",
           description AS "Description",
           price AS "Price",
@@ -117,7 +117,7 @@ class DishModel {
           createdat AS "CreatedAt",
           updatedat AS "UpdatedAt"
         FROM dishes 
-        WHERE dish_id = $1`,
+        WHERE dishid = $1`,
         [parsedId]
       );
 
@@ -135,7 +135,7 @@ class DishModel {
           (name, description, price, image_url, category, createdat, updatedat)
         VALUES 
           ($1, $2, $3, $4, $5, NOW(), NOW())
-        RETURNING dish_id`,
+        RETURNING dishid`,
         [
           dishData.name,
           dishData.description,
@@ -145,7 +145,7 @@ class DishModel {
         ]
       );
 
-      const newDishId = result.rows[0].dish_id;
+      const newDishId = result.rows[0].dishid;
       return await this.getDishById(newDishId);
     } catch (error) {
       console.error("Lỗi khi tạo món ăn:", error);
@@ -167,7 +167,7 @@ class DishModel {
           image_url = $4,
           category = $5,
           updatedat = NOW()
-        WHERE dish_id = $6`,
+        WHERE dishid = $6`,
         [
           dishData.name,
           dishData.description,
@@ -190,7 +190,7 @@ class DishModel {
       const parsedId = parseInt(id);
       if (isNaN(parsedId)) throw new Error(`Invalid dish id: ${id}`);
 
-      await pool.query("DELETE FROM dishes WHERE dish_id = $1", [parsedId]);
+      await pool.query("DELETE FROM dishes WHERE dishid = $1", [parsedId]);
 
       return { message: "Xóa món ăn thành công" };
     } catch (error) {
