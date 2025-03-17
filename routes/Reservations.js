@@ -4,7 +4,6 @@ const reservationsController = require("../controllers/ReservationsController");
 const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specific middleware functions
 
 // Protected routes
-router.get("/", adminAuth, reservationsController.getAllReservations); // Admin only
 router.post("/", auth, reservationsController.createReservation); // Any authenticated user
 router.patch(
   "/:id/status",

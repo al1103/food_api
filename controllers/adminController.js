@@ -3,6 +3,178 @@ const UserModel = require("../models/user_model");
 
 const { getPaginationParams } = require("../utils/pagination");
 
+// Food management functions
+exports.createFood = async (req, res) => {
+  try {
+    const { name, description, price, imageUrl, category } = req.body;
+
+    // Validate required fields
+    if (!name || !price || !category) {
+      return res.status(400).json({
+        status: "error",
+        message: "Tên món ăn, giá và danh mục là bắt buộc",
+      });
+    }
+
+    const query = `
+      INSERT INTO foods(name, description, price, image_url, category, created_at, updated_at)
+      VALUES($1, $2, $3, $4, $5, NOW(), NOW())
+      RETURNING 
+        food_id AS "foodId",
+        name,
+        description,
+        price,
+        image_url AS "imageUrl",
+        category,
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+    `;
+
+    const result = await pool.query(query, [
+      name,
+      description,
+      price,
+      imageUrl,
+      category,
+    ]);
+
+    res.status(201).json({
+      status: "success",
+      message: "Tạo món ăn thành công",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error creating food:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Không thể tạo món ăn mới",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateFood = async (req, res) => {
+  try {
+    const foodId = req.params.id;
+    const { name, description, price, imageUrl, category } = req.body;
+
+    // Check if food exists
+    const existingFood = await FoodModel.getFoodById(foodId);
+    if (!existingFood) {
+      return res.status(404).json({
+        status: "error",
+        message: "Không tìm thấy món ăn",
+      });
+    }
+
+    // Build the update parts
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(name);
+    }
+
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+
+    if (price !== undefined) {
+      updates.push(`price = $${paramIndex++}`);
+      values.push(price);
+    }
+
+    if (imageUrl !== undefined) {
+      updates.push(`image_url = $${paramIndex++}`);
+      values.push(imageUrl);
+    }
+
+    if (category !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      values.push(category);
+    }
+
+    // Always update updated_at
+    updates.push(`updated_at = NOW()`);
+
+    if (updates.length === 1) {
+      // Only updated_at was added
+      return res.status(400).json({
+        status: "error",
+        message: "Không có thông tin nào được cập nhật",
+      });
+    }
+
+    values.push(foodId);
+
+    const query = `
+      UPDATE foods
+      SET ${updates.join(", ")}
+      WHERE food_id = $${paramIndex}
+      RETURNING 
+        food_id AS "foodId",
+        name,
+        description,
+        price,
+        image_url AS "imageUrl",
+        category,
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+    `;
+
+    const result = await pool.query(query, values);
+
+    res.json({
+      status: "success",
+      message: "Cập nhật món ăn thành công",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error updating food:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Không thể cập nhật món ăn",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteFood = async (req, res) => {
+  try {
+    const foodId = req.params.id;
+
+    // Check if food exists
+    const existingFood = await FoodModel.getFoodById(foodId);
+    if (!existingFood) {
+      return res.status(404).json({
+        status: "error",
+        message: "Không tìm thấy món ăn",
+      });
+    }
+
+    const query = `
+      DELETE FROM foods
+      WHERE food_id = $1
+    `;
+
+    await pool.query(query, [foodId]);
+
+    res.json({
+      status: "success",
+      message: "Xóa món ăn thành công",
+    });
+  } catch (error) {
+    console.error("Error deleting food:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Không thể xóa món ăn",
+      error: error.message,
+    });
+  }
+};
 exports.getAllUsers = async (req, res) => {
   try {
     const { page, limit } = getPaginationParams(req);
@@ -707,29 +879,6 @@ exports.deleteDish = async (req, res) => {
 };
 
 // Get dish categories
-exports.getDishCategories = async (req, res) => {
-  try {
-    const query = `
-      SELECT DISTINCT category
-      FROM dishes
-      ORDER BY category
-    `;
-
-    const result = await pool.query(query);
-
-    res.json({
-      status: "success",
-      data: result.rows.map((row) => row.category),
-    });
-  } catch (error) {
-    console.error("Error getting dish categories:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Không thể lấy danh sách danh mục món ăn",
-      error: error.message,
-    });
-  }
-};
 
 // Get all tables with optional filtering and sorting
 exports.getAllTables = async (req, res) => {

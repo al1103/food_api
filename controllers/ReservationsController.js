@@ -1,35 +1,6 @@
 const ReservationModel = require("../models/reservation_model");
 const { getPaginationParams } = require("../utils/pagination");
 
-exports.getAllReservations = async (req, res) => {
-  try {
-    const { page, limit, sortBy, sortOrder } = getPaginationParams(req);
-    const { status, date } = req.query;
-
-    const result = await ReservationModel.getAllReservations({
-      page,
-      limit,
-      sortBy,
-      sortOrder,
-      status,
-      date,
-    });
-
-    res.json({
-      status: "success",
-      data: result.reservations,
-      pagination: result.pagination,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Không thể lấy danh sách đặt bàn",
-      error: error.message,
-    });
-  }
-};
-
-// Enhanced reservation creation
 exports.createReservation = async (req, res) => {
   try {
     const {
@@ -108,25 +79,6 @@ exports.updateReservationStatus = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Lỗi khi cập nhật trạng thái đặt bàn",
-      error: error.message,
-    });
-  }
-};
-
-exports.deleteReservation = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    await ReservationModel.deleteReservation(id);
-
-    res.json({
-      status: "success",
-      message: "Xóa đặt bàn thông tin",
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Lỗi khi xóa đặt bàn",
       error: error.message,
     });
   }
