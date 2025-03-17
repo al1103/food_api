@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const dishesController = require("../controllers/dishesController");
-const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specific middleware functions
 
 router.get("/", dishesController.getAllDishes); // Tất cả món ăn với bộ lọc
 router.get("/suggestions", dishesController.getSearchSuggestions); // Gợi ý tìm kiếm

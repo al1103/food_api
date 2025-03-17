@@ -49,7 +49,7 @@ exports.register = async (req, res) => {
       referralCode,
     };
     const token = jwt.sign(tempUserData, process.env.JWT_SECRET_KEY, {
-      expiresIn: "10m",
+      expiresIn: "100m",
     });
 
     return res.status(200).json({
@@ -178,7 +178,7 @@ function generateAccessToken(user) {
       role: user.role || "customer",
     },
     process.env.JWT_SECRET_KEY,
-    { expiresIn: "2h" }
+    { expiresIn: "2000h" }
   );
 }
 

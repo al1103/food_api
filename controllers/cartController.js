@@ -1,10 +1,9 @@
 const CartModel = require("../models/cart_model");
 
-// Get user's cart
 exports.getCart = async (req, res) => {
   try {
-    const userId = req.user.userId; // Assuming authentication middleware sets req.user
-
+    const userId = req.user.userId;
+    console.log("req user", req.user);
     const cart = await CartModel.getCart(userId);
 
     res.json({

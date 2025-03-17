@@ -1,7 +1,6 @@
 const { pool } = require("../config/database");
 
 class CartModel {
-  // Get cart items for a specific user
   static async getCart(userId) {
     try {
       const query = `
