@@ -36,7 +36,7 @@ exports.register = async (req, res) => {
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await sendRandomCodeEmail(email, code);
+    var codes = await sendRandomCodeEmail(email, code);
 
     await UserModel.sendCode(email, code);
 
@@ -54,6 +54,7 @@ exports.register = async (req, res) => {
 
     return res.status(200).json({
       message: "Vui lòng kiểm tra email để lấy mã xác nhận",
+      codes,
       token,
     });
   } catch (error) {
@@ -415,6 +416,7 @@ exports.getReferralShareContent = async (req, res) => {
 exports.getUserProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log(req.user);
 
     const user = await UserModel.getUserById(userId);
 

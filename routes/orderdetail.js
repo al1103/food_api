@@ -1,19 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const reservationsController = require("../controllers/ReservationsController");
-const authMiddleware = require("../middleware/auth");
+const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specific middleware functions
 
-router.use(authMiddleware); // Protect all reservation routes
-
-// Get all reservations (admin only)
-router.get("/", reservationsController.getAllReservations);
-
-// Create new reservation
-router.post("/", reservationsController.createReservation);
-
-// Update reservation status
-router.patch("/:id/status", reservationsController.updateReservationStatus);
-
-router.delete("/:id", reservationsController.deleteReservation);
+// Protected routes
+router.get("/", adminAuth, reservationsController.getAllReservations); // Admin only
+router.post("/", auth, reservationsController.createReservation); // Any authenticated user
+router.patch(
+  "/:id/status",
+  auth,
+  reservationsController.updateReservationStatus
+); // Any authenticated user
+router.delete("/:id", adminAuth, reservationsController.deleteReservation); // Admin only
 
 module.exports = router;

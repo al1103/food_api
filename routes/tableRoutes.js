@@ -1,15 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const tableController = require("../controllers/tableController");
-const authMiddleware = require("../middleware/auth");
+const { auth, adminAuth } = require("../middleware/roleAuth");
 
 // Public routes
 router.get("/", tableController.getAllTables);
 router.get("/:id", tableController.getTableById);
 
-// Protected routes
-router.use(authMiddleware);
-router.post("/", tableController.createTable);
-router.put("/:id", tableController.updateTable);
-router.delete("/:id", tableController.deleteTable);
+// Protected routes - use the auth middleware function
+router.post("/", auth, tableController.createTable);
+router.put("/:id", auth, tableController.updateTable);
+router.delete("/:id", adminAuth, tableController.deleteTable); // Only admins can delete tables
+
 module.exports = router;
