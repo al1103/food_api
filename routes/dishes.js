@@ -3,13 +3,12 @@ const router = express.Router();
 const dishesController = require("../controllers/dishesController");
 const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specific middleware functions
 
-// Public routes for viewing and searching dishes
-router.get("/", dishesController.getAllDishes);
-router.get("/:id", dishesController.getDishById);
+router.get("/", dishesController.getAllDishes); // Tất cả món ăn với bộ lọc
+router.get("/suggestions", dishesController.getSearchSuggestions); // Gợi ý tìm kiếm
+router.get("/categories", dishesController.getDishCategories); // Danh mục món ăn
+router.get("/popular", dishesController.getPopularDishes); // Món ăn phổ biến
+router.get("/:id", dishesController.getDishById); // Chi tiết món ăn
 
-// Protected routes for creating, updating, and deleting dishes
-router.post("/", adminAuth, dishesController.createDish); // Admin only
-router.put("/:id", adminAuth, dishesController.updateDish); // Admin only
-router.delete("/:id", adminAuth, dishesController.deleteDish); // Admin only
+router.patch("/:id/availability", dishesController.updateDishAvailability); // Cập nhật tình trạng món ăn
 
 module.exports = router;

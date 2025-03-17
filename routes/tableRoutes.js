@@ -10,6 +10,5 @@ router.get("/:id", tableController.getTableById);
 // Protected routes - use the auth middleware function
 router.post("/", auth, tableController.createTable);
 router.put("/:id", auth, tableController.updateTable);
-router.delete("/:id", adminAuth, tableController.deleteTable); // Only admins can delete tables
 
 module.exports = router;

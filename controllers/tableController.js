@@ -96,19 +96,3 @@ exports.updateTable = async (req, res) => {
     });
   }
 };
-
-exports.deleteTable = async (req, res) => {
-  try {
-    await TableModel.deleteTable(req.paramsuserid);
-    res.json({
-      status: "success",
-      message: "Xóa bàn thành công",
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Lỗi khi xóa bàn",
-      error: error.message,
-    });
-  }
-};

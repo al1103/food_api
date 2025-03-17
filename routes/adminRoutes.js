@@ -17,7 +17,6 @@ router.get("/dashboard/stats", adminController.getDashboardStats);
 
 // Dish management routes
 router.get("/dishes", adminController.getAllDishes);
-router.get("/dishes/categories", adminController.getDishCategories);
 router.get("/dishes/:id", adminController.getDishById);
 router.post("/dishes", adminController.createDish);
 router.put("/dishes/:id", adminController.updateDish);
@@ -31,4 +30,7 @@ router.post("/tables", adminController.createTable);
 router.put("/tables/:id", adminController.updateTable);
 router.delete("/tables/:id", adminController.deleteTable);
 
+router.post("/", adminController.createFood);
+router.put("/:id", adminController.updateFood);
+router.delete("/:id", adminController.deleteFood);
 module.exports = router;
