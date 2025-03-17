@@ -62,7 +62,7 @@ async function sendRandomCodeEmail(email, code) {
 
     // Gửi email
     const info = await transporter.sendMail({
-      from: '"Maddison Foo Koch 👻" <maddison53@ethereal.email>', // địa chỉ người gửi
+      from: "Zilong", // địa chỉ người gửi
       to: email, // địa chỉ người nhận
       subject: "Mã xác nhận của bạn", // Tiêu đề
       text: `Mã xác nhận của bạn là: ${code}`, // nội dung văn bản thuần túy

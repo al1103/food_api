@@ -1,16 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const foodController = require("../controllers/foodController");
-const authMiddleware = require("../middleware/auth");
+const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specific middleware functions
 
 // Public routes
 router.get("/", foodController.getAllFoods);
 router.get("/:id", foodController.getFoodById);
 
 // Protected routes
-router.use(authMiddleware);
-router.post("/", foodController.createFood);
-router.put("/:id", foodController.updateFood);
-router.delete("/:id", foodController.deleteFood);
+router.post("/", adminAuth, foodController.createFood); // Admin only
+router.put("/:id", adminAuth, foodController.updateFood); // Admin only
+router.delete("/:id", adminAuth, foodController.deleteFood); // Admin only
 
 module.exports = router;

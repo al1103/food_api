@@ -1,20 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const orderController = require("../controllers/orderController");
-const authMiddleware = require("../middleware/auth");
+const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specific middleware functions
 
-router.use(authMiddleware);
-
-// Get all orders (admin only)
-router.get("/", orderController.getAllOrders);
-
-// Get order by ID
-router.get("/:id", orderController.getOrderById);
-
-// Create new order
-router.post("/", orderController.createOrder);
-
-// Update order status
-router.patch("/:id/status", orderController.updateOrderStatus);
+// Protected routes
+router.get("/", adminAuth, orderController.getAllOrders); // Admin only
+router.get("/:id", auth, orderController.getOrderById); // Any authenticated user
+router.post("/", auth, orderController.createOrder); // Any authenticated user
+router.patch("/:id/status", auth, orderController.updateOrderStatus); // Any authenticated user
 
 module.exports = router;

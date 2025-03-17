@@ -56,25 +56,24 @@ const auth = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is an admin
+// FIXED: Middleware to check if user is an admin
 const adminAuth = async (req, res, next) => {
-  try {
-    // First authenticate the user
-    auth(req, res, () => {
-      // Check if the user has admin role
-      if (req.user && req.user.role === "admin") {
-        next();
-      } else {
-        return res.status(403).json({
-          status: "error",
-          message: "Không có quyền truy cập. Yêu cầu quyền quản trị viên.",
-        });
-      }
-    });
-  } catch (error) {
-    console.error("Admin auth middleware error:", error);
-    res.status(500).json({ status: "error", message: "Lỗi xác thực" });
-  }
+  // First authenticate the user
+  auth(req, res, (err) => {
+    if (err) {
+      return next(err);
+    }
+
+    // Check if the user has admin role
+    if (req.user && req.user.role === "admin") {
+      next();
+    } else {
+      return res.status(403).json({
+        status: "error",
+        message: "Không có quyền truy cập. Yêu cầu quyền quản trị viên.",
+      });
+    }
+  });
 };
 
 module.exports = { auth, adminAuth };
