@@ -22,7 +22,6 @@ const auth = async (req, res, next) => {
       // Verify the token
       const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-      // Check if user exists in database
       const result = await pool.query(
         `SELECT 
           user_id AS "userId",  
@@ -46,6 +45,16 @@ const auth = async (req, res, next) => {
       next();
     } catch (error) {
       console.error("JWT verification error:", error);
+
+      // Handle token expiration specifically
+      if (error.name === "TokenExpiredError") {
+        return res.status(401).json({
+          status: "error",
+          message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+          expired: true,
+        });
+      }
+
       return res
         .status(401)
         .json({ status: "error", message: "Token không hợp lệ" });
@@ -56,7 +65,7 @@ const auth = async (req, res, next) => {
   }
 };
 
-// FIXED: Middleware to check if user is an admin
+// Middleware to check if user is an admin
 const adminAuth = async (req, res, next) => {
   // First authenticate the user
   auth(req, res, (err) => {
@@ -76,4 +85,24 @@ const adminAuth = async (req, res, next) => {
   });
 };
 
-module.exports = { auth, adminAuth };
+// Middleware to check if user is staff or admin
+const staffAuth = async (req, res, next) => {
+  auth(req, res, (err) => {
+    if (err) {
+      return next(err);
+    }
+
+    // Check if the user has staff or admin role
+    if (req.user && (req.user.role === "staff" || req.user.role === "admin")) {
+      next();
+    } else {
+      return res.status(403).json({
+        status: "error",
+        message:
+          "Không có quyền truy cập. Yêu cầu quyền nhân viên hoặc quản trị viên.",
+      });
+    }
+  });
+};
+
+module.exports = { auth, adminAuth, staffAuth };

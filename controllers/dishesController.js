@@ -54,6 +54,7 @@ exports.getDishById = async (req, res) => {
 exports.createDish = async (req, res) => {
   try {
     const newDish = await DishModel.createDish(req.body);
+
     res.status(201).json({
       status: "success",
       message: "Tạo món ăn mới thành công",
