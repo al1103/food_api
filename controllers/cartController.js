@@ -3,7 +3,7 @@ const CartModel = require("../models/cart_model");
 // Get user's cart
 exports.getCart = async (req, res) => {
   try {
-    const userId = req.user.id; // Assuming authentication middleware sets req.user
+    const userId = req.user.userId; // Assuming authentication middleware sets req.user
 
     const cart = await CartModel.getCart(userId);
 
@@ -24,7 +24,7 @@ exports.getCart = async (req, res) => {
 // Add item to cart
 exports.addToCart = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { dishId, quantity = 1 } = req.body;
 
     if (!dishId) {
@@ -74,7 +74,7 @@ exports.addToCart = async (req, res) => {
 // Update cart item quantity
 exports.updateCartItem = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { cartId } = req.params;
     const { quantity } = req.body;
 
@@ -122,7 +122,7 @@ exports.updateCartItem = async (req, res) => {
 // Remove item from cart
 exports.removeFromCart = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { cartId } = req.params;
 
     const result = await CartModel.removeFromCart(userId, cartId);
@@ -153,7 +153,7 @@ exports.removeFromCart = async (req, res) => {
 // Clear cart
 exports.clearCart = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     await CartModel.clearCart(userId);
 
