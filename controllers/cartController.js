@@ -24,7 +24,7 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { dishId, quantity = 1 } = req.body;
+    const { dishId, sizeId, quantity = 1 } = req.body;
 
     if (!dishId) {
       return res.status(400).json({
@@ -42,7 +42,12 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    const result = await CartModel.addToCart(userId, dishId, parsedQuantity);
+    const result = await CartModel.addToCart(
+      userId,
+      dishId,
+      sizeId,
+      parsedQuantity
+    );
 
     res.status(201).json({
       status: "success",
@@ -54,7 +59,10 @@ exports.addToCart = async (req, res) => {
 
     if (
       error.message === "Dish not found" ||
-      error.message === "Dish is currently not available"
+      error.message === "Dish is currently not available" ||
+      error.message === "Invalid size for this dish" ||
+      error.message === "Selected size is currently not available" ||
+      error.message === "No default size found for this dish"
     ) {
       return res.status(400).json({
         status: "error",
