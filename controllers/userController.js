@@ -443,26 +443,24 @@ exports.getUserProfile = async (req, res) => {
     });
   }
 };
-
 exports.updateUserProfile = async (req, res) => {
   try {
-    const userId = req.useruserid;
+    const userId = req.user.userId; // Fixed from req.useruserid
     const { fullName, phoneNumber, avatar } = req.body;
 
     // Start with empty updates object
-    const updates = {};
     const params = [userId];
     let paramCounter = 2;
     let updateString = "";
 
     // Add fields that are provided
     if (fullName !== undefined) {
-      updateString += `fullname = $${paramCounter++}, `;
+      updateString += `fullname = $${paramCounter++}, `; // Check if this matches your DB column name
       params.push(fullName);
     }
 
     if (phoneNumber !== undefined) {
-      updateString += `phonenumber = $${paramCounter++}, `;
+      updateString += `phone_number = $${paramCounter++}, `; // Changed to match likely DB schema
       params.push(phoneNumber);
     }
 
@@ -479,14 +477,11 @@ exports.updateUserProfile = async (req, res) => {
       });
     }
 
-    // Add updated_at timestamp and remove trailing comma
-    updateString += `updated_at = NOW()`;
+    // Remove trailing comma and add updated_at timestamp
+    updateString = updateString.slice(0, -2) + ` updated_at = NOW()`;
 
     // Update user in database
-    await pool.query(
-      `UPDATE users SET ${updateString} WHERE userid = $1`,
-      params
-    );
+    await UserModel.updateUser(userId, { fullName, phoneNumber, avatar });
 
     // Get updated user profile
     const updatedUser = await UserModel.getUserById(userId);

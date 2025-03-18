@@ -3,6 +3,54 @@ const { v4: uuidv4 } = require("uuid");
 const { generateReferralCode } = require("../utils/referral");
 
 class UserModel {
+  static async updateUser(userId, updates) {
+    try {
+      const { fullName, phoneNumber, avatar } = updates;
+      const params = [userId];
+      let paramCounter = 2;
+      let updateString = "";
+
+      // Build update string dynamically
+      if (fullName !== undefined) {
+        updateString += `fullname = $${paramCounter++}, `;
+        params.push(fullName);
+      }
+
+      if (phoneNumber !== undefined) {
+        updateString += `phone_number = $${paramCounter++}, `;
+        params.push(phoneNumber);
+      }
+
+      if (avatar !== undefined) {
+        updateString += `avatar = $${paramCounter++}, `;
+        params.push(avatar);
+      }
+
+      // If no updates, return
+      if (updateString === "") {
+        return null;
+      }
+
+      // Remove trailing comma and add updated_at
+      updateString = updateString.slice(0, -2);
+      updateString += `, updated_at = NOW()`;
+
+      // Execute query
+      const query = `
+        UPDATE users 
+        SET ${updateString} 
+        WHERE user_id = $1
+        RETURNING user_id, username, email, fullname, phone_number, avatar, role, 
+                 wallet_balance, referral_code, created_at, updated_at
+      `;
+
+      const result = await pool.query(query, params);
+      return result.rows[0];
+    } catch (error) {
+      console.error("Error updating user:", error);
+      throw error;
+    }
+  }
   // Modify the register method to include role
   static async register(
     username,
