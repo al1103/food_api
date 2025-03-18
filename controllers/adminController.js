@@ -443,73 +443,77 @@ exports.getDashboardStats = async (req, res) => {
 
       res.json({
         status: "success",
-        data: {
-          users: {
-            totalUsers: parseInt(userStats.rows[0].total_users),
-            totalCustomers: parseInt(userStats.rows[0].total_customers),
-            totalStaff: parseInt(userStats.rows[0].total_staff),
-            totalAdmins: parseInt(userStats.rows[0].total_admins),
-            newUsersLast30Days: parseInt(
-              userStats.rows[0].new_users_last_30_days
-            ),
-          },
-          revenue: {
-            totalRevenue: parseFloat(revenueStats.rows[0].total_revenue),
-            todayRevenue: parseFloat(revenueStats.rows[0].today_revenue),
-            monthRevenue: parseFloat(revenueStats.rows[0].month_revenue),
-            revenueGrowth: parseFloat(
-              growthMetrics.rows[0].revenue_growth_percentage
-            ),
-          },
-          orders: {
-            totalOrders: parseInt(revenueStats.rows[0].total_orders),
-            completedOrders: parseInt(revenueStats.rows[0].completed_orders),
-            pendingOrders: parseInt(revenueStats.rows[0].pending_orders),
-            inProgressOrders: parseInt(revenueStats.rows[0].in_progress_orders),
-            ordersByDate: ordersByDate.rows,
-          },
-          dishes: {
-            totalDishes: parseInt(dishStats.rows[0].total_dishes),
-            categoryCounts: {
-              appetizers: parseInt(dishStats.rows[0].appetizers_count),
-              mainCourse: parseInt(dishStats.rows[0].main_course_count),
-              desserts: parseInt(dishStats.rows[0].desserts_count),
-              beverages: parseInt(dishStats.rows[0].beverages_count),
-              noodles: parseInt(dishStats.rows[0].noodles_count),
-              rice: parseInt(dishStats.rows[0].rice_count),
+        data: [
+          {
+            users: {
+              totalUsers: parseInt(userStats.rows[0].total_users),
+              totalCustomers: parseInt(userStats.rows[0].total_customers),
+              totalStaff: parseInt(userStats.rows[0].total_staff),
+              totalAdmins: parseInt(userStats.rows[0].total_admins),
+              newUsersLast30Days: parseInt(
+                userStats.rows[0].new_users_last_30_days
+              ),
             },
-            averageRating: parseFloat(dishStats.rows[0].avg_dish_rating),
-            popularDishes: popularDishesResult.rows,
-            revenueByCategory: revenueByCategory.rows,
+            revenue: {
+              totalRevenue: parseFloat(revenueStats.rows[0].total_revenue),
+              todayRevenue: parseFloat(revenueStats.rows[0].today_revenue),
+              monthRevenue: parseFloat(revenueStats.rows[0].month_revenue),
+              revenueGrowth: parseFloat(
+                growthMetrics.rows[0].revenue_growth_percentage
+              ),
+            },
+            orders: {
+              totalOrders: parseInt(revenueStats.rows[0].total_orders),
+              completedOrders: parseInt(revenueStats.rows[0].completed_orders),
+              pendingOrders: parseInt(revenueStats.rows[0].pending_orders),
+              inProgressOrders: parseInt(
+                revenueStats.rows[0].in_progress_orders
+              ),
+              ordersByDate: ordersByDate.rows,
+            },
+            dishes: {
+              totalDishes: parseInt(dishStats.rows[0].total_dishes),
+              categoryCounts: {
+                appetizers: parseInt(dishStats.rows[0].appetizers_count),
+                mainCourse: parseInt(dishStats.rows[0].main_course_count),
+                desserts: parseInt(dishStats.rows[0].desserts_count),
+                beverages: parseInt(dishStats.rows[0].beverages_count),
+                noodles: parseInt(dishStats.rows[0].noodles_count),
+                rice: parseInt(dishStats.rows[0].rice_count),
+              },
+              averageRating: parseFloat(dishStats.rows[0].avg_dish_rating),
+              popularDishes: popularDishesResult.rows,
+              revenueByCategory: revenueByCategory.rows,
+            },
+            tables: {
+              totalTables: parseInt(tableStats.rows[0].total_tables),
+              availableTables: parseInt(tableStats.rows[0].available_tables),
+              occupiedTables: parseInt(tableStats.rows[0].occupied_tables),
+              reservedTables: parseInt(tableStats.rows[0].reserved_tables),
+              totalCapacity: parseInt(tableStats.rows[0].total_capacity),
+            },
+            reservations: {
+              totalReservations: parseInt(
+                reservationStats.rows[0].total_reservations
+              ),
+              confirmedReservations: parseInt(
+                reservationStats.rows[0].confirmed_reservations
+              ),
+              pendingReservations: parseInt(
+                reservationStats.rows[0].pending_reservations
+              ),
+              todayReservations: parseInt(
+                reservationStats.rows[0].today_reservations
+              ),
+              upcomingReservations: parseInt(
+                reservationStats.rows[0].upcoming_reservations
+              ),
+            },
+            recentActivity: {
+              recentOrders: recentOrdersResult.rows,
+            },
           },
-          tables: {
-            totalTables: parseInt(tableStats.rows[0].total_tables),
-            availableTables: parseInt(tableStats.rows[0].available_tables),
-            occupiedTables: parseInt(tableStats.rows[0].occupied_tables),
-            reservedTables: parseInt(tableStats.rows[0].reserved_tables),
-            totalCapacity: parseInt(tableStats.rows[0].total_capacity),
-          },
-          reservations: {
-            totalReservations: parseInt(
-              reservationStats.rows[0].total_reservations
-            ),
-            confirmedReservations: parseInt(
-              reservationStats.rows[0].confirmed_reservations
-            ),
-            pendingReservations: parseInt(
-              reservationStats.rows[0].pending_reservations
-            ),
-            todayReservations: parseInt(
-              reservationStats.rows[0].today_reservations
-            ),
-            upcomingReservations: parseInt(
-              reservationStats.rows[0].upcoming_reservations
-            ),
-          },
-          recentActivity: {
-            recentOrders: recentOrdersResult.rows,
-          },
-        },
+        ],
       });
     } finally {
       client.release();
