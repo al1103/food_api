@@ -445,51 +445,26 @@ exports.getUserProfile = async (req, res) => {
 };
 exports.updateUserProfile = async (req, res) => {
   try {
-    const userId = req.user.userId; // Fixed from req.useruserid
+    const userId = req.user.userId;
     const { fullName, phoneNumber, avatar } = req.body;
 
-    // Start with empty updates object
-    const params = [userId];
-    let paramCounter = 2;
-    let updateString = "";
+    const updatedUserData = await UserModel.updateUser(userId, {
+      fullName,
+      phoneNumber,
+      avatar,
+    });
 
-    // Add fields that are provided
-    if (fullName !== undefined) {
-      updateString += `fullname = $${paramCounter++}, `; // Check if this matches your DB column name
-      params.push(fullName);
-    }
-
-    if (phoneNumber !== undefined) {
-      updateString += `phone_number = $${paramCounter++}, `; // Changed to match likely DB schema
-      params.push(phoneNumber);
-    }
-
-    if (avatar !== undefined) {
-      updateString += `avatar = $${paramCounter++}, `;
-      params.push(avatar);
-    }
-
-    // If no fields to update
-    if (updateString === "") {
+    if (!updatedUserData) {
       return res.status(400).json({
         status: "error",
         message: "Không có thông tin nào được cập nhật",
       });
     }
 
-    // Remove trailing comma and add updated_at timestamp
-    updateString = updateString.slice(0, -2) + ` updated_at = NOW()`;
-
-    // Update user in database
-    await UserModel.updateUser(userId, { fullName, phoneNumber, avatar });
-
-    // Get updated user profile
-    const updatedUser = await UserModel.getUserById(userId);
-
     res.json({
       status: "success",
       message: "Cập nhật thông tin thành công",
-      data: updatedUser,
+      data: updatedUserData,
     });
   } catch (error) {
     console.error("Lỗi cập nhật thông tin người dùng:", error);

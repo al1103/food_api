@@ -12,7 +12,7 @@ class UserModel {
 
       // Build update string dynamically
       if (fullName !== undefined) {
-        updateString += `fullname = $${paramCounter++}, `;
+        updateString += `full_name = $${paramCounter++}, `; // Make sure this matches your DB column name
         params.push(fullName);
       }
 
@@ -35,14 +35,18 @@ class UserModel {
       updateString = updateString.slice(0, -2);
       updateString += `, updated_at = NOW()`;
 
-      // Execute query
+      // Execute query - using the imported pool
       const query = `
         UPDATE users 
         SET ${updateString} 
         WHERE user_id = $1
-        RETURNING user_id, username, email, fullname, phone_number, avatar, role, 
-                 wallet_balance, referral_code, created_at, updated_at
+        RETURNING user_id, username, email, full_name as "fullName", phone_number as "phoneNumber", 
+                 avatar, role, wallet_balance as "walletBalance", referral_code as "referralCode", 
+                 created_at as "createdAt", updated_at as "updatedAt"
       `;
+
+      console.log("UPDATE QUERY:", query);
+      console.log("PARAMS:", params);
 
       const result = await pool.query(query, params);
       return result.rows[0];
