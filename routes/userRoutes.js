@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
-const { auth } = require("../middleware/roleAuth"); // Import from roleAuth instead
+const { auth, adminAuth } = require("../middleware/roleAuth"); // Import from roleAuth instead
 
 // Public routes
 router.post("/register", userController.register);
@@ -26,6 +26,10 @@ router.get("/referrals/share", auth, userController.getReferralShareContent);
 router.get("/referrals/network", auth, userController.getReferralNetwork);
 
 // Admin route to update commission rates
-router.put("/admin/referrals/rates", adminAuth, userController.updateCommissionRates);
+router.put(
+  "/admin/referrals/rates",
+  adminAuth,
+  userController.updateCommissionRates
+);
 
 module.exports = router;
