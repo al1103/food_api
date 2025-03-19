@@ -184,7 +184,7 @@ function generateAccessToken(user) {
 
 exports.getReferralInfo = async (req, res) => {
   try {
-    const userId = req.useruserid;
+    const userId = req.user.userId; // Fixed from req.useruserid
     const referralInfo = await UserModel.getReferralInfo(userId);
 
     res.json({
@@ -200,9 +200,117 @@ exports.getReferralInfo = async (req, res) => {
   }
 };
 
+// Add an endpoint to update commission rates (admin only)
+exports.updateCommissionRates = async (req, res) => {
+  try {
+    const { rates } = req.body;
+
+    if (!rates || !Array.isArray(rates)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Cần cung cấp dữ liệu tỷ lệ hoa hồng hợp lệ",
+      });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      for (const rate of rates) {
+        if (
+          !rate.level ||
+          rate.level < 1 ||
+          rate.level > 5 ||
+          !rate.rate ||
+          rate.rate < 0
+        ) {
+          throw new Error(`Dữ liệu không hợp lệ cho cấp ${rate.level}`);
+        }
+
+        await client.query(
+          `UPDATE referral_commission_rates 
+           SET rate = $1, updated_at = NOW()
+           WHERE level = $2`,
+          [rate.rate, rate.level]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      res.json({
+        status: "success",
+        message: "Cập nhật tỷ lệ hoa hồng thành công",
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error updating commission rates:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Không thể cập nhật tỷ lệ hoa hồng",
+      error: error.message,
+    });
+  }
+};
+
+// Add endpoint to get detailed network structure
+exports.getReferralNetwork = async (req, res) => {
+  try {
+    const userId = req.user.userId; // Fixed from req.useruserid
+    const { level = 1 } = req.query;
+
+    // Validate level
+    const parsedLevel = parseInt(level);
+    if (isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 5) {
+      return res.status(400).json({
+        status: "error",
+        message: "Cấp độ phải từ 1 đến 5",
+      });
+    }
+
+    const query = `
+      SELECT 
+        u.user_id,
+        u.username,
+        u.full_name,
+        u.email,
+        u.created_at,
+        rt.level,
+        (SELECT COUNT(*) FROM referral_tree WHERE ancestor_id = u.user_id AND level = 1) as direct_referrals,
+        (SELECT COALESCE(SUM(amount), 0) FROM wallet_transactions 
+         WHERE user_id = $1 AND reference_id = u.user_id AND transaction_type = 'referral_commission') as commission_earned
+      FROM referral_tree rt
+      JOIN users u ON rt.user_id = u.user_id
+      WHERE rt.ancestor_id = $1 AND rt.level = $2
+      ORDER BY u.created_at DESC
+    `;
+
+    const result = await pool.query(query, [userId, parsedLevel]);
+
+    res.json({
+      status: "success",
+      data: {
+        level: parsedLevel,
+        members: result.rows,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting referral network:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Không thể lấy thông tin mạng lưới giới thiệu",
+      error: error.message,
+    });
+  }
+};
+
 exports.getWalletTransactions = async (req, res) => {
   try {
-    const userId = req.useruserid;
+    const userId = req.user.userId;
     const { page, limit } = getPaginationParams(req);
 
     const result = await UserModel.getWalletTransactions(userId, page, limit);
@@ -223,7 +331,7 @@ exports.getWalletTransactions = async (req, res) => {
 
 exports.withdrawFromWallet = async (req, res) => {
   try {
-    const userId = req.useruserid;
+    const userId = req.user.userId;
     const { amount, bankName, accountNumber, accountHolder } = req.body;
 
     if (
@@ -373,7 +481,7 @@ exports.resetPassword = async (req, res) => {
 
 exports.getReferralShareContent = async (req, res) => {
   try {
-    const userId = req.useruserid;
+    const userId = req.user.userId;
     const appUrl = process.env.APP_URL || "https://yourapp.com";
 
     // Get user's referral code

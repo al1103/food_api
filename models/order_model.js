@@ -74,8 +74,11 @@ class OrderModel {
   }
 
   static async createOrder(orderData) {
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
+      await client.query("BEGIN");
+
+      const result = await client.query(
         `INSERT INTO orders (user_id, total_price, status, table_id, order_date, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW())
          RETURNING order_id AS "orderId"`,
@@ -87,10 +90,23 @@ class OrderModel {
         ]
       );
 
+      // Calculate the order total
+      const orderTotal = parseFloat(result.rows[0].total_amount);
+
+      // Distribute commissions to the referral tree
+      // Only call this if the order is paid
+      if (orderData.status === "paid" || orderData.status === "completed") {
+        await UserModel.distributeOrderCommission(orderData.userId, orderTotal);
+      }
+
+      await client.query("COMMIT");
       return result.rows[0];
     } catch (error) {
-      console.error("Lỗi khi tạo đơn hàng:", error);
+      await client.query("ROLLBACK");
+      console.error("Error creating order:", error);
       throw error;
+    } finally {
+      client.release();
     }
   }
 
