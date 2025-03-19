@@ -65,120 +65,138 @@ class UserModel {
     referralCode = null,
     role = "customer" // Default role is customer
   ) {
+    const client = await pool.connect();
     try {
+      await client.query("BEGIN");
+
       const userId = uuidv4();
-      // Generate a unique referral code for the new user
       const userReferralCode = generateReferralCode();
 
-      // Begin transaction
-      const client = await pool.connect();
+      // Check if user exists
+      const existingUserResult = await client.query(
+        `SELECT 1 FROM users 
+         WHERE username = $1 OR email = $2`,
+        [username, email]
+      );
 
-      try {
-        await client.query("BEGIN");
-
-        // Check if user exists
-        const existingUserResult = await client.query(
-          `SELECT 1 FROM users 
-           WHERE username = $1 OR email = $2`,
-          [username, email]
-        );
-
-        if (existingUserResult.rows.length > 0) {
-          throw new Error("Email hoặc tên người dùng đã tồn tại");
-        }
-
-        let referredByUserId = null;
-
-        // If referral code provided, find the referrer
-        if (referralCode) {
-          const referrerResult = await client.query(
-            `SELECT user_id FROM users WHERE referral_code = $1`,
-            [referralCode]
-          );
-
-          if (referrerResult.rows.length > 0) {
-            referredByUserId = referrerResult.rows[0].user_id;
-          }
-        }
-
-        // Insert new user with role
-        await client.query(
-          `INSERT INTO users (
-            user_id, username, email, password, 
-            full_name, phone_number, referral_code,
-            referred_by, role, created_at, updated_at
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
-          )`,
-          [
-            userId,
-            username,
-            email,
-            password,
-            fullName,
-            phoneNumber,
-            userReferralCode,
-            referredByUserId,
-            role,
-          ]
-        );
-
-        // If referred by someone, create a referral record and add commission
-        if (referredByUserId) {
-          const commissionAmount = 50000; // 50,000 VND or whatever currency
-
-          // Create referral record
-          await client.query(
-            `INSERT INTO referrals (
-              referrer_id, referred_id, commission, status, created_at, updated_at
-            ) VALUES (
-              $1, $2, $3, 'completed', NOW(), NOW()
-            )`,
-            [referredByUserId, userId, commissionAmount]
-          );
-
-          // Add commission to referrer's wallet
-          await client.query(
-            `UPDATE users 
-             SET wallet_balance = wallet_balance + $1 
-             WHERE user_id = $2`,
-            [commissionAmount, referredByUserId]
-          );
-
-          // Record the transaction
-          await client.query(
-            `INSERT INTO wallet_transactions (
-              user_id, amount, transaction_type, reference_id, description, created_at
-            ) VALUES (
-              $1, $2, 'credit', $3, 'Hoa hồng giới thiệu người dùng mới', NOW()
-            )`,
-            [referredByUserId, commissionAmount, userId]
-          );
-        }
-
-        await client.query("COMMIT");
-
-        return {
-          userId,
-          referralCode: userReferralCode,
-          message: "Đăng ký thành công!",
-        };
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
+      if (existingUserResult.rows.length > 0) {
+        throw new Error("Email hoặc tên người dùng đã tồn tại");
       }
+
+      let referrerId = null;
+
+      // If referral code provided, find the referrer
+      if (referralCode) {
+        const referrerResult = await client.query(
+          `SELECT user_id FROM users WHERE referral_code = $1`,
+          [referralCode]
+        );
+
+        if (referrerResult.rows.length > 0) {
+          referrerId = referrerResult.rows[0].user_id;
+        }
+      }
+
+      // Insert new user
+      await client.query(
+        `INSERT INTO users (
+          user_id, username, email, password, 
+          full_name, phone_number, referral_code,
+          referred_by, role, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+        )`,
+        [
+          userId,
+          username,
+          email,
+          password,
+          fullName,
+          phoneNumber,
+          userReferralCode,
+          referrerId,
+          role,
+        ]
+      );
+
+      // If referred by someone, build the referral tree
+      if (referrerId) {
+        // First, insert direct referral (level 1)
+        await client.query(
+          `INSERT INTO referral_tree (user_id, ancestor_id, level)
+           VALUES ($1, $2, 1)`,
+          [userId, referrerId]
+        );
+
+        // Then get all ancestors of the referrer up to level 4
+        // (as they'll be levels 2-5 for the new user)
+        const ancestorsResult = await client.query(
+          `SELECT ancestor_id, level 
+           FROM referral_tree 
+           WHERE user_id = $1 AND level <= 4`,
+          [referrerId]
+        );
+
+        // Insert these ancestors with incremented levels
+        for (const ancestor of ancestorsResult.rows) {
+          await client.query(
+            `INSERT INTO referral_tree (user_id, ancestor_id, level)
+             VALUES ($1, $2, $3)`,
+            [userId, ancestor.ancestor_id, ancestor.level + 1]
+          );
+        }
+
+        // Give signup bonus to direct referrer
+        const signupBonus = 50000; // VND
+
+        await client.query(
+          `UPDATE users 
+           SET wallet_balance = wallet_balance + $1 
+           WHERE user_id = $2`,
+          [signupBonus, referrerId]
+        );
+
+        // Record the transaction
+        await client.query(
+          `INSERT INTO wallet_transactions (
+            user_id, amount, transaction_type, reference_id, description, created_at
+          ) VALUES (
+            $1, $2, 'signup_bonus', $3, 'Thưởng giới thiệu đăng ký thành công', NOW()
+          )`,
+          [referrerId, signupBonus, userId]
+        );
+
+        // Record the referral
+        await client.query(
+          `INSERT INTO referrals (
+            referrer_id, referred_id, commission, status, level, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, 'completed', 1, NOW(), NOW()
+          )`,
+          [referrerId, userId, signupBonus]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      return {
+        userId,
+        referralCode: userReferralCode,
+        message: "Đăng ký thành công!",
+      };
     } catch (error) {
+      await client.query("ROLLBACK");
       console.error("Lỗi trong quá trình đăng ký:", error.message);
       throw new Error("Đăng ký thất bại. Vui lòng thử lại.");
+    } finally {
+      client.release();
     }
   }
 
   // Add referral-related methods
   static async getReferralInfo(userId) {
     try {
-      // Get user's referral code
+      // Get user's referral code and wallet balance
       const userResult = await pool.query(
         `SELECT referral_code, wallet_balance FROM users WHERE user_id = $1`,
         [userId]
@@ -188,39 +206,83 @@ class UserModel {
         throw new Error("Người dùng không tồn tại");
       }
 
-      // Get referral statistics
-      const statsResult = await pool.query(
-        `SELECT 
-          COUNT(*) AS total_referrals,
-          SUM(commission) AS total_commission
-         FROM referrals 
-         WHERE referrer_id = $1`,
-        [userId]
-      );
+      // Get summary statistics of all levels
+      const statsQuery = `
+        SELECT 
+          rt.level,
+          COUNT(DISTINCT rt.user_id) as total_referrals,
+          COALESCE(SUM(r.commission), 0) as total_commission
+        FROM referral_tree rt
+        LEFT JOIN referrals r ON r.referrer_id = $1 AND r.referred_id = rt.user_id AND r.level = rt.level
+        WHERE rt.ancestor_id = $1
+        GROUP BY rt.level
+        ORDER BY rt.level ASC
+      `;
+
+      const statsResult = await pool.query(statsQuery, [userId]);
 
       // Get recent referrals
-      const recentReferralsResult = await pool.query(
-        `SELECT 
+      const recentQuery = `
+        SELECT 
           r.id, 
           r.commission, 
-          r.status, 
+          r.status,
+          r.level, 
           r.created_at,
           u.username,
           u.full_name
-         FROM referrals r
-         JOIN users u ON r.referred_id = u.user_id
-         WHERE r.referrer_id = $1
-         ORDER BY r.created_at DESC
-         LIMIT 10`,
-        [userId]
-      );
+        FROM referrals r
+        JOIN users u ON r.referred_id = u.user_id
+        WHERE r.referrer_id = $1
+        ORDER BY r.created_at DESC
+        LIMIT 10
+      `;
+
+      const recentResult = await pool.query(recentQuery, [userId]);
+
+      // Process stats by level
+      const levelStats = [];
+      let totalReferrals = 0;
+      let totalCommission = 0;
+
+      // Process each level (ensure we have data for all 5 levels even if empty)
+      for (let level = 1; level <= 5; level++) {
+        const levelData = statsResult.rows.find(
+          (row) => row.level === level
+        ) || {
+          level,
+          total_referrals: "0",
+          total_commission: "0",
+        };
+
+        const referrals = parseInt(levelData.total_referrals);
+        const commission = parseFloat(levelData.total_commission);
+
+        totalReferrals += referrals;
+        totalCommission += commission;
+
+        levelStats.push({
+          level,
+          referrals,
+          commission,
+        });
+      }
 
       return {
         referralCode: userResult.rows[0].referral_code,
         walletBalance: userResult.rows[0].wallet_balance,
-        totalReferrals: parseInt(statsResult.rows[0].total_referrals),
-        totalCommission: parseFloat(statsResult.rows[0].total_commission) || 0,
-        recentReferrals: recentReferralsResult.rows,
+        totalReferrals,
+        totalCommission,
+        levelStats,
+        recentReferrals: recentResult.rows.map((row) => ({
+          id: row.id,
+          commission: parseFloat(row.commission),
+          status: row.status,
+          level: row.level,
+          createdAt: row.created_at,
+          username: row.username,
+          fullName: row.full_name,
+        })),
       };
     } catch (error) {
       console.error("Lỗi khi lấy thông tin giới thiệu:", error);
@@ -577,6 +639,98 @@ class UserModel {
     } catch (error) {
       console.error("Lỗi khi xóa người dùng:", error);
       throw error;
+    }
+  }
+
+  // Method to calculate and distribute referral commissions
+  static async distributeOrderCommission(userId, orderAmount) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Get all ancestors up to 5 levels
+      const ancestorsQuery = `
+        SELECT 
+          ancestor_id, 
+          level 
+        FROM referral_tree 
+        WHERE user_id = $1 AND level <= 5
+        ORDER BY level ASC`;
+
+      const ancestorsResult = await client.query(ancestorsQuery, [userId]);
+
+      // Get commission rates
+      const ratesQuery = `SELECT level, rate FROM referral_commission_rates WHERE level <= 5`;
+      const ratesResult = await client.query(ratesQuery);
+
+      const rates = {};
+      ratesResult.rows.forEach((row) => {
+        rates[row.level] = parseFloat(row.rate);
+      });
+
+      // Process commissions for each ancestor
+      for (const ancestor of ancestorsResult.rows) {
+        const level = ancestor.level;
+        const ancestorId = ancestor.ancestor_id;
+        const commissionRate = rates[level] || 0;
+        const commissionAmount = (orderAmount * commissionRate) / 100;
+
+        if (commissionAmount <= 0) continue;
+
+        // Add commission to referrer's wallet
+        await client.query(
+          `UPDATE users 
+           SET wallet_balance = wallet_balance + $1,
+               updated_at = NOW()
+           WHERE user_id = $2`,
+          [commissionAmount, ancestorId]
+        );
+
+        // Record the commission transaction
+        await client.query(
+          `INSERT INTO wallet_transactions (
+            user_id, 
+            amount, 
+            transaction_type, 
+            reference_id, 
+            description, 
+            created_at
+          ) VALUES (
+            $1, $2, 'referral_commission', $3, 
+            $4, NOW()
+          )`,
+          [
+            ancestorId,
+            commissionAmount,
+            userId,
+            `Hoa hồng cấp ${level} từ đơn hàng`,
+          ]
+        );
+
+        // Record the referral commission
+        await client.query(
+          `INSERT INTO referrals (
+            referrer_id, 
+            referred_id, 
+            commission, 
+            status, 
+            level,
+            created_at, 
+            updated_at
+          ) VALUES (
+            $1, $2, $3, 'completed', $4, NOW(), NOW()
+          )`,
+          [ancestorId, userId, commissionAmount, level]
+        );
+      }
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Error distributing commissions:", error);
+      throw error;
+    } finally {
+      client.release();
     }
   }
 }

@@ -20,5 +20,12 @@ router.get("/referrals", auth, userController.getReferralInfo);
 router.get("/wallet/transactions", auth, userController.getWalletTransactions);
 router.post("/wallet/withdraw", auth, userController.withdrawFromWallet);
 router.get("/referrals/share", auth, userController.getReferralShareContent);
+// Add to userRoutes.js
+
+// Get information about referral network at specific level
+router.get("/referrals/network", auth, userController.getReferralNetwork);
+
+// Admin route to update commission rates
+router.put("/admin/referrals/rates", adminAuth, userController.updateCommissionRates);
 
 module.exports = router;
