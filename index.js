@@ -7,7 +7,7 @@ const cookieParser = require("cookie-parser");
 const http = require("http");
 const cors = require("cors");
 require("dotenv").config();
-
+const cloudinary = require("./config/cloudinary");
 const app = express();
 const server = http.createServer(app);
 
@@ -44,6 +44,15 @@ pool.query("SELECT NOW()", (err, res) => {
 });
 
 function startServer() {
+  // Kiểm tra kết nối Cloudinary
+  cloudinary.api.ping((error, result) => {
+    if (error) {
+      console.error("❌ Cloudinary connection failed:", error);
+    } else {
+      console.log("✅ Cloudinary connection successful");
+    }
+  });
+
   routes(app);
 
   app.use((err, req, res, next) => {
