@@ -3,6 +3,10 @@ const jwt = require("jsonwebtoken");
 const UserModel = require("../models/user_model");
 const { sendRandomCodeEmail } = require("../server/server");
 const { getPaginationParams } = require("../utils/pagination");
+const { uploadImage, deleteImage } = require("../utils/uploadImage");
+const cloudinary = require("../config/cloudinary");
+const fs = require("fs");
+const path = require("path");
 
 const refreshTokens = [];
 
@@ -583,3 +587,81 @@ exports.updateUserProfile = async (req, res) => {
     });
   }
 };
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: "error",
+        message: "Không có file được upload",
+      });
+    }
+
+    // Đối với storage là diskStorage
+    const filePath = req.file.path;
+
+    // Upload lên Cloudinary
+    const cloudinaryResult = await cloudinary.uploader.upload(filePath, {
+      folder: "food_api/avatars",
+      transformation: [{ width: 500, height: 500, crop: "limit" }],
+    });
+
+    // Xóa file tạm sau khi upload
+    fs.unlinkSync(filePath);
+
+    // Cập nhật avatar của người dùng trong database
+    const updatedUser = await UserModel.updateUser(req.user.userId, {
+      avatar: cloudinaryResult.secure_url,
+    });
+
+    if (!updatedUser) {
+      return res.status(400).json({
+        status: "error",
+        message: "Không thể cập nhật avatar",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Upload avatar thành công",
+      data: {
+        avatar: cloudinaryResult.secure_url,
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    console.error("Lỗi upload avatar:", error);
+
+    // Xóa file tạm nếu có lỗi xảy ra
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Không thể xóa file tạm:", err);
+      });
+    }
+
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi upload avatar",
+      error: error.message,
+    });
+  }
+};
+
+// Hàm hỗ trợ để trích xuất public_id từ URL Cloudinary
+function extractPublicIdFromUrl(url) {
+  // Cloudinary URL có dạng: https://res.cloudinary.com/<cloud_name>/image/upload/v1234567890/<folder>/<public_id>.<ext>
+  try {
+    if (!url) return null;
+    // Lấy phần sau "/upload/"
+    const parts = url.split("/upload/");
+    if (parts.length < 2) return null;
+
+    // Lấy phần sau version number (v1234567890/)
+    const pathPart = parts[1].replace(/^v\d+\//, "");
+
+    // Loại bỏ phần mở rộng file
+    return pathPart.replace(/\.[^/.]+$/, "");
+  } catch (error) {
+    console.error("Lỗi khi trích xuất public_id:", error);
+    return null;
+  }
+}
