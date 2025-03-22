@@ -93,6 +93,8 @@ class DishModel {
           d.description AS "description",
           d.image_url AS "imageUrl",
           d.rating AS "rating",
+          d.review_count AS "reviewCount", -- Thêm số lượng đánh giá 
+          d.preparation_time AS "preparationTime", -- Thêm thời gian làm
           d.category AS "category",
           d.is_combo AS "isCombo",
           (SELECT JSONB_AGG(
@@ -172,6 +174,8 @@ class DishModel {
           d.description AS "description",
           d.image_url AS "imageUrl",
           d.rating AS "rating",
+          d.review_count AS "reviewCount", -- Thêm số lượng đánh giá
+          d.preparation_time AS "preparationTime", -- Thêm thời gian làm
           d.category AS "category",
           d.is_combo AS "isCombo",
           d.is_available AS "isAvailable",
@@ -252,9 +256,10 @@ class DishModel {
       // 1. Insert the basic dish information
       const dishResult = await client.query(
         `INSERT INTO dishes 
-          (name, description, image_url, category, is_combo, is_available, created_at, updated_at)
+          (name, description, image_url, category, is_combo, is_available, 
+           preparation_time, rating, review_count, created_at, updated_at)
         VALUES 
-          ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
         RETURNING dish_id`,
         [
           dishData.name,
@@ -263,6 +268,9 @@ class DishModel {
           dishData.category,
           dishData.isCombo || false,
           dishData.isAvailable !== undefined ? dishData.isAvailable : true,
+          dishData.preparationTime || 30, // Default 30 phút
+          0.0, // Default rating
+          0, // Default review count
         ]
       );
 
@@ -349,8 +357,9 @@ class DishModel {
           category = $4,
           is_combo = $5,
           is_available = $6,
+          preparation_time = $7,
           updated_at = NOW()
-        WHERE dish_id = $7`,
+        WHERE dish_id = $8`,
         [
           dishData.name,
           dishData.description,
@@ -358,6 +367,7 @@ class DishModel {
           dishData.category,
           dishData.isCombo || false,
           dishData.isAvailable !== undefined ? dishData.isAvailable : true,
+          dishData.preparationTime,
           parsedId,
         ]
       );
@@ -569,8 +579,8 @@ class DishModel {
     }
   }
 
-  // Add method to update dish rating
-  static async updateDishRating(dishId, rating) {
+  // Cập nhật phương thức updateDishRating
+  static async updateDishRating(dishId, rating, isNewReview = true) {
     try {
       const parsedId = parseInt(dishId);
       const parsedRating = parseFloat(rating);
@@ -583,17 +593,48 @@ class DishModel {
         throw new Error("Rating must be a number between 0 and 5");
       }
 
-      const query = `
-        UPDATE dishes 
-        SET rating = $1, updated_at = NOW() 
-        WHERE dish_id = $2 
-        RETURNING dish_id, name, rating`;
+      // Lấy thông tin món ăn hiện tại để tính toán rating mới
+      const currentDishQuery = `
+        SELECT dish_id, rating, review_count 
+        FROM dishes 
+        WHERE dish_id = $1`;
 
-      const result = await pool.query(query, [parsedRating, parsedId]);
+      const currentDish = await pool.query(currentDishQuery, [parsedId]);
 
-      if (result.rows.length === 0) {
+      if (currentDish.rows.length === 0) {
         throw new Error("Dish not found");
       }
+
+      const dish = currentDish.rows[0];
+      let newRating = parsedRating;
+      let newReviewCount = dish.review_count;
+
+      // Tính toán rating mới dựa trên review cũ và review mới
+      if (isNewReview) {
+        // Nếu là review mới, tăng số lượng review và tính lại rating trung bình
+        newReviewCount = dish.review_count + 1;
+        if (dish.review_count > 0) {
+          newRating =
+            (dish.rating * dish.review_count + parsedRating) / newReviewCount;
+        } else {
+          newRating = parsedRating;
+        }
+      }
+
+      // Làm tròn rating đến 1 chữ số thập phân
+      newRating = Math.round(newRating * 10) / 10;
+
+      const query = `
+        UPDATE dishes 
+        SET rating = $1, review_count = $2, updated_at = NOW() 
+        WHERE dish_id = $3 
+        RETURNING dish_id, name, rating, review_count`;
+
+      const result = await pool.query(query, [
+        newRating,
+        newReviewCount,
+        parsedId,
+      ]);
 
       return result.rows[0];
     } catch (error) {
