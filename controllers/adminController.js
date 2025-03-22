@@ -277,258 +277,116 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
-
-// Dashboard statistics
 exports.getDashboardStats = async (req, res) => {
   try {
-    const client = await pool.connect();
+    // Get orders statistics
+    const totalOrdersResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM orders"
+    );
+    const totalOrders = parseInt(totalOrdersResult.rows[0].total);
 
-    try {
-      // Get user statistics
-      const userStats = await client.query(`
-        SELECT 
-          COUNT(*) FILTER (WHERE role = 'customer') AS total_customers,
-          COUNT(*) FILTER (WHERE role = 'staff') AS total_staff,
-          COUNT(*) FILTER (WHERE role = 'admin') AS total_admins,
-          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_users_last_30_days,
-          COUNT(*) AS total_users
-        FROM users
-      `);
+    const completedOrdersResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM orders WHERE status = 'completed'"
+    );
+    const completedOrders = parseInt(completedOrdersResult.rows[0].total);
 
-      // Get revenue statistics
-      const revenueStats = await client.query(`
-        SELECT
-          COALESCE(SUM(total_price) FILTER (WHERE status = 'completed'), 0) AS total_revenue,
-          COALESCE(SUM(total_price) FILTER (WHERE status = 'completed' AND DATE(order_date) = CURRENT_DATE), 0) AS today_revenue,
-          COALESCE(SUM(total_price) FILTER (WHERE status = 'completed' AND 
-            EXTRACT(YEAR FROM order_date) = EXTRACT(YEAR FROM CURRENT_DATE) AND
-            EXTRACT(MONTH FROM order_date) = EXTRACT(MONTH FROM CURRENT_DATE)), 0) AS month_revenue,
-          COALESCE(COUNT(*) FILTER (WHERE status = 'completed'), 0) AS completed_orders,
-          COALESCE(COUNT(*) FILTER (WHERE status = 'pending'), 0) AS pending_orders,
-          COALESCE(COUNT(*) FILTER (WHERE status = 'in-progress'), 0) AS in_progress_orders,
-          COUNT(*) AS total_orders
-        FROM orders
-      `);
+    const pendingOrdersResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM orders WHERE status = 'pending'"
+    );
+    const pendingOrders = parseInt(pendingOrdersResult.rows[0].total);
 
-      // Get order counts by date (for last 7 days)
-      const ordersByDate = await client.query(`
-        SELECT 
-          DATE(order_date) AS date,
-          COUNT(*) AS order_count,
-          COALESCE(SUM(total_price), 0) AS daily_revenue
-        FROM orders
-        WHERE order_date >= NOW() - INTERVAL '7 days'
-        GROUP BY DATE(order_date)
-        ORDER BY date
-      `);
+    // Calculate total revenue
+    const revenueResult = await pool.query(
+      "SELECT SUM(total_price) AS total FROM orders WHERE status = 'completed'"
+    );
+    const totalRevenue = parseFloat(revenueResult.rows[0].total || 0);
 
-      // Get dish statistics
-      const dishStats = await client.query(`
-        SELECT
-          COUNT(*) AS total_dishes,
-          COUNT(*) FILTER (WHERE category = 'Appetizers') AS appetizers_count,
-          COUNT(*) FILTER (WHERE category = 'Main Course') AS main_course_count,
-          COUNT(*) FILTER (WHERE category = 'Desserts') AS desserts_count,
-          COUNT(*) FILTER (WHERE category = 'Beverages') AS beverages_count,
-          COUNT(*) FILTER (WHERE category = 'Noodles') AS noodles_count,
-          COUNT(*) FILTER (WHERE category = 'Rice') AS rice_count,
-          COALESCE(AVG(rating), 0) AS avg_dish_rating
-        FROM dishes
-      `);
+    // Get reservation statistics
+    const totalReservationsResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM reservations"
+    );
+    const totalReservations = parseInt(totalReservationsResult.rows[0].total);
 
-      // Get popular dishes (top 10)
-      const popularDishesResult = await client.query(`
-        SELECT 
-          d.dish_id AS "dishId",
-          d.name AS "name",
-          d.image_url AS "imageUrl",
-          d.price AS "price",
-          d.category AS "category",
-          d.rating AS "rating",
-          COALESCE(SUM(od.quantity), 0) AS "totalOrdered"
-        FROM dishes d
-        LEFT JOIN order_details od ON d.dish_id = od.dish_id
-        LEFT JOIN orders o ON od.order_id = o.order_id AND o.status = 'completed'
-        GROUP BY d.dish_id, d.name, d.image_url, d.price, d.category, d.rating
-        ORDER BY "totalOrdered" DESC, d.rating DESC
-        LIMIT 10
-      `);
+    const todayReservationsResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM reservations WHERE reservation_time::date = CURRENT_DATE"
+    );
+    const todayReservations = parseInt(todayReservationsResult.rows[0].total);
 
-      // Get recent orders
-      const recentOrdersResult = await client.query(`
-        SELECT 
-          o.order_id AS "orderId",
-          o.user_id AS "userId",
-          u.username,
-          u.full_name AS "customerName",
-          o.total_price AS "totalPrice",
-          o.status,
-          o.table_id AS "tableId",
-          o.order_date AS "orderDate",
-          COUNT(od.id) AS "itemCount"
-        FROM orders o
-        JOIN users u ON o.user_id = u.user_id
-        LEFT JOIN order_details od ON o.order_id = od.order_id
-        GROUP BY o.order_id, o.user_id, u.username, u.full_name, o.total_price, o.status, o.table_id, o.order_date
-        ORDER BY o.order_date DESC
-        LIMIT 10
-      `);
+    // Get table information
+    const totalTablesResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM tables"
+    );
+    const totalTables = parseInt(totalTablesResult.rows[0].total);
 
-      // Get reservation statistics
-      const reservationStats = await client.query(`
-        SELECT
-          COUNT(*) AS total_reservations,
-          COUNT(*) FILTER (WHERE status = 'confirmed') AS confirmed_reservations,
-          COUNT(*) FILTER (WHERE status = 'pending') AS pending_reservations,
-          COUNT(*) FILTER (WHERE reservation_time::date = CURRENT_DATE) AS today_reservations,
-          COUNT(*) FILTER (WHERE reservation_time::date > CURRENT_DATE) AS upcoming_reservations
-        FROM reservations
-      `);
+    const availableTablesResult = await pool.query(
+      "SELECT COUNT(*) AS total FROM tables WHERE status = 'available'"
+    );
+    const availableTables = parseInt(availableTablesResult.rows[0].total);
 
-      // Get table occupancy status
-      const tableStats = await client.query(`
-        SELECT
-          COUNT(*) AS total_tables,
-          COUNT(*) FILTER (WHERE status = 'available') AS available_tables,
-          COUNT(*) FILTER (WHERE status = 'occupied') AS occupied_tables,
-          COUNT(*) FILTER (WHERE status = 'reserved') AS reserved_tables,
-          SUM(capacity) AS total_capacity
-        FROM tables
-      `);
+    // Get popular dishes (top 5)
+    const popularDishesResult = await pool.query(`
+      SELECT 
+        d.id AS "dishId", 
+        d.name AS "dishName",
+        SUM(od.quantity) AS "count",
+        d.price
+      FROM order_details od
+      JOIN dishes d ON od.dish_id = d.id
+      JOIN orders o ON od.order_id = o.order_id
+      WHERE o.status = 'completed'
+      GROUP BY d.id, d.name, d.price
+      ORDER BY "count" DESC
+      LIMIT 5
+    `);
 
-      // Get revenue by category
-      const revenueByCategory = await client.query(`
-        SELECT
-          d.category,
-          COALESCE(SUM(od.quantity * od.price), 0) AS category_revenue,
-          COALESCE(COUNT(DISTINCT od.order_id), 0) AS order_count
-        FROM dishes d
-        LEFT JOIN order_details od ON d.dish_id = od.dish_id
-        LEFT JOIN orders o ON od.order_id = o.order_id AND o.status = 'completed'
-        GROUP BY d.category
-        ORDER BY category_revenue DESC
-      `);
+    // Get dishes totals
+    const dishCountResult = await pool.query(`
+      SELECT COUNT(*) AS total,
+      SUM(CASE WHEN available = true THEN 1 ELSE 0 END) AS available_count
+      FROM dishes
+    `);
 
-      // Calculate business growth metrics (compare current month with previous month)
-      const growthMetrics = await client.query(`
-        WITH current_month AS (
-          SELECT COALESCE(SUM(total_price), 0) AS revenue
-          FROM orders
-          WHERE status = 'completed'
-            AND EXTRACT(YEAR FROM order_date) = EXTRACT(YEAR FROM CURRENT_DATE)
-            AND EXTRACT(MONTH FROM order_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-        ),
-        previous_month AS (
-          SELECT COALESCE(SUM(total_price), 0) AS revenue
-          FROM orders
-          WHERE status = 'completed'
-            AND (
-              (EXTRACT(YEAR FROM order_date) = EXTRACT(YEAR FROM CURRENT_DATE) AND 
-               EXTRACT(MONTH FROM order_date) = EXTRACT(MONTH FROM CURRENT_DATE) - 1)
-              OR
-              (EXTRACT(MONTH FROM CURRENT_DATE) = 1 AND
-               EXTRACT(YEAR FROM order_date) = EXTRACT(YEAR FROM CURRENT_DATE) - 1 AND
-               EXTRACT(MONTH FROM order_date) = 12)
-            )
-        )
-        SELECT
-          cm.revenue AS current_month_revenue,
-          pm.revenue AS previous_month_revenue,
-          CASE 
-            WHEN pm.revenue = 0 THEN 100
-            ELSE ROUND((cm.revenue - pm.revenue) / pm.revenue * 100, 2)
-          END AS revenue_growth_percentage
-        FROM current_month cm, previous_month pm
-      `);
+    const dishesTotal = parseInt(dishCountResult.rows[0].total || 0);
+    const dishesAvailable = parseInt(
+      dishCountResult.rows[0].available_count || 0
+    );
 
-      res.json({
-        status: "success",
-        data: [
-          {
-            users: {
-              totalUsers: parseInt(userStats.rows[0].total_users),
-              totalCustomers: parseInt(userStats.rows[0].total_customers),
-              totalStaff: parseInt(userStats.rows[0].total_staff),
-              totalAdmins: parseInt(userStats.rows[0].total_admins),
-              newUsersLast30Days: parseInt(
-                userStats.rows[0].new_users_last_30_days
-              ),
-            },
-            revenue: {
-              totalRevenue: parseFloat(revenueStats.rows[0].total_revenue),
-              todayRevenue: parseFloat(revenueStats.rows[0].today_revenue),
-              monthRevenue: parseFloat(revenueStats.rows[0].month_revenue),
-              revenueGrowth: parseFloat(
-                growthMetrics.rows[0].revenue_growth_percentage
-              ),
-            },
-            orders: {
-              totalOrders: parseInt(revenueStats.rows[0].total_orders),
-              completedOrders: parseInt(revenueStats.rows[0].completed_orders),
-              pendingOrders: parseInt(revenueStats.rows[0].pending_orders),
-              inProgressOrders: parseInt(
-                revenueStats.rows[0].in_progress_orders
-              ),
-              ordersByDate: ordersByDate.rows,
-            },
-            dishes: {
-              totalDishes: parseInt(dishStats.rows[0].total_dishes),
-              categoryCounts: {
-                appetizers: parseInt(dishStats.rows[0].appetizers_count),
-                mainCourse: parseInt(dishStats.rows[0].main_course_count),
-                desserts: parseInt(dishStats.rows[0].desserts_count),
-                beverages: parseInt(dishStats.rows[0].beverages_count),
-                noodles: parseInt(dishStats.rows[0].noodles_count),
-                rice: parseInt(dishStats.rows[0].rice_count),
-              },
-              averageRating: parseFloat(dishStats.rows[0].avg_dish_rating),
-              popularDishes: popularDishesResult.rows,
-              revenueByCategory: revenueByCategory.rows,
-            },
-            tables: {
-              totalTables: parseInt(tableStats.rows[0].total_tables),
-              availableTables: parseInt(tableStats.rows[0].available_tables),
-              occupiedTables: parseInt(tableStats.rows[0].occupied_tables),
-              reservedTables: parseInt(tableStats.rows[0].reserved_tables),
-              totalCapacity: parseInt(tableStats.rows[0].total_capacity),
-            },
-            reservations: {
-              totalReservations: parseInt(
-                reservationStats.rows[0].total_reservations
-              ),
-              confirmedReservations: parseInt(
-                reservationStats.rows[0].confirmed_reservations
-              ),
-              pendingReservations: parseInt(
-                reservationStats.rows[0].pending_reservations
-              ),
-              todayReservations: parseInt(
-                reservationStats.rows[0].today_reservations
-              ),
-              upcomingReservations: parseInt(
-                reservationStats.rows[0].upcoming_reservations
-              ),
-            },
-            recentActivity: {
-              recentOrders: recentOrdersResult.rows,
-            },
-          },
-        ],
-      });
-    } finally {
-      client.release();
-    }
+    // Send response
+    res.status(200).json({
+      status: "success",
+      data: {
+        orders: {
+          total: totalOrders,
+          completed: completedOrders,
+          pending: pendingOrders,
+        },
+        revenue: {
+          total: totalRevenue,
+        },
+        reservations: {
+          total: totalReservations,
+          today: todayReservations,
+        },
+        tables: {
+          total: totalTables,
+          available: availableTables,
+        },
+        dishes: {
+          total: dishesTotal,
+          available: dishesAvailable,
+        },
+        popularDishes: popularDishesResult.rows,
+      },
+    });
   } catch (error) {
-    console.error("Error getting dashboard stats:", error);
+    console.error("Dashboard error:", error);
     res.status(500).json({
       status: "error",
-      message: "Không thể lấy thống kê bảng điều khiển",
+      message: "Không thể lấy thông tin tổng quan",
       error: error.message,
     });
   }
 };
-
-// Add these dish management functions
 
 // Get all dishes with pagination, filtering, and sorting options
 exports.getAllDishes = async (req, res) => {
@@ -1003,8 +861,6 @@ exports.deleteDish = async (req, res) => {
     });
   }
 };
-
-// Get dish categories
 
 // Get all tables with optional filtering and sorting
 exports.getAllTables = async (req, res) => {
