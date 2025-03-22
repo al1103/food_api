@@ -118,6 +118,7 @@ exports.verifyRegistration = async (req, res) => {
 // Update login method to include role
 exports.login = async (req, res) => {
   try {
+    console.log("123");
     const { email, password } = req.body;
     const user = await UserModel.login(email, password);
 

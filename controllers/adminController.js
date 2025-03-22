@@ -1,8 +1,8 @@
 const { pool } = require("../config/database");
 const UserModel = require("../models/user_model");
-
+const fs = require("fs");
 const { getPaginationParams } = require("../utils/pagination");
-
+const cloudinary = require("../config/cloudinary");
 // Food management functions
 exports.createFood = async (req, res) => {
   try {
@@ -658,10 +658,11 @@ exports.getDishById = async (req, res) => {
     });
   }
 };
-
 // Create new dish
 exports.createDish = async (req, res) => {
   try {
+    console.log("Creating a new dish");
+
     // Lấy dữ liệu từ body request
     const { name, description, price, category } = req.body;
 
@@ -696,21 +697,30 @@ exports.createDish = async (req, res) => {
     // Biến để lưu URL ảnh
     let imageUrl = null;
 
-    // Upload ảnh nếu có file được gửi lên
+    // Upload ảnh lên Cloudinary nếu có file
     if (req.file) {
       try {
-        // Upload lên Cloudinary
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: "food_api/dishes",
-        });
+        console.log("Uploading image to Cloudinary:", req.file.path);
 
-        // Lưu URL ảnh
-        imageUrl = result.secure_url;
+        // Upload file lên Cloudinary
+        const cloudinaryResult = await cloudinary.uploader.upload(
+          req.file.path,
+          {
+            folder: "food_api/dishes", // Thư mục riêng cho dishes
+            transformation: [{ width: 600, height: 600, crop: "limit" }],
+          }
+        );
+
+        // Lưu URL của ảnh từ Cloudinary
+        imageUrl = cloudinaryResult.secure_url;
+
+        console.log("Image uploaded successfully:", imageUrl);
 
         // Xóa file tạm
         fs.unlinkSync(req.file.path);
+        console.log("Temporary file deleted");
       } catch (uploadError) {
-        console.error("Lỗi khi upload ảnh:", uploadError);
+        console.error("Error uploading image:", uploadError);
 
         // Xóa file tạm nếu upload thất bại
         if (req.file.path) {

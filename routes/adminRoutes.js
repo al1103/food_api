@@ -20,7 +20,7 @@ router.get("/dashboard/stats", adminController.getDashboardStats);
 router.get("/dishes", adminController.getAllDishes);
 router.get("/dishes/:id", adminController.getDishById);
 router.post("/dishes", upload.single("image"), adminController.createDish);
-router.put("/dishes/:id", adminController.updateDish);
+router.put("/dishes/:id", upload.single("image"), adminController.updateDish);
 router.delete("/dishes/:id", adminController.deleteDish);
 
 // Table management routes
