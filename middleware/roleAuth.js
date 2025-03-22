@@ -24,7 +24,7 @@ const auth = async (req, res, next) => {
 
       const result = await pool.query(
         `SELECT 
-          user_id AS "userId",  
+          user_id, 
           username, 
           email, 
           full_name AS "fullName",
@@ -41,7 +41,27 @@ const auth = async (req, res, next) => {
       }
 
       // Set the user in the request
-      req.user = result.rows[0];
+      const user = result.rows[0];
+
+      // Đảm bảo userId và user_id đều được đặt để tương thích với cả hai cách sử dụng
+      req.user = {
+        ...user,
+        userId: user.user_id, // Thêm trường userId để tương thích
+      };
+
+      // Thêm userData property cho tương thích với code hiện tại
+      req.userData = {
+        userId: user.user_id,
+        role: user.role,
+      };
+
+      // Log để debug
+      console.log("User authentication successful:", {
+        user_id: user.user_id,
+        userId: req.user.userId,
+        userDataUserId: req.userData.userId,
+      });
+
       next();
     } catch (error) {
       console.error("JWT verification error:", error);
