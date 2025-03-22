@@ -659,6 +659,7 @@ exports.getDishById = async (req, res) => {
   }
 };
 // Create new dish
+// Create new dish
 exports.createDish = async (req, res) => {
   try {
     console.log("Creating a new dish");
@@ -785,7 +786,6 @@ exports.createDish = async (req, res) => {
     });
   }
 };
-
 // Update dish
 exports.updateDish = async (req, res) => {
   try {

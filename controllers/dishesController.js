@@ -257,7 +257,18 @@ exports.createDish = async (req, res) => {
       });
     }
 
-    // Validate size information if provided
+    // Kiểm tra giá trị thời gian làm hợp lệ
+    if (dishData.preparationTime !== undefined) {
+      const prepTime = parseInt(dishData.preparationTime);
+      if (isNaN(prepTime) || prepTime <= 0) {
+        return res.status(400).json({
+          status: "error",
+          message: "Thời gian làm phải là số nguyên dương",
+        });
+      }
+      dishData.preparationTime = prepTime;
+    }
+
     if (
       dishData.isCombo &&
       (!dishData.comboItems || dishData.comboItems.length === 0)
@@ -307,6 +318,18 @@ exports.updateDish = async (req, res) => {
         status: "error",
         message: "Thiếu thông tin cần thiết cho món ăn (tên, danh mục)",
       });
+    }
+
+    // Kiểm tra giá trị thời gian làm hợp lệ
+    if (dishData.preparationTime !== undefined) {
+      const prepTime = parseInt(dishData.preparationTime);
+      if (isNaN(prepTime) || prepTime <= 0) {
+        return res.status(400).json({
+          status: "error",
+          message: "Thời gian làm phải là số nguyên dương",
+        });
+      }
+      dishData.preparationTime = prepTime;
     }
 
     if (
@@ -369,6 +392,48 @@ exports.deleteDish = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Lỗi khi xóa món ăn",
+      error: error.message,
+    });
+  }
+};
+
+// Thêm route để cập nhật đánh giá món ăn (nếu chưa có)
+exports.updateDishRating = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, isNewReview } = req.body;
+
+    if (rating === undefined) {
+      return res.status(400).json({
+        status: "error",
+        message: "Thiếu giá trị đánh giá",
+      });
+    }
+
+    const parsedRating = parseFloat(rating);
+    if (isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5) {
+      return res.status(400).json({
+        status: "error",
+        message: "Đánh giá phải là số từ 0 đến 5",
+      });
+    }
+
+    const result = await DishModel.updateDishRating(
+      id,
+      parsedRating,
+      isNewReview !== false
+    );
+
+    res.json({
+      status: "success",
+      message: "Cập nhật đánh giá thành công",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error updating dish rating:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi cập nhật đánh giá món ăn",
       error: error.message,
     });
   }

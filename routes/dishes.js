@@ -25,5 +25,6 @@ router.patch(
   adminAuth,
   dishesController.updateSizeAvailability
 ); // Update size availability
+router.patch("/dishes/:id/rating", dishesController.updateDishRating); // Update dish rating
 
 module.exports = router;
