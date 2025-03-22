@@ -662,10 +662,17 @@ exports.getDishById = async (req, res) => {
 // Create new dish
 exports.createDish = async (req, res) => {
   try {
-    const { name, description, price, imageUrl, category } = req.body;
+    // Lấy dữ liệu từ body request
+    const { name, description, price, category } = req.body;
 
     // Validate required fields
     if (!name || !price || !category) {
+      // Xóa file tạm nếu có
+      if (req.file && req.file.path) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Không thể xóa file tạm:", err);
+        });
+      }
       return res.status(400).json({
         status: "error",
         message: "Tên món ăn, giá và danh mục là bắt buộc",
@@ -674,12 +681,53 @@ exports.createDish = async (req, res) => {
 
     // Validate price
     if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+      // Xóa file tạm nếu có
+      if (req.file && req.file.path) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Không thể xóa file tạm:", err);
+        });
+      }
       return res.status(400).json({
         status: "error",
         message: "Giá món ăn không hợp lệ",
       });
     }
 
+    // Biến để lưu URL ảnh
+    let imageUrl = null;
+
+    // Upload ảnh nếu có file được gửi lên
+    if (req.file) {
+      try {
+        // Upload lên Cloudinary
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "food_api/dishes",
+        });
+
+        // Lưu URL ảnh
+        imageUrl = result.secure_url;
+
+        // Xóa file tạm
+        fs.unlinkSync(req.file.path);
+      } catch (uploadError) {
+        console.error("Lỗi khi upload ảnh:", uploadError);
+
+        // Xóa file tạm nếu upload thất bại
+        if (req.file.path) {
+          fs.unlink(req.file.path, (err) => {
+            if (err) console.error("Không thể xóa file tạm:", err);
+          });
+        }
+
+        return res.status(500).json({
+          status: "error",
+          message: "Lỗi khi upload ảnh món ăn",
+          error: uploadError.message,
+        });
+      }
+    }
+
+    // Thêm vào database
     const query = `
       INSERT INTO dishes (
         name, description, price, image_url, category, rating, created_at, updated_at
@@ -700,7 +748,7 @@ exports.createDish = async (req, res) => {
       name,
       description || null,
       parseFloat(price),
-      imageUrl || null,
+      imageUrl, // URL từ Cloudinary hoặc null nếu không có ảnh
       category,
       0.0, // Initial rating
     ]);
@@ -712,6 +760,14 @@ exports.createDish = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating dish:", error);
+
+    // Xóa file tạm nếu có lỗi
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Không thể xóa file tạm:", err);
+      });
+    }
+
     res.status(500).json({
       status: "error",
       message: "Không thể tạo món ăn mới",
@@ -724,17 +780,73 @@ exports.createDish = async (req, res) => {
 exports.updateDish = async (req, res) => {
   try {
     const dishId = req.params.id;
-    const { name, description, price, imageUrl, category, rating } = req.body;
+    const { name, description, price, category, rating } = req.body;
 
     // Check if dish exists
-    const checkQuery = "SELECT 1 FROM dishes WHERE dish_id = $1";
+    const checkQuery = "SELECT image_url FROM dishes WHERE dish_id = $1";
     const checkResult = await pool.query(checkQuery, [dishId]);
 
     if (checkResult.rows.length === 0) {
+      // Xóa file tạm nếu có
+      if (req.file && req.file.path) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Không thể xóa file tạm:", err);
+        });
+      }
       return res.status(404).json({
         status: "error",
         message: "Không tìm thấy món ăn",
       });
+    }
+
+    // Lưu URL ảnh cũ (nếu có)
+    const oldImageUrl = checkResult.rows[0].image_url;
+
+    // Upload ảnh mới nếu có
+    let imageUrl = undefined; // Không thay đổi ảnh mặc định
+
+    if (req.file) {
+      try {
+        // Upload lên Cloudinary
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "food_api/dishes",
+        });
+
+        // Lưu URL ảnh mới
+        imageUrl = result.secure_url;
+
+        // Xóa file tạm
+        fs.unlinkSync(req.file.path);
+
+        // Xóa ảnh cũ trên Cloudinary nếu có
+        if (oldImageUrl) {
+          try {
+            // Trích xuất public_id từ URL cũ
+            const publicId = extractPublicIdFromUrl(oldImageUrl);
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId);
+            }
+          } catch (deleteError) {
+            console.error("Lỗi khi xóa ảnh cũ:", deleteError);
+            // Tiếp tục không quan tâm đến lỗi xóa ảnh cũ
+          }
+        }
+      } catch (uploadError) {
+        console.error("Lỗi khi upload ảnh mới:", uploadError);
+
+        // Xóa file tạm nếu upload thất bại
+        if (req.file.path) {
+          fs.unlink(req.file.path, (err) => {
+            if (err) console.error("Không thể xóa file tạm:", err);
+          });
+        }
+
+        return res.status(500).json({
+          status: "error",
+          message: "Lỗi khi upload ảnh món ăn",
+          error: uploadError.message,
+        });
+      }
     }
 
     // Build update query dynamically based on provided fields
@@ -1311,3 +1423,22 @@ exports.getTableAvailability = async (req, res) => {
     });
   }
 };
+
+// Thêm hàm hỗ trợ trích xuất public_id
+function extractPublicIdFromUrl(url) {
+  if (!url) return null;
+  try {
+    // URL: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/filename.jpg
+    const parts = url.split("/upload/");
+    if (parts.length < 2) return null;
+
+    // Lấy phần sau v1234567890/
+    const pathPart = parts[1].replace(/^v\d+\//, "");
+
+    // Loại bỏ phần mở rộng file (.jpg, .png, etc.)
+    return pathPart.replace(/\.[^/.]+$/, "");
+  } catch (error) {
+    console.error("Lỗi trích xuất public_id:", error);
+    return null;
+  }
+}

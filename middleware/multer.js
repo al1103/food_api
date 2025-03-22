@@ -3,31 +3,29 @@ const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 
+// Đảm bảo thư mục uploads/temp tồn tại
+const uploadDir = path.join(__dirname, "../uploads/temp");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Cấu hình storage tạm thời trên disk
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "../uploads/temp"));
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    const userId = req.user ? req.user.userId : "anonymous";
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      `user_${userId}_${uniqueSuffix}${path.extname(file.originalname)}`
-    );
+    cb(null, `img_${uniqueSuffix}${path.extname(file.originalname)}`);
   },
 });
 
-// Một lựa chọn khác: lưu vào memory buffer thay vì disk
-// const storage = multer.memoryStorage();
-
 // Hàm kiểm tra loại file
 const fileFilter = (req, file, cb) => {
-  // Chỉ chấp nhận các loại file hình ảnh
   if (file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
-    cb(new Error("Chỉ cho phép upload file hình ảnh!"), false);
+    cb(new Error("Chỉ chấp nhận file hình ảnh!"), false);
   }
 };
 
@@ -36,7 +34,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // Giới hạn dung lượng: 5MB
+    fileSize: 10 * 1024 * 1024, // Giới hạn: 10MB
   },
 });
 
