@@ -9,6 +9,7 @@ const reservationRoutes = require("./Reservations");
 const dashboardRoutes = require("./dashboard");
 const adminRoutes = require("./adminRoutes"); // Add admin routes
 const cartRoutes = require("./cart");
+const uploadRoutes = require("./uploadRoutes");
 
 function routes(app) {
   // User management
@@ -34,6 +35,9 @@ function routes(app) {
 
   // In your app.js file
   app.use("/api/cart", cartRoutes);
+
+  // Upload management
+  app.use("/api/uploads", uploadRoutes);
 
   // Error handling middleware
   app.use((err, req, res, next) => {

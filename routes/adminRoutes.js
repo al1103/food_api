@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
 const { adminAuth } = require("../middleware/roleAuth");
+const upload = require("../middleware/multer");
 
 // Protect all admin routes with adminAuth middleware
 router.use(adminAuth);
@@ -18,7 +19,7 @@ router.get("/dashboard/stats", adminController.getDashboardStats);
 // Dish management routes
 router.get("/dishes", adminController.getAllDishes);
 router.get("/dishes/:id", adminController.getDishById);
-router.post("/dishes", adminController.createDish);
+router.post("/dishes", upload.single("image"), adminController.createDish);
 router.put("/dishes/:id", adminController.updateDish);
 router.delete("/dishes/:id", adminController.deleteDish);
 
