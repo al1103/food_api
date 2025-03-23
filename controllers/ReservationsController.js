@@ -73,7 +73,7 @@ exports.updateReservationStatus = async (req, res) => {
     }
 
     await ReservationModel.updateReservationStatus(id, statusCode);
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật trạng thái đặt bàn thành công",
     });
@@ -104,7 +104,7 @@ exports.checkAvailability = async (req, res) => {
       partySize
     );
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: {
         available: availableTables.length > 0,

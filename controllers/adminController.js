@@ -127,7 +127,7 @@ exports.updateFood = async (req, res) => {
 
     const result = await pool.query(query, values);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật món ăn thành công",
       data: result.rows[0],
@@ -162,7 +162,7 @@ exports.deleteFood = async (req, res) => {
 
     await pool.query(query, [foodId]);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Xóa món ăn thành công",
     });
@@ -180,7 +180,7 @@ exports.getAllUsers = async (req, res) => {
     const { page, limit } = getPaginationParams(req);
     const result = await UserModel.getAllUsers(page, limit);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.users,
       pagination: result.pagination,
@@ -207,7 +207,7 @@ exports.getUserById = async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: user,
     });
@@ -235,7 +235,7 @@ exports.updateUserRole = async (req, res) => {
 
     const updatedUser = await UserModel.updateUserRole(userId, role);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật vai trò người dùng thành công",
       data: updatedUser,
@@ -264,7 +264,7 @@ exports.deleteUser = async (req, res) => {
 
     const result = await UserModel.deleteUser(userId);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: result.message,
     });
@@ -447,7 +447,7 @@ exports.getAllDishes = async (req, res) => {
 
     const result = await pool.query(query, paginatedQueryParams);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.rows,
       pagination: {
@@ -503,7 +503,7 @@ exports.getDishById = async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.rows[0],
     });
@@ -800,7 +800,7 @@ exports.updateDish = async (req, res) => {
 
     const result = await pool.query(query, values);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật món ăn thành công",
       data: result.rows[0],
@@ -971,7 +971,7 @@ exports.getTableById = async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.rows[0],
     });

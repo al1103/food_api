@@ -39,7 +39,7 @@ exports.getReferralShareContent = async (req, res) => {
       appUrl
     );
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: sharingContent,
     });

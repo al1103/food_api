@@ -13,7 +13,7 @@ exports.getCart = async (req, res) => {
 
     const cart = await CartModel.getCart(userId);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: cart,
     });
@@ -143,7 +143,7 @@ exports.updateCartItem = async (req, res) => {
     // Get updated cart to return in response
     const updatedCart = await CartModel.getCart(userId);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message:
         parsedQuantity > 0
@@ -191,7 +191,7 @@ exports.removeFromCart = async (req, res) => {
     // Get updated cart to return in response
     const updatedCart = await CartModel.getCart(userId);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Đã xóa món ăn khỏi giỏ hàng",
       data: {
@@ -231,7 +231,7 @@ exports.clearCart = async (req, res) => {
 
     const result = await CartModel.clearCart(userId);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Đã xóa toàn bộ giỏ hàng",
       data: result,
