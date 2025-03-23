@@ -14,6 +14,9 @@ router.post("/categories", adminAuth, dishesController.createCategory);
 router.put("/categories/:id", adminAuth, dishesController.updateCategory);
 router.delete("/categories/:id", adminAuth, dishesController.deleteCategory);
 
+// Add this route after your category routes but before the /:id routes
+router.get("/category/:categoryId", dishesController.getDishesByCategory);
+
 // Auth required routes
 router.post("/:id/rate", auth, dishesController.rateDish);
 

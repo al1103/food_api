@@ -612,6 +612,85 @@ class DishModel {
       throw error;
     }
   }
+
+  /**
+   * Get dishes by category ID
+   * @param {number} categoryId - Category ID
+   * @param {number} page - Current page number
+   * @param {number} limit - Number of items per page
+   * @param {number} offset - Offset for pagination
+   * @returns {Promise<Object>} - Pagination details and dish data
+   */
+  static async getDishesByCategory(
+    categoryId,
+    page = 1,
+    limit = 10,
+    offset = 0
+  ) {
+    try {
+      // Validate categoryId
+      if (!categoryId) {
+        throw new Error("Category ID is required");
+      }
+
+      const countQuery = `
+        SELECT COUNT(*) 
+        FROM dishes 
+        WHERE category_id = $1
+      `;
+
+      const dishesQuery = `
+        SELECT 
+          d.*,
+          c.name as category_name,
+          COALESCE(AVG(dr.rating), 0) as average_rating,
+          COUNT(DISTINCT dr.id) as ratings_count
+        FROM dishes d
+        LEFT JOIN categories c ON d.category_id = c.id
+        LEFT JOIN dish_ratings dr ON d.id = dr.dish_id
+        WHERE d.category_id = $1
+        GROUP BY d.id, c.name
+        ORDER BY d.created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+
+      const [countResult, dishesResult] = await Promise.all([
+        pool.query(countQuery, [categoryId]),
+        pool.query(dishesQuery, [categoryId, limit, offset]),
+      ]);
+
+      const totalItems = parseInt(countResult.rows[0].count);
+      const totalPages = Math.ceil(totalItems / limit);
+
+      // Get additional data for each dish
+      const dishesWithDetails = await Promise.all(
+        dishesResult.rows.map(async (dish) => {
+          const [sizes, toppings] = await Promise.all([
+            this.getDishSizes(dish.id),
+            this.getDishToppings(dish.id),
+          ]);
+
+          return {
+            ...dish,
+            sizes,
+            toppings,
+          };
+        })
+      );
+
+      return {
+        count: totalItems,
+        rows: dishesWithDetails,
+        currentPage: page,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    } catch (error) {
+      console.error("Error in getDishesByCategory:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = DishModel;
