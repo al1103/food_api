@@ -539,7 +539,7 @@ exports.getAllCategories = async (req, res) => {
     return res.status(200).json({
       statusCode: 200,
       message: "Categories retrieved successfully",
-      data,
+      data: categories,
     });
   } catch (error) {
     console.error("Error getting categories:", error);

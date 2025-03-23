@@ -189,17 +189,15 @@ exports.login = async (req, res) => {
     return res.status(200).json({
       statusCode: 200,
       message: "Đăng nhập thành công",
-      data: [
-        {
-          userId: user.userId,
-          username: user.username,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-          accessToken: accessToken,
-          refreshToken: refreshToken
-        }
-      ],
+      accessToken,
+      refreshToken,
+      user: {
+        userId: user.userId,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
