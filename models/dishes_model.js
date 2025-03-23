@@ -2,23 +2,47 @@ const { pool } = require("../config/database");
 
 class DishModel {
   /**
-   * Get all dishes with pagination
+   * Get all dishes with pagination and category filter
    * @param {number} page - Current page number
    * @param {number} limit - Number of items per page
    * @param {number} offset - Offset for pagination
+   * @param {number} categoryId - Optional category ID filter
    * @returns {Promise<Object>} - Pagination details and dish data
    */
-  static async getAllDishes(page, limit, offset) {
+  static async getAllDishes(page, limit, offset, categoryId) {
     try {
-      const countQuery = "SELECT COUNT(*) FROM dishes";
-      const dishesQuery = `
-        SELECT * FROM dishes 
-        ORDER BY created_at DESC 
-        LIMIT $1 OFFSET $2
+      let countQuery = "SELECT COUNT(*) FROM dishes";
+      let dishesQuery = `
+        SELECT d.*, c.name as category_name 
+        FROM dishes d
+        LEFT JOIN categories c ON d.category_id = c.id
       `;
 
-      const countResult = await pool.query(countQuery);
-      const dishesResult = await pool.query(dishesQuery, [limit, offset]);
+      const queryParams = [];
+
+      // Add category filter if categoryId is provided
+      if (categoryId) {
+        countQuery += " WHERE category_id = $1";
+        dishesQuery += " WHERE d.category_id = $1";
+        queryParams.push(categoryId);
+      }
+
+      // Add pagination
+      dishesQuery += " ORDER BY d.created_at DESC";
+      if (limit) {
+        dishesQuery += ` LIMIT $${queryParams.length + 1}`;
+        queryParams.push(limit);
+      }
+      if (offset) {
+        dishesQuery += ` OFFSET $${queryParams.length + 1}`;
+        queryParams.push(offset);
+      }
+
+      const countResult = await pool.query(
+        countQuery,
+        categoryId ? [categoryId] : []
+      );
+      const dishesResult = await pool.query(dishesQuery, queryParams);
 
       const totalCount = parseInt(countResult.rows[0].count);
       const totalPages = Math.ceil(totalCount / limit);
