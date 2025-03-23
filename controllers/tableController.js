@@ -35,7 +35,7 @@ exports.getTableById = async (req, res) => {
     }
     res.status(200).json({
       statusCode: 200,
-      data: table,
+      data: [table],
     });
   } catch (error) {
     res.status(500).json({

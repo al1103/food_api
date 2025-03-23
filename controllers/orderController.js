@@ -41,7 +41,7 @@ exports.getOrderById = async (req, res) => {
     }
     res.status(200).json({
       statusCode: 200,
-      data: order,
+      data: [order],
     });
   } catch (error) {
     res.status(500).json({
