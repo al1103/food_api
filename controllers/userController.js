@@ -1,9 +1,9 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const UserModel = require("../models/user_model");
+const { pool } = require("../config/database"); // Add this line
 const { sendRandomCodeEmail } = require("../server/server");
 const { getPaginationParams } = require("../utils/pagination");
-const { uploadImage, deleteImage } = require("../utils/uploadImage");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs");
 const path = require("path");
@@ -15,103 +15,150 @@ exports.register = async (req, res) => {
     const { username, email, password, fullName, phoneNumber, referralCode } =
       req.body;
 
+    // Basic validation
     if (!username || !email || !password || !fullName) {
       return res.status(400).json({ error: "Vui lòng điền đầy đủ thông tin" });
     }
 
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ error: "Email không hợp lệ" });
     }
 
+    // Password validation
     if (password.length < 6) {
       return res
         .status(400)
         .json({ error: "Mật khẩu phải có ít nhất 6 ký tự" });
     }
 
+    // Check if email already exists
     const existingUser = await UserModel.getUserByEmail(email);
     if (existingUser) {
       return res.status(400).json({ error: "Email đã được sử dụng" });
     }
 
-    //TODO : Hash password
-    // const hashedPassword = await bcrypt.hash(password, 10);
-
+    // Generate verification code (6 digits)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    var codes = await sendRandomCodeEmail(email, code);
-
-    await UserModel.sendCode(email, code);
-
-    const tempUserData = {
+    // Store temporary user data
+    const userData = {
       username,
       email,
-      password: password,
+      password,
       fullName,
       phoneNumber,
       referralCode,
     };
-    const token = jwt.sign(tempUserData, process.env.JWT_SECRET_KEY, {
-      expiresIn: "100m",
-    });
+
+    // Create expiration time (10 minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+    // First delete any existing record with this email
+    await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
+      email,
+    ]);
+
+    // Then insert the new record
+    await pool.query(
+      `INSERT INTO verification_codes (email, code, expires_at, user_data)
+       VALUES ($1, $2, $3, $4)`,
+      [email, code, expiresAt, JSON.stringify(userData)]
+    );
+
+    // Send verification code via email
+    const sentCode = await sendRandomCodeEmail(email, code);
 
     return res.status(200).json({
+      status: "success",
+      code: sentCode,
       message: "Vui lòng kiểm tra email để lấy mã xác nhận",
-      codes,
-      token,
+      email,
     });
   } catch (error) {
     console.error("Lỗi đăng ký:", error);
-    return res
-      .status(500)
-      .json({ error: "Đã xảy ra lỗi trong quá trình đăng ký" });
+    return res.status(500).json({
+      status: "error",
+      message: "Đã xảy ra lỗi trong quá trình đăng ký",
+      error: error.message,
+    });
   }
 };
 
 exports.verifyRegistration = async (req, res) => {
   try {
-    const { token, code } = req.body;
+    const { email, code } = req.body;
 
-    if (!token) return res.status(400).json({ error: "Thiếu token" });
+    if (!email)
+      return res.status(400).json({
+        status: "error",
+        message: "Email là bắt buộc",
+      });
+
     if (!code)
-      return res.status(400).json({ error: "Mã xác nhận là bắt buộc" });
+      return res.status(400).json({
+        status: "error",
+        message: "Mã xác nhận là bắt buộc",
+      });
 
-    let tempUser;
-    try {
-      tempUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    } catch (error) {
-      return res
-        .status(400)
-        .json({ error: "Token không hợp lệ hoặc đã hết hạn" });
-    }
-
-    const isCodeValid = await UserModel.verifyCode(tempUser.email, code);
-    if (!isCodeValid) {
-      return res
-        .status(400)
-        .json({ error: "Mã xác nhận không hợp lệ hoặc đã hết hạn" });
-    }
-    await UserModel.deleteVerificationCode(tempUser.email, code);
-
-    const result = await UserModel.register(
-      tempUser.username,
-      tempUser.email,
-      tempUser.password,
-      tempUser.fullName,
-      tempUser.phoneNumber,
-      tempUser.referralCode
+    // Get the verification record
+    const verificationResult = await pool.query(
+      `SELECT * FROM verification_codes 
+       WHERE email = $1 AND code = $2 AND expires_at > NOW()`,
+      [email, code]
     );
 
+    // Check if verification code exists and is valid
+    if (verificationResult.rows.length === 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "Mã xác nhận không chính xác hoặc đã hết hạn",
+      });
+    }
+
+    const userData = verificationResult.rows[0].user_data;
+
+    // If no user data found
+    if (!userData) {
+      return res.status(400).json({
+        status: "error",
+        message: "Không tìm thấy thông tin đăng ký",
+      });
+    }
+
+    // Register the user with the stored data
+    const result = await UserModel.register(
+      userData.username,
+      userData.email,
+      userData.password,
+      userData.fullName,
+      userData.phoneNumber,
+      userData.referralCode
+    );
+
+    // Delete the verification code after successful registration
+    await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
+      email,
+    ]);
+
+    // Return success response
     return res.status(201).json({
+      status: "success",
       message: "Đăng ký thành công",
-      userId: result.userId,
+      data: {
+        userId: result.userId,
+        referralCode: result.referralCode,
+      },
     });
   } catch (error) {
     console.error("Lỗi xác nhận đăng ký:", error);
-    return res
-      .status(500)
-      .json({ error: "Đã xảy ra lỗi. Vui lòng thử lại sau." });
+    return res.status(500).json({
+      status: "error",
+      message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+      error: error.message,
+    });
   }
 };
 
