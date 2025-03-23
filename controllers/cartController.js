@@ -3,7 +3,14 @@ const CartModel = require("../models/cart_model");
 exports.getCart = async (req, res) => {
   try {
     const userId = req.user.userId;
-    console.log("req user", req.user);
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized: User ID not found in token",
+      });
+    }
+
     const cart = await CartModel.getCart(userId);
 
     res.json({
@@ -12,6 +19,14 @@ exports.getCart = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting cart:", error);
+
+    if (error.message === "User not found") {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
+    }
+
     res.status(500).json({
       status: "error",
       message: "Không thể lấy giỏ hàng",
@@ -24,6 +39,14 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
   try {
     const userId = req.user.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized: User ID not found in token",
+      });
+    }
+
     const { dishId, sizeId, quantity = 1 } = req.body;
 
     if (!dishId) {
@@ -45,25 +68,34 @@ exports.addToCart = async (req, res) => {
     const result = await CartModel.addToCart(
       userId,
       dishId,
-      sizeId,
+      sizeId || null, // Ensure we pass null if sizeId is undefined
       parsedQuantity
     );
+
+    // Get updated cart to return in response
+    const updatedCart = await CartModel.getCart(userId);
 
     res.status(201).json({
       status: "success",
       message: "Đã thêm món ăn vào giỏ hàng",
-      data: result,
+      data: {
+        addedItem: result,
+        cart: updatedCart,
+      },
     });
   } catch (error) {
     console.error("Error adding to cart:", error);
 
-    if (
-      error.message === "Dish not found" ||
-      error.message === "Dish is currently not available" ||
-      error.message === "Invalid size for this dish" ||
-      error.message === "Selected size is currently not available" ||
-      error.message === "No default size found for this dish"
-    ) {
+    const knownErrors = [
+      "Dish not found",
+      "Dish is currently not available",
+      "Invalid size for this dish",
+      "Selected size is currently not available",
+      "No default size found for this dish",
+      "User not found",
+    ];
+
+    if (knownErrors.includes(error.message)) {
       return res.status(400).json({
         status: "error",
         message: error.message,
@@ -82,6 +114,14 @@ exports.addToCart = async (req, res) => {
 exports.updateCartItem = async (req, res) => {
   try {
     const userId = req.user.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized: User ID not found in token",
+      });
+    }
+
     const { cartId } = req.params;
     const { quantity } = req.body;
 
@@ -100,13 +140,19 @@ exports.updateCartItem = async (req, res) => {
       parsedQuantity
     );
 
+    // Get updated cart to return in response
+    const updatedCart = await CartModel.getCart(userId);
+
     res.json({
       status: "success",
       message:
         parsedQuantity > 0
           ? "Đã cập nhật số lượng"
           : "Đã xóa món ăn khỏi giỏ hàng",
-      data: result,
+      data: {
+        updatedItem: result,
+        cart: updatedCart,
+      },
     });
   } catch (error) {
     console.error("Error updating cart item:", error);
@@ -130,14 +176,28 @@ exports.updateCartItem = async (req, res) => {
 exports.removeFromCart = async (req, res) => {
   try {
     const userId = req.user.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized: User ID not found in token",
+      });
+    }
+
     const { cartId } = req.params;
 
     const result = await CartModel.removeFromCart(userId, cartId);
 
+    // Get updated cart to return in response
+    const updatedCart = await CartModel.getCart(userId);
+
     res.json({
       status: "success",
       message: "Đã xóa món ăn khỏi giỏ hàng",
-      data: result,
+      data: {
+        removedItem: result.removedItem,
+        cart: updatedCart,
+      },
     });
   } catch (error) {
     console.error("Error removing from cart:", error);
@@ -162,11 +222,19 @@ exports.clearCart = async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    await CartModel.clearCart(userId);
+    if (!userId) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized: User ID not found in token",
+      });
+    }
+
+    const result = await CartModel.clearCart(userId);
 
     res.json({
       status: "success",
       message: "Đã xóa toàn bộ giỏ hàng",
+      data: result,
     });
   } catch (error) {
     console.error("Error clearing cart:", error);
