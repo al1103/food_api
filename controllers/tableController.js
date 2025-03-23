@@ -11,7 +11,7 @@ exports.getAllTables = async (req, res) => {
       sortOrder
     );
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.tables,
       pagination: result.pagination,
@@ -33,7 +33,7 @@ exports.getTableById = async (req, res) => {
         message: "Không tìm thấy bàn",
       });
     }
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: table,
     });
@@ -84,7 +84,7 @@ exports.updateTable = async (req, res) => {
 
     await TableModel.updateTable(id, { capacity, statusCode });
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật bàn thành công",
     });

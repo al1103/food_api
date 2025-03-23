@@ -16,7 +16,7 @@ exports.getAllOrders = async (req, res) => {
       endDate,
     });
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.orders,
       pagination: result.pagination,
@@ -39,7 +39,7 @@ exports.getOrderById = async (req, res) => {
         message: "Không tìm thấy đơn hàng",
       });
     }
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: order,
     });
@@ -103,7 +103,7 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     await OrderModel.updateOrderStatus(id, statusCode);
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật trạng thái đơn hàng thành công",
     });
@@ -123,7 +123,7 @@ exports.getOrderStatistics = async (req, res) => {
 
     const stats = await OrderModel.getOrderStatistics(startDate, endDate);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: stats,
     });

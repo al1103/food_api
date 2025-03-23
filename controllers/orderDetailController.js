@@ -3,7 +3,7 @@ const ReservationModel = require("../models/reservation_model");
 exports.getAllReservations = async (req, res) => {
   try {
     const reservations = await ReservationModel.getAllReservations();
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: reservations,
     });
@@ -63,7 +63,7 @@ exports.updateReservationStatus = async (req, res) => {
     }
 
     await ReservationModel.updateReservationStatus(id, statusCode);
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật trạng thái đặt bàn thành công",
     });
@@ -80,7 +80,7 @@ exports.deleteReservation = async (req, res) => {
   try {
     const { id } = req.params;
     await ReservationModel.deleteReservation(id);
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Xóa đặt bàn thành cong",
     });

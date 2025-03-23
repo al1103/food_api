@@ -218,7 +218,7 @@ exports.token = async (req, res) => {
   jwt.verify(token, process.env.REFRESH_SECRET_KEY, (err, user) => {
     if (err) return res.sendStatus(403);
     const accessToken = generateAccessToken({ username: user.username });
-    res.json({ accessToken });
+    res.status(200).json({ accessToken });
   });
 };
 
@@ -241,7 +241,7 @@ exports.getReferralInfo = async (req, res) => {
     const userId = req.user.userId; // Fixed from req.useruserid
     const referralInfo = await UserModel.getReferralInfo(userId);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: referralInfo,
     });
@@ -291,7 +291,7 @@ exports.updateCommissionRates = async (req, res) => {
 
       await client.query("COMMIT");
 
-      res.json({
+      res.status(200).json({
         statusCode: 200,
         message: "Cập nhật tỷ lệ hoa hồng thành công",
       });
@@ -345,7 +345,7 @@ exports.getReferralNetwork = async (req, res) => {
 
     const result = await pool.query(query, [userId, parsedLevel]);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: {
         level: parsedLevel,
@@ -369,7 +369,7 @@ exports.getWalletTransactions = async (req, res) => {
 
     const result = await UserModel.getWalletTransactions(userId, page, limit);
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: result.transactions,
       pagination: result.pagination,
@@ -407,7 +407,7 @@ exports.withdrawFromWallet = async (req, res) => {
       accountHolder,
     });
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: result.message,
       data: {
@@ -561,7 +561,7 @@ exports.getReferralShareContent = async (req, res) => {
       emailBody: `Xin chào,\n\nTôi xin mời bạn đăng ký tài khoản tại nhà hàng ABC. Sử dụng mã giới thiệu ${referralCode} để nhận ưu đãi đặc biệt.\n\nĐăng ký tại: ${referralLink}\n\nCảm ơn bạn!`,
     };
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: sharingContent,
     });
@@ -592,7 +592,7 @@ exports.getUserProfile = async (req, res) => {
     // Remove sensitive information
     const { Password, ...userProfile } = user;
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       data: userProfile,
     });
@@ -623,7 +623,7 @@ exports.updateUserProfile = async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       statusCode: 200,
       message: "Cập nhật thông tin thành công",
       data: updatedUserData,
