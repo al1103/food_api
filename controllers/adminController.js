@@ -354,29 +354,31 @@ exports.getDashboardStats = async (req, res) => {
     // Send response
     res.status(200).json({
       statusCode: 200,
-      data: {
-        orders: {
-          total: totalOrders,
-          completed: completedOrders,
-          pending: pendingOrders,
+      data: [
+        {
+          orders: {
+            total: totalOrders,
+            completed: completedOrders,
+            pending: pendingOrders,
+          },
+          revenue: {
+            total: totalRevenue,
+          },
+          reservations: {
+            total: totalReservations,
+            today: todayReservations,
+          },
+          tables: {
+            total: totalTables,
+            available: availableTables,
+          },
+          dishes: {
+            total: dishesTotal,
+            available: dishesAvailable,
+          },
+          popularDishes: popularDishesResult.rows,
         },
-        revenue: {
-          total: totalRevenue,
-        },
-        reservations: {
-          total: totalReservations,
-          today: todayReservations,
-        },
-        tables: {
-          total: totalTables,
-          available: availableTables,
-        },
-        dishes: {
-          total: dishesTotal,
-          available: dishesAvailable,
-        },
-        popularDishes: popularDishesResult.rows,
-      },
+      ],
     });
   } catch (error) {
     console.error("Dashboard error:", error);
