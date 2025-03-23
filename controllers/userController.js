@@ -115,7 +115,7 @@ exports.verifyRegistration = async (req, res) => {
     // Check if verification code exists and is valid
     if (verificationResult.rows.length === 0) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Mã xác nhận không chính xác hoặc đã hết hạn",
       });
     }
@@ -125,7 +125,7 @@ exports.verifyRegistration = async (req, res) => {
     // If no user data found
     if (!userData) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Không tìm thấy thông tin đăng ký",
       });
     }
@@ -167,13 +167,12 @@ exports.verifyRegistration = async (req, res) => {
 // Update login method to include role
 exports.login = async (req, res) => {
   try {
-    console.log("123");
     const { email, password } = req.body;
     const user = await UserModel.login(email, password);
 
     if (!user) {
       return res.status(401).json({
-        statusCode: 500,
+        statusCode: 401,
         message: "Thông tin đăng nhập không chính xác",
       });
     }
@@ -261,7 +260,7 @@ exports.updateCommissionRates = async (req, res) => {
 
     if (!rates || !Array.isArray(rates)) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Cần cung cấp dữ liệu tỷ lệ hoa hồng hợp lệ",
       });
     }
@@ -321,7 +320,7 @@ exports.getReferralNetwork = async (req, res) => {
     const parsedLevel = parseInt(level);
     if (isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 5) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Cấp độ phải từ 1 đến 5",
       });
     }
@@ -396,7 +395,7 @@ exports.withdrawFromWallet = async (req, res) => {
       !accountHolder
     ) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Vui lòng nhập đầy đủ thông tin rút tiền",
       });
     }
@@ -417,7 +416,7 @@ exports.withdrawFromWallet = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
-      statusCode: 500,
+      statusCode: 400,
       message: error.message,
     });
   }
@@ -429,7 +428,7 @@ exports.forgotPassword = async (req, res) => {
 
     if (!email) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Email là bắt buộc",
       });
     }
@@ -438,7 +437,7 @@ exports.forgotPassword = async (req, res) => {
     const user = await UserModel.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Không tìm thấy tài khoản với email này",
       });
     }
@@ -479,14 +478,14 @@ exports.resetPassword = async (req, res) => {
 
     if (!resetToken || !code || !newPassword) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Thiếu thông tin cần thiết",
       });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Mật khẩu phải có ít nhất 6 ký tự",
       });
     }
@@ -497,7 +496,7 @@ exports.resetPassword = async (req, res) => {
       decoded = jwt.verify(resetToken, process.env.JWT_SECRET_KEY);
     } catch (error) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Token không hợp lệ hoặc đã hết hạn",
       });
     }
@@ -506,7 +505,7 @@ exports.resetPassword = async (req, res) => {
     const isCodeValid = await UserModel.verifyCode(decoded.email, code);
     if (!isCodeValid) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Mã xác nhận không hợp lệ hoặc đã hết hạn",
       });
     }
@@ -543,7 +542,7 @@ exports.getReferralShareContent = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        statusCode: 500,
+        statusCode: 404,
         message: "Người dùng không tồn tại",
       });
     }
@@ -578,7 +577,6 @@ exports.getReferralShareContent = async (req, res) => {
 exports.getUserProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
-    console.log(req.user);
 
     const user = await UserModel.getUserById(userId);
 
@@ -618,7 +616,7 @@ exports.updateUserProfile = async (req, res) => {
 
     if (!updatedUserData) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Không có thông tin nào được cập nhật",
       });
     }
@@ -641,7 +639,7 @@ exports.uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Không có file được upload",
       });
     }
@@ -695,23 +693,3 @@ exports.uploadAvatar = async (req, res) => {
     });
   }
 };
-
-// Hàm hỗ trợ để trích xuất public_id từ URL Cloudinary
-function extractPublicIdFromUrl(url) {
-  // Cloudinary URL có dạng: https://res.cloudinary.com/<cloud_name>/image/upload/v1234567890/<folder>/<public_id>.<ext>
-  try {
-    if (!url) return null;
-    // Lấy phần sau "/upload/"
-    const parts = url.split("/upload/");
-    if (parts.length < 2) return null;
-
-    // Lấy phần sau version number (v1234567890/)
-    const pathPart = parts[1].replace(/^v\d+\//, "");
-
-    // Loại bỏ phần mở rộng file
-    return pathPart.replace(/\.[^/.]+$/, "");
-  } catch (error) {
-    console.error("Lỗi khi trích xuất public_id:", error);
-    return null;
-  }
-}

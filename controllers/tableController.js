@@ -64,7 +64,7 @@ exports.createTable = async (req, res) => {
     });
 
     res.status(201).json({
-      statusCode: 200,
+      successCode: 200,
       message: "Tạo bàn mới thành công",
       data: newTable,
     });
