@@ -539,7 +539,7 @@ exports.getAllCategories = async (req, res) => {
     return res.status(200).json({
       statusCode: 200,
       message: "Categories retrieved successfully",
-      categories,
+      data,
     });
   } catch (error) {
     console.error("Error getting categories:", error);
@@ -569,7 +569,7 @@ exports.createCategory = async (req, res) => {
     return res.status(201).json({
       statusCode: 201,
       message: "Category created successfully",
-      category: newCategory,
+      data: newCategory,
     });
   } catch (error) {
     console.error("Error creating category:", error);
@@ -609,7 +609,7 @@ exports.updateCategory = async (req, res) => {
     return res.status(200).json({
       statusCode: 200,
       message: "Category updated successfully",
-      category: updatedCategory,
+      data: updatedCategory,
     });
   } catch (error) {
     console.error("Error updating category:", error);
