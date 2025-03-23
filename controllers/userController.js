@@ -592,7 +592,7 @@ exports.getUserProfile = async (req, res) => {
 
     res.status(200).json({
       statusCode: 200,
-      data: userProfile,
+      data: [userProfile],
     });
   } catch (error) {
     console.error("Lỗi lấy thông tin người dùng:", error);
