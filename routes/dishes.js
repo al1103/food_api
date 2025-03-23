@@ -16,8 +16,8 @@ categoryRouter.post("/", adminAuth, dishesController.createCategory);
 categoryRouter.put("/:id", adminAuth, dishesController.updateCategory);
 categoryRouter.delete("/:id", adminAuth, dishesController.deleteCategory);
 
-// Routes for dishes by category (note the different path)
-router.get("/category/:id", dishesController.getDishesByCategory);
+// Change the route parameter name to match the controller
+router.get("/category/:categoryId", dishesController.getDishesByCategory); // Changed from :id to :categoryId
 
 // Toppings route
 router.get("/toppings", dishesController.getAllToppings);
