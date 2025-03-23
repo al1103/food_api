@@ -659,3 +659,54 @@ exports.deleteCategory = async (req, res) => {
     });
   }
 };
+
+exports.getDishesByCategory = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Validate categoryId
+    if (!categoryId || isNaN(categoryId)) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Invalid category ID",
+      });
+    }
+
+    // Check if category exists
+    const category = await DishModel.getCategoryById(categoryId);
+    if (!category) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Category not found",
+      });
+    }
+
+    const result = await DishModel.getDishesByCategory(
+      parseInt(categoryId),
+      parseInt(page),
+      parseInt(limit),
+      parseInt(offset)
+    );
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "Dishes retrieved successfully",
+      category: category.name,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+      totalItems: result.count,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error getting dishes by category:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
