@@ -532,10 +532,10 @@ exports.getAllToppings = async (req, res) => {
   }
 };
 
+// Update getAllCategories function
 exports.getAllCategories = async (req, res) => {
   try {
     const categories = await DishModel.getAllCategories();
-
     return res.status(200).json({
       statusCode: 200,
       message: "Categories retrieved successfully",
@@ -551,9 +551,10 @@ exports.getAllCategories = async (req, res) => {
   }
 };
 
+// Update createCategory function
 exports.createCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -562,11 +563,7 @@ exports.createCategory = async (req, res) => {
       });
     }
 
-    const categoryId = await DishModel.createCategory({
-      name,
-      description: description || null,
-    });
-
+    const categoryId = await DishModel.createCategory({ name });
     const newCategory = await DishModel.getCategoryById(categoryId);
 
     return res.status(201).json({
@@ -576,6 +573,85 @@ exports.createCategory = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating category:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Add updateCategory function
+exports.updateCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Category name is required",
+      });
+    }
+
+    // Check if category exists
+    const category = await DishModel.getCategoryById(id);
+    if (!category) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Category not found",
+      });
+    }
+
+    await DishModel.updateCategory(id, { name });
+    const updatedCategory = await DishModel.getCategoryById(id);
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "Category updated successfully",
+      category: updatedCategory,
+    });
+  } catch (error) {
+    console.error("Error updating category:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Add deleteCategory function
+exports.deleteCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if category exists
+    const category = await DishModel.getCategoryById(id);
+    if (!category) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Category not found",
+      });
+    }
+
+    // Check if category has dishes
+    const dishes = await DishModel.getDishesByCategory(id);
+    if (dishes.length > 0) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Cannot delete category with existing dishes",
+      });
+    }
+
+    await DishModel.deleteCategory(id);
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "Category deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting category:", error);
     return res.status(500).json({
       statusCode: 500,
       message: "Server error",
