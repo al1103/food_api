@@ -506,6 +506,88 @@ class DishModel {
       rows: dishesResult.rows,
     };
   }
+
+  /**
+   * Get all categories
+   * @returns {Promise<Array>} - Array of all categories
+   */
+  static async getAllCategories() {
+    try {
+      const query = `
+        SELECT id, name, created_at, updated_at 
+        FROM categories 
+        ORDER BY name ASC
+      `;
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error("Error in getAllCategories:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get category by ID
+   * @param {number} id - Category ID
+   * @returns {Promise<Object>} - Category data
+   */
+  static async getCategoryById(id) {
+    try {
+      const query = "SELECT id, name FROM categories WHERE id = $1";
+      const result = await pool.query(query, [id]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error("Error in getCategoryById:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new category
+   * @param {Object} categoryData - Category data {name}
+   * @returns {Promise<number>} - ID of the created category
+   */
+  static async createCategory(categoryData) {
+    try {
+      const { name } = categoryData;
+      const query = `
+        INSERT INTO categories (name, created_at, updated_at)
+        VALUES ($1, NOW(), NOW())
+        RETURNING id
+      `;
+      const result = await pool.query(query, [name]);
+      return result.rows[0].id;
+    } catch (error) {
+      console.error("Error in createCategory:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a category
+   * @param {number} id - Category ID
+   * @param {Object} categoryData - Updated category data
+   * @returns {Promise<void>}
+   */
+  static async updateCategory(id, categoryData) {
+    try {
+      const { name } = categoryData;
+      const query = `
+        UPDATE categories 
+        SET name = $1,
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING id
+      `;
+      const result = await pool.query(query, [name, id]);
+      if (!result.rows[0]) {
+        throw new Error(`Category with ID ${id} not found`);
+      }
+    } catch (error) {
+      console.error("Error in updateCategory:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = DishModel;
