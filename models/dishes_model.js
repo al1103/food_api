@@ -55,7 +55,7 @@ class DishModel {
    */
   static async createDish(dishData) {
     try {
-      const { name, description, category, price, preparation_time, image } =
+      const { name, description, category_id, price, preparation_time, image } =
         dishData;
 
       // Check for table structure
@@ -80,23 +80,30 @@ class DishModel {
       if (hasImageColumn) {
         query = `
           INSERT INTO dishes 
-            (name, description, category, price, preparation_time, image, created_at, updated_at) 
+            (name, description, category_id, price, preparation_time, image, created_at, updated_at) 
           VALUES 
             ($1, $2, $3, $4, $5, $6, NOW(), NOW()) 
           RETURNING id
         `;
 
-        values = [name, description, category, price, preparation_time, image];
+        values = [
+          name,
+          description,
+          category_id,
+          price,
+          preparation_time,
+          image,
+        ];
       } else {
         query = `
           INSERT INTO dishes 
-            (name, description, category, price, preparation_time, created_at, updated_at) 
+            (name, description, category_id, price, preparation_time, created_at, updated_at) 
           VALUES 
             ($1, $2, $3, $4, $5, NOW(), NOW()) 
           RETURNING id
         `;
 
-        values = [name, description, category, price, preparation_time];
+        values = [name, description, category_id, price, preparation_time];
         console.warn(
           "Warning: 'image' column doesn't exist in dishes table. Image will not be saved."
         );
@@ -126,7 +133,7 @@ class DishModel {
    */
   static async updateDish(id, dishData) {
     try {
-      const { name, description, category, price, preparation_time, image } =
+      const { name, description, category_id, price, preparation_time, image } =
         dishData;
 
       const query = `
@@ -134,7 +141,7 @@ class DishModel {
         SET 
           name = $1,
           description = $2,
-          category = $3,
+          category_id = $3,
           price = $4,
           preparation_time = $5,
           image = $6,
@@ -146,7 +153,7 @@ class DishModel {
       const values = [
         name,
         description,
-        category,
+        category_id,
         price,
         preparation_time,
         image,
