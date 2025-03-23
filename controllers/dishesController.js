@@ -59,7 +59,7 @@ exports.getDishById = async (req, res) => {
 
     return res.status(200).json({
       statusCode: 200,
-      dish,
+      data: [dish],
     });
   } catch (error) {
     console.error("Error getting dish:", error);
