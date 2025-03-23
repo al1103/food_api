@@ -57,7 +57,7 @@ CREATE TABLE referrals (
   referrer_id UUID REFERENCES users(user_id),
   referred_id UUID REFERENCES users(user_id),
   commission DECIMAL(10,2) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
+  statusCode VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -78,7 +78,7 @@ CREATE TABLE tables (
   table_id SERIAL PRIMARY KEY,
   table_number INTEGER UNIQUE NOT NULL,
   capacity INTEGER NOT NULL,
-  status VARCHAR(20) DEFAULT 'available',
+  statusCode VARCHAR(20) DEFAULT 'available',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -101,7 +101,7 @@ CREATE TABLE orders (
   order_id SERIAL PRIMARY KEY,
   user_id UUID REFERENCES users(user_id),
   total_price DECIMAL(10,2) NOT NULL DEFAULT 0,
-  status VARCHAR(20) DEFAULT 'pending',
+  statusCode VARCHAR(20) DEFAULT 'pending',
   table_id INTEGER REFERENCES tables(table_id),
   order_date TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW(),
@@ -126,7 +126,7 @@ CREATE TABLE reservations (
   table_id INTEGER REFERENCES tables(table_id),
   reservation_time TIMESTAMP NOT NULL,
   party_size INTEGER NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
+  statusCode VARCHAR(20) DEFAULT 'pending',
   customer_name VARCHAR(100),
   phone_number VARCHAR(20),
   special_requests TEXT,
@@ -145,7 +145,7 @@ VALUES
   ('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', 'staff1', 'staff1@example.com', 'Staff123', 'Staff One', '0123789456', 'STAFF001', 0.00, NOW(), NOW());
 
 -- Insert tables
-INSERT INTO tables (table_number, capacity, status, created_at, updated_at)
+INSERT INTO tables (table_number, capacity, statusCode, created_at, updated_at)
 VALUES
   (1, 2, 'available', NOW(), NOW()),
   (2, 4, 'available', NOW(), NOW()),
@@ -178,7 +178,7 @@ VALUES
   ('Bánh Flan', 'Vietnamese caramel custard', 30000.00, 'https://example.com/images/banhflan.jpg', 4.5, 'Desserts', NOW(), NOW());
 
 -- Insert orders
-INSERT INTO orders (user_id, total_price, status, table_id, order_date, created_at, updated_at)
+INSERT INTO orders (user_id, total_price, statusCode, table_id, order_date, created_at, updated_at)
 VALUES
   ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', 210000.00, 'completed', 1, NOW() - INTERVAL '3 days', NOW() - INTERVAL '3 days', NOW() - INTERVAL '3 days'),
   ('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', 175000.00, 'completed', 2, NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
@@ -208,7 +208,7 @@ VALUES
   (5, 12, 2, 10000.00, NULL, NOW());
 
 -- Insert reservations
-INSERT INTO reservations (user_id, table_id, reservation_time, party_size, status, customer_name, phone_number, special_requests, created_at, updated_at)
+INSERT INTO reservations (user_id, table_id, reservation_time, party_size, statusCode, customer_name, phone_number, special_requests, created_at, updated_at)
 VALUES
   ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', 8, NOW() + INTERVAL '1 day', 8, 'confirmed', 'Customer One', '0987654321', 'Birthday celebration', NOW(), NOW()),
   ('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', 3, NOW() + INTERVAL '2 days', 6, 'pending', 'Customer Two', '0987123456', 'Window seat preferred', NOW(), NOW()),
@@ -216,7 +216,7 @@ VALUES
   ('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', 10, NOW() + INTERVAL '5 days', 10, 'confirmed', 'Customer Two', '0987123456', 'Business dinner', NOW(), NOW());
 
 -- Insert referrals
-INSERT INTO referrals (referrer_id, referred_id, commission, status, created_at, updated_at)
+INSERT INTO referrals (referrer_id, referred_id, commission, statusCode, created_at, updated_at)
 VALUES
   ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', 50000.00, 'completed', NOW() - INTERVAL '30 days', NOW() - INTERVAL '30 days'),
   ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', 50000.00, 'completed', NOW() - INTERVAL '15 days', NOW() - INTERVAL '15 days'),
@@ -236,7 +236,7 @@ CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_referral_code ON users(referral_code);
 CREATE INDEX idx_dishes_category ON dishes(category);
 CREATE INDEX idx_orders_user_id ON orders(user_id);
-CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_status ON orders(statusCode);
 CREATE INDEX idx_order_details_order_id ON order_details(order_id);
 CREATE INDEX idx_reservations_user_id ON reservations(user_id);
 CREATE INDEX idx_reservations_reservation_time ON reservations(reservation_time);

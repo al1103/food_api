@@ -4,12 +4,12 @@ exports.getAllReservations = async (req, res) => {
   try {
     const reservations = await ReservationModel.getAllReservations();
     res.json({
-      status: "success",
+      statusCode: 200,
       data: reservations,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Không thể lấy danh sách đặt bàn",
       error: error.message,
     });
@@ -22,8 +22,8 @@ exports.createReservation = async (req, res) => {
     const userId = req.useruserid; // Từ middleware auth
 
     if (!tableNumber || !reservationTime) {
-      return res.status(400).json({
-        status: "error",
+      return res.statusCode(400).json({
+        statusCode: "error",
         message: "Thiếu thông tin đặt bàn",
       });
     }
@@ -34,14 +34,14 @@ exports.createReservation = async (req, res) => {
       reservationTime,
     });
 
-    res.status(201).json({
-      status: "success",
+    res.statusCode(201).json({
+      statusCode: 200,
       message: "Đặt bàn thành công",
       data: newReservation,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi đặt bàn",
       error: error.message,
     });
@@ -51,23 +51,25 @@ exports.createReservation = async (req, res) => {
 exports.updateReservationStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { statusCode } = req.body;
 
-    if (!["pending", "confirmed", "cancelled", "completed"].includes(status)) {
-      return res.status(400).json({
-        status: "error",
+    if (
+      !["pending", "confirmed", "cancelled", "completed"].includes(statusCode)
+    ) {
+      return res.statusCode(400).json({
+        statusCode: "error",
         message: "Trạng thái không hợp lệ",
       });
     }
 
-    await ReservationModel.updateReservationStatus(id, status);
+    await ReservationModel.updateReservationStatus(id, statusCode);
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Cập nhật trạng thái đặt bàn thành công",
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi cập nhật trạng thái đặt bàn",
       error: error.message,
     });
@@ -79,12 +81,12 @@ exports.deleteReservation = async (req, res) => {
     const { id } = req.params;
     await ReservationModel.deleteReservation(id);
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Xóa đặt bàn thành cong",
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi xóa đặt bàn",
       error: error.message,
     });

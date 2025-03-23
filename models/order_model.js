@@ -20,7 +20,7 @@ class OrderModel {
           o.user_id AS "userId",
           u.username AS "username",
           o.total_price AS "totalPrice",
-          o.status AS "status",
+          o.statusCode AS "statusCode",
           o.order_date AS "orderDate",
           o.created_at AS "createdAt",
           o.updated_at AS "updatedAt"
@@ -53,7 +53,7 @@ class OrderModel {
           o.order_id AS "orderId",
           o.user_id AS "userId",
           o.total_price AS "totalPrice",
-          o.status AS "status",
+          o.statusCode AS "statusCode",
           o.table_id AS "tableId",
           o.order_date AS "orderDate",
           o.created_at AS "createdAt",
@@ -79,13 +79,13 @@ class OrderModel {
       await client.query("BEGIN");
 
       const result = await client.query(
-        `INSERT INTO orders (user_id, total_price, status, table_id, order_date, created_at, updated_at)
+        `INSERT INTO orders (user_id, total_price, statusCode, table_id, order_date, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW())
          RETURNING order_id AS "orderId"`,
         [
           orderData.userId,
           orderData.totalPrice,
-          orderData.status || "pending",
+          orderData.statusCode || "pending",
           orderData.tableId || null,
         ]
       );
@@ -95,7 +95,10 @@ class OrderModel {
 
       // Distribute commissions to the referral tree
       // Only call this if the order is paid
-      if (orderData.status === "paid" || orderData.status === "completed") {
+      if (
+        orderData.statusCode === "paid" ||
+        orderData.statusCode === "completed"
+      ) {
         await UserModel.distributeOrderCommission(orderData.userId, orderTotal);
       }
 
@@ -110,13 +113,13 @@ class OrderModel {
     }
   }
 
-  static async updateOrderStatus(id, status) {
+  static async updateOrderStatus(id, statusCode) {
     try {
       await pool.query(
         `UPDATE orders 
-         SET status = $1, updated_at = NOW()
+         SET statusCode = $1, updated_at = NOW()
          WHERE order_id = $2`,
-        [status, id]
+        [statusCode, id]
       );
 
       return { message: "Cập nhật trạng thái đơn hàng thành công" };

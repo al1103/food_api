@@ -70,7 +70,7 @@ docker-compose build
 docker-compose up --build
 ```
 
-### Status of running containers
+### statusCode of running containers
 
 ```bash
 docker-compose ps

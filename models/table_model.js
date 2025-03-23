@@ -17,7 +17,7 @@ class TableModel {
         "table_id",
         "table_number",
         "capacity",
-        "status",
+        "statusCode",
         "created_at",
         "updated_at",
       ];
@@ -43,7 +43,7 @@ class TableModel {
           table_id AS "tableId",
           table_number AS "tableNumber",
           capacity,
-          status,
+          statusCode,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM tables
@@ -79,7 +79,7 @@ class TableModel {
           table_id AS "tableId",
           table_number AS "tableNumber",
           capacity,
-          status,
+          statusCode,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM tables 
@@ -98,14 +98,14 @@ class TableModel {
     try {
       const result = await pool.query(
         `INSERT INTO tables (
-          table_number, capacity, status, created_at, updated_at
+          table_number, capacity, statusCode, created_at, updated_at
         ) VALUES (
           $1, $2, $3, NOW(), NOW()
         ) RETURNING table_id AS "tableId"`,
         [
           tableData.tableNumber,
           tableData.capacity,
-          tableData.status || "available",
+          tableData.statusCode || "available",
         ]
       );
 
@@ -121,10 +121,10 @@ class TableModel {
       await pool.query(
         `UPDATE tables SET
           capacity = $1,
-          status = $2,
+          statusCode = $2,
           updated_at = NOW()
         WHERE table_id = $3`,
-        [tableData.capacity, tableData.status, id]
+        [tableData.capacity, tableData.statusCode, id]
       );
 
       return await this.getTableById(id);

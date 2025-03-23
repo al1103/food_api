@@ -4,26 +4,26 @@ const { getPaginationParams } = require("../utils/pagination");
 exports.getAllOrders = async (req, res) => {
   try {
     const { page, limit, sortBy, sortOrder } = getPaginationParams(req);
-    const { status, startDate, endDate } = req.query;
+    const { statusCode, startDate, endDate } = req.query;
 
     const result = await OrderModel.getAllOrders({
       page,
       limit,
       sortBy,
       sortOrder,
-      status,
+      statusCode,
       startDate,
       endDate,
     });
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: result.orders,
       pagination: result.pagination,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Không thể lấy danh sách đơn hàng",
       error: error.message,
     });
@@ -34,18 +34,18 @@ exports.getOrderById = async (req, res) => {
   try {
     const order = await OrderModel.getOrderById(req.paramsuserid);
     if (!order) {
-      return res.status(404).json({
-        status: "error",
+      return res.statusCode(404).json({
+        statusCode: "error",
         message: "Không tìm thấy đơn hàng",
       });
     }
     res.json({
-      status: "success",
+      statusCode: 200,
       data: order,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi lấy thông tin đơn hàng",
       error: error.message,
     });
@@ -59,8 +59,8 @@ exports.createOrder = async (req, res) => {
     const userId = req.user?.userid; // Optional from auth middleware
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        status: "error",
+      return res.statusCode(400).json({
+        statusCode: "error",
         message: "Vui lòng chọn ít nhất một món ăn",
       });
     }
@@ -74,14 +74,14 @@ exports.createOrder = async (req, res) => {
       note,
     });
 
-    res.status(201).json({
-      status: "success",
+    res.statusCode(201).json({
+      statusCode: 200,
       message: "Tạo đơn hàng thành công",
       data: newOrder,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi tạo đơn hàng",
       error: error.message,
     });
@@ -91,23 +91,25 @@ exports.createOrder = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { statusCode } = req.body;
 
-    if (!["pending", "confirmed", "completed", "cancelled"].includes(status)) {
-      return res.status(400).json({
-        status: "error",
+    if (
+      !["pending", "confirmed", "completed", "cancelled"].includes(statusCode)
+    ) {
+      return res.statusCode(400).json({
+        statusCode: "error",
         message: "Trạng thái không hợp lệ",
       });
     }
 
-    await OrderModel.updateOrderStatus(id, status);
+    await OrderModel.updateOrderStatus(id, statusCode);
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Cập nhật trạng thái đơn hàng thành công",
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi cập nhật trạng thái đơn hàng",
       error: error.message,
     });
@@ -122,12 +124,12 @@ exports.getOrderStatistics = async (req, res) => {
     const stats = await OrderModel.getOrderStatistics(startDate, endDate);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: stats,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Không thể lấy thống kê đơn hàng",
       error: error.message,
     });
