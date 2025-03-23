@@ -68,7 +68,7 @@ const auth = async (req, res, next) => {
 
       // Handle token expiration specifically
       if (error.name === "TokenExpiredError") {
-        return res.statusCode(401).json({
+        return res.status(401).json({
           statusCode: 500,
           message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
           expired: true,
@@ -81,7 +81,7 @@ const auth = async (req, res, next) => {
     }
   } catch (error) {
     console.error("Auth middleware error:", error);
-    res.statusCode(500).json({ statusCode: 500, message: "Lỗi xác thực" });
+    res.status(500).json({ statusCode: 500, message: "Lỗi xác thực" });
   }
 };
 
@@ -97,7 +97,7 @@ const adminAuth = async (req, res, next) => {
     if (req.user && req.user.role === "admin") {
       next();
     } else {
-      return res.statusCode(403).json({
+      return res.status(403).json({
         statusCode: 500,
         message: "Không có quyền truy cập. Yêu cầu quyền quản trị viên.",
       });
@@ -116,7 +116,7 @@ const staffAuth = async (req, res, next) => {
     if (req.user && (req.user.role === "staff" || req.user.role === "admin")) {
       next();
     } else {
-      return res.statusCode(403).json({
+      return res.status(403).json({
         statusCode: 500,
         message:
           "Không có quyền truy cập. Yêu cầu quyền nhân viên hoặc quản trị viên.",

@@ -5,7 +5,7 @@ exports.uploadImage = async (req, res) => {
   try {
     // Kiểm tra nếu không có file được gửi lên
     if (!req.file) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Vui lòng chọn file hình ảnh để upload",
       });
@@ -23,7 +23,7 @@ exports.uploadImage = async (req, res) => {
     fs.unlinkSync(filePath);
 
     // Trả về thông tin ảnh đã upload
-    return res.statusCode(200).json({
+    return res.status(200).json({
       statusCode: 200,
       message: "Upload ảnh thành công",
       data: {
@@ -45,7 +45,7 @@ exports.uploadImage = async (req, res) => {
       });
     }
 
-    return res.statusCode(500).json({
+    return res.status(500).json({
       statusCode: 500,
       message: "Đã xảy ra lỗi khi upload ảnh",
       error: error.message,

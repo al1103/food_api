@@ -8,7 +8,7 @@ exports.getAllReservations = async (req, res) => {
       data: reservations,
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Không thể lấy danh sách đặt bàn",
       error: error.message,
@@ -22,7 +22,7 @@ exports.createReservation = async (req, res) => {
     const userId = req.useruserid; // Từ middleware auth
 
     if (!tableNumber || !reservationTime) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Thiếu thông tin đặt bàn",
       });
@@ -34,13 +34,13 @@ exports.createReservation = async (req, res) => {
       reservationTime,
     });
 
-    res.statusCode(201).json({
+    res.status(201).json({
       statusCode: 200,
       message: "Đặt bàn thành công",
       data: newReservation,
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Lỗi khi đặt bàn",
       error: error.message,
@@ -56,7 +56,7 @@ exports.updateReservationStatus = async (req, res) => {
     if (
       !["pending", "confirmed", "cancelled", "completed"].includes(statusCode)
     ) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Trạng thái không hợp lệ",
       });
@@ -68,7 +68,7 @@ exports.updateReservationStatus = async (req, res) => {
       message: "Cập nhật trạng thái đặt bàn thành công",
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Lỗi khi cập nhật trạng thái đặt bàn",
       error: error.message,
@@ -85,7 +85,7 @@ exports.deleteReservation = async (req, res) => {
       message: "Xóa đặt bàn thành cong",
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Lỗi khi xóa đặt bàn",
       error: error.message,
