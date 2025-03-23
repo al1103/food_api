@@ -23,7 +23,6 @@ class CartModel {
           d.category,
           d.description,
           d.price AS base_price,
-          false AS is_combo,  -- Use false since the column doesn't exist
           COALESCE(d.available, true) AS is_available,
           ds.size_name,
           ds.price_adjustment,  -- Updated column name for size adjustment
@@ -62,7 +61,6 @@ class CartModel {
             description: item.description,
             imageUrl: "",
             category: item.category,
-            isCombo: item.is_combo,
             isAvailable:
               item.is_available && (item.size_id ? item.size_available : true),
             size: item.size_id
