@@ -62,7 +62,7 @@ exports.updateFood = async (req, res) => {
     const existingFood = await FoodModel.getFoodById(foodId);
     if (!existingFood) {
       return res.status(404).json({
-        statusCode: 500,
+        statusCode: 404,
         message: "Không tìm thấy món ăn",
       });
     }
@@ -209,7 +209,7 @@ exports.getUserById = async (req, res) => {
 
     res.status(200).json({
       statusCode: 200,
-      data: user,
+      data: [user],
     });
   } catch (error) {
     console.error("Error getting user:", error);

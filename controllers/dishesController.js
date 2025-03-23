@@ -19,7 +19,7 @@ exports.getAllDishes = async (req, res) => {
       totalItems: result.count,
       hasNextPage: result.hasNextPage,
       hasPreviousPage: result.hasPreviousPage,
-      dishes: result.rows,
+      data: result.rows,
     });
   } catch (error) {
     console.error("Error getting dishes:", error);
