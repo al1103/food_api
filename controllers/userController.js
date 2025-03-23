@@ -82,7 +82,7 @@ exports.register = async (req, res) => {
   } catch (error) {
     console.error("Lỗi đăng ký:", error);
     return res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Đã xảy ra lỗi trong quá trình đăng ký",
       error: error.message,
     });
@@ -95,13 +95,13 @@ exports.verifyRegistration = async (req, res) => {
 
     if (!email)
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Email là bắt buộc",
       });
 
     if (!code)
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Mã xác nhận là bắt buộc",
       });
 
@@ -115,7 +115,7 @@ exports.verifyRegistration = async (req, res) => {
     // Check if verification code exists and is valid
     if (verificationResult.rows.length === 0) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Mã xác nhận không chính xác hoặc đã hết hạn",
       });
     }
@@ -125,7 +125,7 @@ exports.verifyRegistration = async (req, res) => {
     // If no user data found
     if (!userData) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy thông tin đăng ký",
       });
     }
@@ -157,7 +157,7 @@ exports.verifyRegistration = async (req, res) => {
   } catch (error) {
     console.error("Lỗi xác nhận đăng ký:", error);
     return res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
       error: error.message,
     });
@@ -173,7 +173,7 @@ exports.login = async (req, res) => {
 
     if (!user) {
       return res.statusCode(401).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Thông tin đăng nhập không chính xác",
       });
     }
@@ -203,7 +203,7 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
     return res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Đã xảy ra lỗi trong quá trình đăng nhập",
     });
   }
@@ -247,7 +247,7 @@ exports.getReferralInfo = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin giới thiệu",
       error: error.message,
     });
@@ -261,7 +261,7 @@ exports.updateCommissionRates = async (req, res) => {
 
     if (!rates || !Array.isArray(rates)) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Cần cung cấp dữ liệu tỷ lệ hoa hồng hợp lệ",
       });
     }
@@ -304,7 +304,7 @@ exports.updateCommissionRates = async (req, res) => {
   } catch (error) {
     console.error("Error updating commission rates:", error);
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể cập nhật tỷ lệ hoa hồng",
       error: error.message,
     });
@@ -321,7 +321,7 @@ exports.getReferralNetwork = async (req, res) => {
     const parsedLevel = parseInt(level);
     if (isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 5) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Cấp độ phải từ 1 đến 5",
       });
     }
@@ -355,7 +355,7 @@ exports.getReferralNetwork = async (req, res) => {
   } catch (error) {
     console.error("Error getting referral network:", error);
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin mạng lưới giới thiệu",
       error: error.message,
     });
@@ -376,7 +376,7 @@ exports.getWalletTransactions = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy lịch sử giao dịch",
       error: error.message,
     });
@@ -396,7 +396,7 @@ exports.withdrawFromWallet = async (req, res) => {
       !accountHolder
     ) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Vui lòng nhập đầy đủ thông tin rút tiền",
       });
     }
@@ -417,7 +417,7 @@ exports.withdrawFromWallet = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(400).json({
-      statusCode: "error",
+      statusCode: 500,
       message: error.message,
     });
   }
@@ -429,7 +429,7 @@ exports.forgotPassword = async (req, res) => {
 
     if (!email) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Email là bắt buộc",
       });
     }
@@ -438,7 +438,7 @@ exports.forgotPassword = async (req, res) => {
     const user = await UserModel.getUserByEmail(email);
     if (!user) {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy tài khoản với email này",
       });
     }
@@ -467,7 +467,7 @@ exports.forgotPassword = async (req, res) => {
   } catch (error) {
     console.error("Lỗi quên mật khẩu:", error);
     return res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
     });
   }
@@ -479,14 +479,14 @@ exports.resetPassword = async (req, res) => {
 
     if (!resetToken || !code || !newPassword) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Thiếu thông tin cần thiết",
       });
     }
 
     if (newPassword.length < 6) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Mật khẩu phải có ít nhất 6 ký tự",
       });
     }
@@ -497,7 +497,7 @@ exports.resetPassword = async (req, res) => {
       decoded = jwt.verify(resetToken, process.env.JWT_SECRET_KEY);
     } catch (error) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Token không hợp lệ hoặc đã hết hạn",
       });
     }
@@ -506,7 +506,7 @@ exports.resetPassword = async (req, res) => {
     const isCodeValid = await UserModel.verifyCode(decoded.email, code);
     if (!isCodeValid) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Mã xác nhận không hợp lệ hoặc đã hết hạn",
       });
     }
@@ -527,7 +527,7 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error("Lỗi đặt lại mật khẩu:", error);
     return res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
     });
   }
@@ -543,7 +543,7 @@ exports.getReferralShareContent = async (req, res) => {
 
     if (!user) {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Người dùng không tồn tại",
       });
     }
@@ -568,7 +568,7 @@ exports.getReferralShareContent = async (req, res) => {
   } catch (error) {
     console.error("Lỗi lấy nội dung chia sẻ:", error);
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể tạo nội dung chia sẻ",
       error: error.message,
     });
@@ -584,7 +584,7 @@ exports.getUserProfile = async (req, res) => {
 
     if (!user) {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy thông tin người dùng",
       });
     }
@@ -599,7 +599,7 @@ exports.getUserProfile = async (req, res) => {
   } catch (error) {
     console.error("Lỗi lấy thông tin người dùng:", error);
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin người dùng",
       error: error.message,
     });
@@ -618,7 +618,7 @@ exports.updateUserProfile = async (req, res) => {
 
     if (!updatedUserData) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không có thông tin nào được cập nhật",
       });
     }
@@ -631,7 +631,7 @@ exports.updateUserProfile = async (req, res) => {
   } catch (error) {
     console.error("Lỗi cập nhật thông tin người dùng:", error);
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể cập nhật thông tin người dùng",
       error: error.message,
     });
@@ -641,7 +641,7 @@ exports.uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không có file được upload",
       });
     }
@@ -665,7 +665,7 @@ exports.uploadAvatar = async (req, res) => {
 
     if (!updatedUser) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không thể cập nhật avatar",
       });
     }
@@ -689,7 +689,7 @@ exports.uploadAvatar = async (req, res) => {
     }
 
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi upload avatar",
       error: error.message,
     });

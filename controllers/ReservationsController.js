@@ -16,7 +16,7 @@ exports.createReservation = async (req, res) => {
 
     if (!tableId || !reservationTime || !customerName || !phoneNumber) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Thiếu thông tin đặt bàn cần thiết",
       });
     }
@@ -29,7 +29,7 @@ exports.createReservation = async (req, res) => {
 
     if (!isTableAvailable) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Bàn đã được đặt trong khung giờ này",
       });
     }
@@ -51,7 +51,7 @@ exports.createReservation = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi đặt bàn",
       error: error.message,
     });
@@ -67,7 +67,7 @@ exports.updateReservationStatus = async (req, res) => {
       !["pending", "confirmed", "cancelled", "completed"].includes(statusCode)
     ) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Trạng thái không hợp lệ",
       });
     }
@@ -79,7 +79,7 @@ exports.updateReservationStatus = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi cập nhật trạng thái đặt bàn",
       error: error.message,
     });
@@ -93,7 +93,7 @@ exports.checkAvailability = async (req, res) => {
 
     if (!date || !time || !partySize) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Vui lòng cung cấp ngày, giờ và số người",
       });
     }
@@ -113,7 +113,7 @@ exports.checkAvailability = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể kiểm tra tình trạng sẵn có",
       error: error.message,
     });
