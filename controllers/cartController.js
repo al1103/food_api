@@ -76,7 +76,7 @@ exports.addToCart = async (req, res) => {
     const updatedCart = await CartModel.getCart(userId);
 
     res.status(201).json({
-      statusCode: 201,
+      successCode: 200,
       message: "Đã thêm món ăn vào giỏ hàng",
       data: {
         addedItem: result,

@@ -23,7 +23,7 @@ exports.createReservation = async (req, res) => {
 
     if (!tableNumber || !reservationTime) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Thiếu thông tin đặt bàn",
       });
     }
@@ -57,7 +57,7 @@ exports.updateReservationStatus = async (req, res) => {
       !["pending", "confirmed", "cancelled", "completed"].includes(statusCode)
     ) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Trạng thái không hợp lệ",
       });
     }

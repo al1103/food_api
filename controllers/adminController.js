@@ -39,7 +39,7 @@ exports.createFood = async (req, res) => {
     ]);
 
     res.status(201).json({
-      statusCode: 201,
+      successCode: 200,
       message: "Tạo món ăn thành công",
       data: result.rows[0],
     });
@@ -623,7 +623,7 @@ exports.createDish = async (req, res) => {
     ]);
 
     res.status(201).json({
-      statusCode: 201,
+      successCode: 200,
       message: "Tạo món ăn mới thành công",
       data: result.rows[0],
     });
@@ -1053,7 +1053,7 @@ exports.createTable = async (req, res) => {
     ]);
 
     res.status(201).json({
-      statusCode: 201,
+      successCode: 200,
       message: "Tạo bàn mới thành công",
       data: result.rows[0],
     });

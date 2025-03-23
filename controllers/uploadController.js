@@ -6,7 +6,7 @@ exports.uploadImage = async (req, res) => {
     // Kiểm tra nếu không có file được gửi lên
     if (!req.file) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Vui lòng chọn file hình ảnh để upload",
       });
     }

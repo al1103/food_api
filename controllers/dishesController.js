@@ -39,7 +39,7 @@ exports.getDishById = async (req, res) => {
 
     if (!dish) {
       return res.status(404).json({
-        successCode: 500,
+        successCode: 404,
         message: "Dish not found",
       });
     }
@@ -429,7 +429,7 @@ exports.rateDish = async (req, res) => {
     // Validate rating
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({
-        successCode: 500,
+        successCode: 400,
         message: "Rating must be between 1 and 5",
       });
     }
@@ -437,7 +437,7 @@ exports.rateDish = async (req, res) => {
     // Validate userId - bắt buộc phải có
     if (!userId) {
       return res.status(400).json({
-        successCode: 500,
+        successCode: 400,
         message: "User ID is required. Please log in to rate dishes.",
       });
     }
@@ -446,7 +446,7 @@ exports.rateDish = async (req, res) => {
     const dish = await DishModel.getDishById(id);
     if (!dish) {
       return res.status(404).json({
-        successCode: 500,
+        successCode: 404,
         message: "Dish not found",
       });
     }
@@ -473,7 +473,7 @@ exports.rateDish = async (req, res) => {
       } catch (ratingError) {
         console.error("Detailed error when adding rating:", ratingError);
         return res.status(400).json({
-          successCode: 500,
+          successCode: 400,
           message: "Failed to add rating",
           error: ratingError.message,
         });

@@ -97,7 +97,7 @@ exports.updateOrderStatus = async (req, res) => {
       !["pending", "confirmed", "completed", "cancelled"].includes(statusCode)
     ) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Trạng thái không hợp lệ",
       });
     }
