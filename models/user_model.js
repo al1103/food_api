@@ -433,7 +433,7 @@ class UserModel {
     }
   }
 
-  static async sendCode(email, code) {
+  static async sendCode(email, code, userData = null) {
     try {
       // Delete any existing verification codes
       await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
@@ -444,14 +444,14 @@ class UserModel {
       const expirationTime = new Date();
       expirationTime.setMinutes(expirationTime.getMinutes() + 10);
 
-      // Insert new code
+      // Insert new code with user data
       await pool.query(
         `INSERT INTO verification_codes (
-          email, code, type, expiration_time, is_verified, created_at
+          email, code, type, expiration_time, is_verified, created_at, user_data
         ) VALUES (
-          $1, $2, $3, $4, $5, NOW()
+          $1, $2, $3, $4, $5, NOW(), $6
         )`,
-        [email, code, "register", expirationTime, false]
+        [email, code, "register", expirationTime, false, userData]
       );
     } catch (error) {
       console.error("Lỗi trong sendCode:", error);
