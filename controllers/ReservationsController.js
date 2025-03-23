@@ -15,7 +15,7 @@ exports.createReservation = async (req, res) => {
     const userId = req.user?.userid; // Optional from auth middleware
 
     if (!tableId || !reservationTime || !customerName || !phoneNumber) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Thiếu thông tin đặt bàn cần thiết",
       });
@@ -28,7 +28,7 @@ exports.createReservation = async (req, res) => {
     );
 
     if (!isTableAvailable) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Bàn đã được đặt trong khung giờ này",
       });
@@ -44,13 +44,13 @@ exports.createReservation = async (req, res) => {
       specialRequests,
     });
 
-    res.statusCode(201).json({
+    res.status(201).json({
       statusCode: 200,
       message: "Đặt bàn thành công",
       data: newReservation,
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Lỗi khi đặt bàn",
       error: error.message,
@@ -66,7 +66,7 @@ exports.updateReservationStatus = async (req, res) => {
     if (
       !["pending", "confirmed", "cancelled", "completed"].includes(statusCode)
     ) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Trạng thái không hợp lệ",
       });
@@ -78,7 +78,7 @@ exports.updateReservationStatus = async (req, res) => {
       message: "Cập nhật trạng thái đặt bàn thành công",
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Lỗi khi cập nhật trạng thái đặt bàn",
       error: error.message,
@@ -92,7 +92,7 @@ exports.checkAvailability = async (req, res) => {
     const { date, time, partySize } = req.query;
 
     if (!date || !time || !partySize) {
-      return res.statusCode(400).json({
+      return res.status(400).json({
         statusCode: 500,
         message: "Vui lòng cung cấp ngày, giờ và số người",
       });
@@ -112,7 +112,7 @@ exports.checkAvailability = async (req, res) => {
       },
     });
   } catch (error) {
-    res.statusCode(500).json({
+    res.status(500).json({
       statusCode: 500,
       message: "Không thể kiểm tra tình trạng sẵn có",
       error: error.message,

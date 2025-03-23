@@ -40,7 +40,7 @@ function routes(app) {
   // Error handling middleware
   app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.statusCode(err.statusCode || 500).json({
+    res.status(err.statusCode || 500).json({
       statusCode: 500,
       message: err.message || "Đã xảy ra lỗi!",
       ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
@@ -49,7 +49,7 @@ function routes(app) {
 
   // 404 handler
   app.use((req, res) => {
-    res.statusCode(404).json({
+    res.status(404).json({
       statusCode: 500,
       message: "Không tìm thấy tài nguyên",
     });
