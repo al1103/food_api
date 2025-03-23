@@ -4,18 +4,27 @@ const dishesController = require("../controllers/dishesController");
 const { auth, adminAuth } = require("../middleware/roleAuth");
 const upload = require("../middleware/multer");
 
+// Create separate router for categories
+const categoryRouter = express.Router();
+
+// Mount category routes on a separate path
+router.use("/categories", categoryRouter);
+
+// Category routes (no leading slash needed since we're using a separate router)
+categoryRouter.get("/", dishesController.getAllCategories);
+categoryRouter.post("/", adminAuth, dishesController.createCategory);
+categoryRouter.put("/:id", adminAuth, dishesController.updateCategory);
+categoryRouter.delete("/:id", adminAuth, dishesController.deleteCategory);
+
+// Routes for dishes by category (note the different path)
+router.get("/category/:id", dishesController.getDishesByCategory);
+
+// Toppings route
+router.get("/toppings", dishesController.getAllToppings);
+
 // Public routes
 router.get("/", dishesController.getAllDishes);
 router.get("/:id", dishesController.getDishById);
-
-// Category routes (place before /:id routes to avoid conflicts)
-router.get("/categories", dishesController.getAllCategories);
-router.post("/categories", adminAuth, dishesController.createCategory);
-router.put("/categories/:id", adminAuth, dishesController.updateCategory);
-router.delete("/categories/:id", adminAuth, dishesController.deleteCategory);
-
-// Add this route after your category routes but before the /:id routes
-router.get("/category/:categoryId", dishesController.getDishesByCategory);
 
 // Auth required routes
 router.post("/:id/rate", auth, dishesController.rateDish);
@@ -34,8 +43,5 @@ router.put(
   dishesController.updateDish
 );
 router.delete("/:id", adminAuth, dishesController.deleteDish);
-
-// Toppings route
-router.get("/toppings", dishesController.getAllToppings);
 
 module.exports = router;
