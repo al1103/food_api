@@ -6,7 +6,6 @@ class CartModel {
       // First check if the user exists
       const userCheckQuery = `SELECT * FROM users WHERE user_id = $1`;
       const userResult = await pool.query(userCheckQuery, [userId]);
-
       if (userResult.rows.length === 0) {
         throw new Error("User not found");
       }
@@ -61,7 +60,6 @@ class CartModel {
             dishId: item.dish_id,
             name: item.dish_name,
             description: item.description,
-            // imageUrl removed as image_url does not exist; set as empty string if needed
             imageUrl: "",
             category: item.category,
             isCombo: item.is_combo,
@@ -78,36 +76,7 @@ class CartModel {
             quantity: item.quantity,
           };
 
-          // If the dish is a combo, you may fetch and append its combo items here
-          const comboQuery = `
-            SELECT 
-              ci.combo_item_id,
-              ci.dish_id,
-              d.name,
-              ci.quantity,
-              ci.size_id,
-              ds.size_name,
-              ds.price_adjustment  -- Use price_adjustment here if needed
-            FROM combo_items ci
-            JOIN dishes d ON ci.dish_id = d.id
-            LEFT JOIN dish_sizes ds ON ci.size_id = ds.id
-            WHERE ci.combo_id = $1
-          `;
-          if (item.is_combo) {
-            const comboResult = await pool.query(comboQuery, [item.dish_id]);
-            cartItem.comboItems = comboResult.rows.map((ci) => ({
-              comboItemId: ci.combo_item_id,
-              dishId: ci.dish_id,
-              name: ci.name,
-              quantity: ci.quantity,
-              size: ci.size_id
-                ? {
-                    sizeId: ci.size_id,
-                    sizeName: ci.size_name,
-                  }
-                : null,
-            }));
-          }
+          // Removed combo items section
 
           return cartItem;
         })
