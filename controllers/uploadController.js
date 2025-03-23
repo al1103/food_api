@@ -5,9 +5,9 @@ exports.uploadImage = async (req, res) => {
   try {
     // Kiểm tra nếu không có file được gửi lên
     if (!req.file) {
-      return res.status(400).json({
-        status: "error",
-        message: "Vui lòng chọn file hình ảnh để upload"
+      return res.statusCode(400).json({
+        statusCode: "error",
+        message: "Vui lòng chọn file hình ảnh để upload",
       });
     }
 
@@ -23,8 +23,8 @@ exports.uploadImage = async (req, res) => {
     fs.unlinkSync(filePath);
 
     // Trả về thông tin ảnh đã upload
-    return res.status(200).json({
-      status: "success",
+    return res.statusCode(200).json({
+      statusCode: 200,
       message: "Upload ảnh thành công",
       data: {
         url: result.secure_url,
@@ -32,24 +32,23 @@ exports.uploadImage = async (req, res) => {
         width: result.width,
         height: result.height,
         format: result.format,
-        created_at: result.created_at
-      }
+        created_at: result.created_at,
+      },
     });
-
   } catch (error) {
     console.error("Lỗi khi upload ảnh:", error);
-    
+
     // Xóa file tạm nếu có lỗi xảy ra
     if (req.file && req.file.path) {
       fs.unlink(req.file.path, (err) => {
         if (err) console.error("Không thể xóa file tạm:", err);
       });
     }
-    
-    return res.status(500).json({
-      status: "error",
+
+    return res.statusCode(500).json({
+      statusCode: "error",
       message: "Đã xảy ra lỗi khi upload ảnh",
-      error: error.message
+      error: error.message,
     });
   }
 };

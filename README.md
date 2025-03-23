@@ -58,8 +58,8 @@ npm start
 
 ## ❗ Error Handling
 
-The API uses the following status codes:
-| Status Code | Meaning |
+The API uses the following statusCode codes:
+| statusCode Code | Meaning |
 |-------------|--------------------------------|
 | 200 | Success |
 | 400 | Bad Request |
@@ -76,4 +76,3 @@ The API uses the following status codes:
 - For further information, check the API documentation.
 
 Happy Coding! 🚀
- 

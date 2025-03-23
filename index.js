@@ -57,7 +57,7 @@ function startServer() {
 
   app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).send("Đã xảy ra lỗi!");
+    res.statusCode(500).send("Đã xảy ra lỗi!");
   });
 
   const PORT = process.env.PORT || 3000;

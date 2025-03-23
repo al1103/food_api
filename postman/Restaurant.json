@@ -166,7 +166,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"tableNumber\": 1,\n    \"capacity\": 4,\n    \"status\": \"available\"\n}"
+              "raw": "{\n    \"tableNumber\": 1,\n    \"capacity\": 4,\n    \"statusCode\": \"available\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/tables",
@@ -199,7 +199,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"capacity\": 6,\n    \"status\": \"available\"\n}"
+              "raw": "{\n    \"capacity\": 6,\n    \"statusCode\": \"available\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/tables/1",
@@ -358,7 +358,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/orders?page=1&limit=10&sortBy=created_at&sortOrder=DESC&status=pending&startDate=2023-01-01&endDate=2023-12-31",
+              "raw": "{{base_url}}/api/orders?page=1&limit=10&sortBy=created_at&sortOrder=DESC&statusCode=pending&startDate=2023-01-01&endDate=2023-12-31",
               "host": ["{{base_url}}"],
               "path": ["api", "orders"],
               "query": [
@@ -379,7 +379,7 @@
                   "value": "DESC"
                 },
                 {
-                  "key": "status",
+                  "key": "statusCode",
                   "value": "pending"
                 },
                 {
@@ -430,7 +430,7 @@
           "response": []
         },
         {
-          "name": "Update Order Status",
+          "name": "Update Order statusCode",
           "request": {
             "auth": {
               "type": "bearer",
@@ -451,14 +451,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"completed\"\n}"
+              "raw": "{\n    \"statusCode\": \"completed\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/orders/1/status",
+              "raw": "{{base_url}}/api/orders/1/statusCode",
               "host": ["{{base_url}}"],
-              "path": ["api", "orders", "1", "status"]
+              "path": ["api", "orders", "1", "statusCode"]
             },
-            "description": "Update the status of an order"
+            "description": "Update the statusCode of an order"
           },
           "response": []
         },
@@ -518,7 +518,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/reservations?page=1&limit=10&sortBy=ReservationTime&sortOrder=ASC&status=confirmed&date=2023-03-15",
+              "raw": "{{base_url}}/api/reservations?page=1&limit=10&sortBy=ReservationTime&sortOrder=ASC&statusCode=confirmed&date=2023-03-15",
               "host": ["{{base_url}}"],
               "path": ["api", "reservations"],
               "query": [
@@ -539,7 +539,7 @@
                   "value": "ASC"
                 },
                 {
-                  "key": "status",
+                  "key": "statusCode",
                   "value": "confirmed"
                 },
                 {
@@ -614,7 +614,7 @@
           "response": []
         },
         {
-          "name": "Update Reservation Status",
+          "name": "Update Reservation statusCode",
           "request": {
             "auth": {
               "type": "bearer",
@@ -635,14 +635,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"checked-in\"\n}"
+              "raw": "{\n    \"statusCode\": \"checked-in\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/reservations/1/status",
+              "raw": "{{base_url}}/api/reservations/1/statusCode",
               "host": ["{{base_url}}"],
-              "path": ["api", "reservations", "1", "status"]
+              "path": ["api", "reservations", "1", "statusCode"]
             },
-            "description": "Update the status of a reservation"
+            "description": "Update the statusCode of a reservation"
           },
           "response": []
         }

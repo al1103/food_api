@@ -11,7 +11,7 @@ exports.getAllDishes = async (req, res) => {
     // Truyền đầy đủ 3 tham số: page, limit, offset
     const result = await DishModel.getAllDishes(page, limit, offset);
 
-    return res.status(200).json({
+    return res.statusCode(200).json({
       success: true,
       message: "Dishes retrieved successfully",
       currentPage: result.currentPage,
@@ -23,7 +23,7 @@ exports.getAllDishes = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting dishes:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,
@@ -38,7 +38,7 @@ exports.getDishById = async (req, res) => {
     const dish = await DishModel.getDishById(id);
 
     if (!dish) {
-      return res.status(404).json({
+      return res.statusCode(404).json({
         success: false,
         message: "Dish not found",
       });
@@ -57,13 +57,13 @@ exports.getDishById = async (req, res) => {
     dish.toppings = toppings;
     dish.ratings = ratings;
 
-    return res.status(200).json({
+    return res.statusCode(200).json({
       success: true,
       dish,
     });
   } catch (error) {
     console.error("Error getting dish:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,
@@ -92,7 +92,7 @@ exports.createDish = async (req, res) => {
 
     // Validate required fields
     if (!name || !description || !category || !price || !preparation_time) {
-      return res.status(400).json({
+      return res.statusCode(400).json({
         success: false,
         message: "Missing required fields",
       });
@@ -200,14 +200,14 @@ exports.createDish = async (req, res) => {
     const dishToppings = await DishModel.getDishToppings(dishId);
     newDish.toppings = dishToppings;
 
-    return res.status(201).json({
+    return res.statusCode(201).json({
       success: true,
       message: "Dish created successfully",
       dish: newDish,
     });
   } catch (error) {
     console.error("Error creating dish:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,
@@ -237,7 +237,7 @@ exports.updateDish = async (req, res) => {
     const existingDish = await DishModel.getDishById(id);
 
     if (!existingDish) {
-      return res.status(404).json({
+      return res.statusCode(404).json({
         success: false,
         message: "Dish not found",
       });
@@ -361,14 +361,14 @@ exports.updateDish = async (req, res) => {
     const dishToppings = await DishModel.getDishToppings(id);
     updatedDish.toppings = dishToppings;
 
-    return res.status(200).json({
+    return res.statusCode(200).json({
       success: true,
       message: "Dish updated successfully",
       dish: updatedDish,
     });
   } catch (error) {
     console.error("Error updating dish:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,
@@ -384,7 +384,7 @@ exports.deleteDish = async (req, res) => {
     const dish = await DishModel.getDishById(id);
 
     if (!dish) {
-      return res.status(404).json({
+      return res.statusCode(404).json({
         success: false,
         message: "Dish not found",
       });
@@ -399,13 +399,13 @@ exports.deleteDish = async (req, res) => {
     // Delete dish from database
     await DishModel.deleteDish(id);
 
-    return res.status(200).json({
+    return res.statusCode(200).json({
       success: true,
       message: "Dish deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting dish:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,
@@ -428,7 +428,7 @@ exports.rateDish = async (req, res) => {
 
     // Validate rating
     if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
+      return res.statusCode(400).json({
         success: false,
         message: "Rating must be between 1 and 5",
       });
@@ -436,7 +436,7 @@ exports.rateDish = async (req, res) => {
 
     // Validate userId - bắt buộc phải có
     if (!userId) {
-      return res.status(400).json({
+      return res.statusCode(400).json({
         success: false,
         message: "User ID is required. Please log in to rate dishes.",
       });
@@ -445,7 +445,7 @@ exports.rateDish = async (req, res) => {
     // Check if dish exists
     const dish = await DishModel.getDishById(id);
     if (!dish) {
-      return res.status(404).json({
+      return res.statusCode(404).json({
         success: false,
         message: "Dish not found",
       });
@@ -472,7 +472,7 @@ exports.rateDish = async (req, res) => {
         );
       } catch (ratingError) {
         console.error("Detailed error when adding rating:", ratingError);
-        return res.status(400).json({
+        return res.statusCode(400).json({
           success: false,
           message: "Failed to add rating",
           error: ratingError.message,
@@ -485,14 +485,14 @@ exports.rateDish = async (req, res) => {
     const ratings = await DishModel.getDishRatings(id);
     updatedDish.ratings = ratings;
 
-    return res.status(200).json({
+    return res.statusCode(200).json({
       success: true,
       message: "Dish rated successfully",
       dish: updatedDish,
     });
   } catch (error) {
     console.error("Error rating dish:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,
@@ -504,14 +504,14 @@ exports.getAllToppings = async (req, res) => {
   try {
     const toppings = await DishModel.getAllToppings();
 
-    return res.status(200).json({
+    return res.statusCode(200).json({
       success: true,
       message: "Toppings retrieved successfully",
       toppings,
     });
   } catch (error) {
     console.error("Error getting toppings:", error);
-    return res.status(500).json({
+    return res.statusCode(500).json({
       success: false,
       message: "Server error",
       error: error.message,

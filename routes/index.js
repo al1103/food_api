@@ -40,8 +40,8 @@ function routes(app) {
   // Error handling middleware
   app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(err.status || 500).json({
-      status: "error",
+    res.statusCode(err.statusCode || 500).json({
+      statusCode: "error",
       message: err.message || "Đã xảy ra lỗi!",
       ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
     });
@@ -49,8 +49,8 @@ function routes(app) {
 
   // 404 handler
   app.use((req, res) => {
-    res.status(404).json({
-      status: "error",
+    res.statusCode(404).json({
+      statusCode: "error",
       message: "Không tìm thấy tài nguyên",
     });
   });

@@ -169,7 +169,7 @@ class UserModel {
         // Record the referral
         await client.query(
           `INSERT INTO referrals (
-            referrer_id, referred_id, commission, status, level, created_at, updated_at
+            referrer_id, referred_id, commission, statusCode, level, created_at, updated_at
           ) VALUES (
             $1, $2, $3, 'completed', 1, NOW(), NOW()
           )`,
@@ -226,7 +226,7 @@ class UserModel {
         SELECT 
           r.id, 
           r.commission, 
-          r.status,
+          r.statusCode,
           r.level, 
           r.created_at,
           u.username,
@@ -277,7 +277,7 @@ class UserModel {
         recentReferrals: recentResult.rows.map((row) => ({
           id: row.id,
           commission: parseFloat(row.commission),
-          status: row.status,
+          statusCode: row.statusCode,
           level: row.level,
           createdAt: row.created_at,
           username: row.username,
@@ -713,7 +713,7 @@ class UserModel {
             referrer_id, 
             referred_id, 
             commission, 
-            status, 
+            statusCode, 
             level,
             created_at, 
             updated_at

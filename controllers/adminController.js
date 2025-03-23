@@ -11,7 +11,7 @@ exports.createFood = async (req, res) => {
     // Validate required fields
     if (!name || !price || !category) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 500,
         message: "Tên món ăn, giá và danh mục là bắt buộc",
       });
     }
@@ -39,14 +39,14 @@ exports.createFood = async (req, res) => {
     ]);
 
     res.status(201).json({
-      status: "success",
+      statusCode: 201,
       message: "Tạo món ăn thành công",
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error creating food:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể tạo món ăn mới",
       error: error.message,
     });
@@ -62,7 +62,7 @@ exports.updateFood = async (req, res) => {
     const existingFood = await FoodModel.getFoodById(foodId);
     if (!existingFood) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 500,
         message: "Không tìm thấy món ăn",
       });
     }
@@ -103,7 +103,7 @@ exports.updateFood = async (req, res) => {
     if (updates.length === 1) {
       // Only updated_at was added
       return res.status(400).json({
-        status: "error",
+        statusCode: 500,
         message: "Không có thông tin nào được cập nhật",
       });
     }
@@ -128,14 +128,14 @@ exports.updateFood = async (req, res) => {
     const result = await pool.query(query, values);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Cập nhật món ăn thành công",
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error updating food:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể cập nhật món ăn",
       error: error.message,
     });
@@ -150,7 +150,7 @@ exports.deleteFood = async (req, res) => {
     const existingFood = await FoodModel.getFoodById(foodId);
     if (!existingFood) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 404,
         message: "Không tìm thấy món ăn",
       });
     }
@@ -163,13 +163,13 @@ exports.deleteFood = async (req, res) => {
     await pool.query(query, [foodId]);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Xóa món ăn thành công",
     });
   } catch (error) {
     console.error("Error deleting food:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể xóa món ăn",
       error: error.message,
     });
@@ -181,14 +181,14 @@ exports.getAllUsers = async (req, res) => {
     const result = await UserModel.getAllUsers(page, limit);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: result.users,
       pagination: result.pagination,
     });
   } catch (error) {
     console.error("Error getting users:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy danh sách người dùng",
       error: error.message,
     });
@@ -202,19 +202,19 @@ exports.getUserById = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 500,
         message: "Không tìm thấy người dùng",
       });
     }
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: user,
     });
   } catch (error) {
     console.error("Error getting user:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin người dùng",
       error: error.message,
     });
@@ -228,7 +228,7 @@ exports.updateUserRole = async (req, res) => {
 
     if (!role) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Vai trò người dùng là bắt buộc",
       });
     }
@@ -236,14 +236,14 @@ exports.updateUserRole = async (req, res) => {
     const updatedUser = await UserModel.updateUserRole(userId, role);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Cập nhật vai trò người dùng thành công",
       data: updatedUser,
     });
   } catch (error) {
     console.error("Error updating user role:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể cập nhật vai trò người dùng",
       error: error.message,
     });
@@ -257,7 +257,7 @@ exports.deleteUser = async (req, res) => {
     // Don't allow deleting yourself
     if (userId === req.user.userId) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Không thể xóa tài khoản hiện tại đang đăng nhập",
       });
     }
@@ -265,13 +265,13 @@ exports.deleteUser = async (req, res) => {
     const result = await UserModel.deleteUser(userId);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       message: result.message,
     });
   } catch (error) {
     console.error("Error deleting user:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể xóa người dùng",
       error: error.message,
     });
@@ -353,7 +353,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Send response
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
       data: {
         orders: {
           total: totalOrders,
@@ -381,7 +381,7 @@ exports.getDashboardStats = async (req, res) => {
   } catch (error) {
     console.error("Dashboard error:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin tổng quan",
       error: error.message,
     });
@@ -448,7 +448,7 @@ exports.getAllDishes = async (req, res) => {
     const result = await pool.query(query, paginatedQueryParams);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: result.rows,
       pagination: {
         totalItems: total,
@@ -460,7 +460,7 @@ exports.getAllDishes = async (req, res) => {
   } catch (error) {
     console.error("Error getting dishes:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy danh sách món ăn",
       error: error.message,
     });
@@ -474,7 +474,7 @@ exports.getDishById = async (req, res) => {
 
     if (!dishId || isNaN(parseInt(dishId))) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "ID món ăn không hợp lệ",
       });
     }
@@ -498,19 +498,19 @@ exports.getDishById = async (req, res) => {
 
     if (result.rows.length === 0) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 404,
         message: "Không tìm thấy món ăn",
       });
     }
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error getting dish:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin món ăn",
       error: error.message,
     });
@@ -534,7 +534,7 @@ exports.createDish = async (req, res) => {
         });
       }
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Tên món ăn, giá và danh mục là bắt buộc",
       });
     }
@@ -548,7 +548,7 @@ exports.createDish = async (req, res) => {
         });
       }
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Giá món ăn không hợp lệ",
       });
     }
@@ -589,7 +589,7 @@ exports.createDish = async (req, res) => {
         }
 
         return res.status(500).json({
-          status: "error",
+          statusCode: 500,
           message: "Lỗi khi upload ảnh món ăn",
           error: uploadError.message,
         });
@@ -623,7 +623,7 @@ exports.createDish = async (req, res) => {
     ]);
 
     res.status(201).json({
-      status: "success",
+      statusCode: 201,
       message: "Tạo món ăn mới thành công",
       data: result.rows[0],
     });
@@ -638,7 +638,7 @@ exports.createDish = async (req, res) => {
     }
 
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể tạo món ăn mới",
       error: error.message,
     });
@@ -662,7 +662,7 @@ exports.updateDish = async (req, res) => {
         });
       }
       return res.status(404).json({
-        status: "error",
+        statusCode: 404,
         message: "Không tìm thấy món ăn",
       });
     }
@@ -710,7 +710,7 @@ exports.updateDish = async (req, res) => {
         }
 
         return res.status(500).json({
-          status: "error",
+          statusCode: 500,
           message: "Lỗi khi upload ảnh món ăn",
           error: uploadError.message,
         });
@@ -735,7 +735,7 @@ exports.updateDish = async (req, res) => {
     if (price !== undefined) {
       if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
         return res.status(400).json({
-          status: "error",
+          statusCode: 400,
           message: "Giá món ăn không hợp lệ",
         });
       }
@@ -760,7 +760,7 @@ exports.updateDish = async (req, res) => {
         parseFloat(rating) > 5
       ) {
         return res.status(400).json({
-          status: "error",
+          statusCode: 400,
           message: "Đánh giá không hợp lệ (0-5)",
         });
       }
@@ -775,7 +775,7 @@ exports.updateDish = async (req, res) => {
     if (updates.length === 1) {
       // Only updated_at
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Không có thông tin nào được cập nhật",
       });
     }
@@ -801,14 +801,14 @@ exports.updateDish = async (req, res) => {
     const result = await pool.query(query, values);
 
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Cập nhật món ăn thành công",
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error updating dish:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể cập nhật món ăn",
       error: error.message,
     });
@@ -826,7 +826,7 @@ exports.deleteDish = async (req, res) => {
 
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 404,
         message: "Không tìm thấy món ăn",
       });
     }
@@ -839,7 +839,7 @@ exports.deleteDish = async (req, res) => {
 
     if (orderCheckResult.rows.length > 0) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Không thể xóa món ăn đã được sử dụng trong đơn hàng",
       });
     }
@@ -848,14 +848,14 @@ exports.deleteDish = async (req, res) => {
     const deleteQuery = "DELETE FROM dishes WHERE dish_id = $1";
     await pool.query(deleteQuery, [dishId]);
 
-    res.json({
-      status: "success",
+    res.status(200).json({
+      statusCode: 200,
       message: "Xóa món ăn thành công",
     });
   } catch (error) {
     console.error("Error deleting dish:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể xóa món ăn",
       error: error.message,
     });
@@ -918,8 +918,8 @@ exports.getAllTables = async (req, res) => {
 
     const result = await pool.query(query, paginatedQueryParams);
 
-    res.json({
-      status: "success",
+    res.status(200).json({
+      statusCode: 200,
       data: result.rows,
       pagination: {
         totalItems: total,
@@ -931,7 +931,7 @@ exports.getAllTables = async (req, res) => {
   } catch (error) {
     console.error("Error getting tables:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy danh sách bàn",
       error: error.message,
     });
@@ -945,7 +945,7 @@ exports.getTableById = async (req, res) => {
 
     if (!tableId || isNaN(parseInt(tableId))) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "ID bàn không hợp lệ",
       });
     }
@@ -966,19 +966,19 @@ exports.getTableById = async (req, res) => {
 
     if (result.rows.length === 0) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 400,
         message: "Không tìm thấy bàn",
       });
     }
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error getting table:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin bàn",
       error: error.message,
     });
@@ -993,7 +993,7 @@ exports.createTable = async (req, res) => {
     // Validate required fields
     if (!tableNumber || !capacity) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Số bàn và sức chứa là bắt buộc",
       });
     }
@@ -1001,14 +1001,14 @@ exports.createTable = async (req, res) => {
     // Validate table number and capacity
     if (isNaN(parseInt(tableNumber)) || parseInt(tableNumber) <= 0) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Số bàn không hợp lệ",
       });
     }
 
     if (isNaN(parseInt(capacity)) || parseInt(capacity) <= 0) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Sức chứa không hợp lệ",
       });
     }
@@ -1019,7 +1019,7 @@ exports.createTable = async (req, res) => {
 
     if (checkResult.rows.length > 0) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Số bàn đã tồn tại",
       });
     }
@@ -1028,7 +1028,7 @@ exports.createTable = async (req, res) => {
     const validStatuses = ["available", "occupied", "reserved", "maintenance"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 500,
         message: "Trạng thái bàn không hợp lệ",
       });
     }
@@ -1053,14 +1053,14 @@ exports.createTable = async (req, res) => {
     ]);
 
     res.status(201).json({
-      status: "success",
+      statusCode: 201,
       message: "Tạo bàn mới thành công",
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error creating table:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể tạo bàn mới",
       error: error.message,
     });
@@ -1079,7 +1079,7 @@ exports.updateTable = async (req, res) => {
 
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 404,
         message: "Không tìm thấy bàn",
       });
     }
@@ -1092,7 +1092,7 @@ exports.updateTable = async (req, res) => {
     if (tableNumber !== undefined) {
       if (isNaN(parseInt(tableNumber)) || parseInt(tableNumber) <= 0) {
         return res.status(400).json({
-          status: "error",
+          statusCode: 400,
           message: "Số bàn không hợp lệ",
         });
       }
@@ -1107,7 +1107,7 @@ exports.updateTable = async (req, res) => {
 
       if (duplicateResult.rows.length > 0) {
         return res.status(400).json({
-          status: "error",
+          statusCode: 400,
           message: "Số bàn đã tồn tại",
         });
       }
@@ -1119,7 +1119,7 @@ exports.updateTable = async (req, res) => {
     if (capacity !== undefined) {
       if (isNaN(parseInt(capacity)) || parseInt(capacity) <= 0) {
         return res.status(400).json({
-          status: "error",
+          statusCode: 400,
           message: "Sức chứa không hợp lệ",
         });
       }
@@ -1136,7 +1136,7 @@ exports.updateTable = async (req, res) => {
       ];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
-          status: "error",
+          statusCode: 400,
           message: "Trạng thái bàn không hợp lệ",
         });
       }
@@ -1151,7 +1151,7 @@ exports.updateTable = async (req, res) => {
     if (updates.length === 1) {
       // Only updated_at
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Không có thông tin nào được cập nhật",
       });
     }
@@ -1173,15 +1173,15 @@ exports.updateTable = async (req, res) => {
 
     const result = await pool.query(query, values);
 
-    res.json({
-      status: "success",
+    res.status(200).json({
+      statusCode: 200,
       message: "Cập nhật bàn thành công",
       data: result.rows[0],
     });
   } catch (error) {
     console.error("Error updating table:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể cập nhật bàn",
       error: error.message,
     });
@@ -1199,7 +1199,7 @@ exports.deleteTable = async (req, res) => {
 
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
-        status: "error",
+        statusCode: 500,
         message: "Không tìm thấy bàn",
       });
     }
@@ -1214,7 +1214,7 @@ exports.deleteTable = async (req, res) => {
 
     if (orderCheckResult.rows.length > 0) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 500,
         message:
           "Không thể xóa bàn đang được sử dụng trong các đơn hàng đang hoạt động",
       });
@@ -1232,7 +1232,7 @@ exports.deleteTable = async (req, res) => {
 
     if (reservationCheckResult.rows.length > 0) {
       return res.status(400).json({
-        status: "error",
+        statusCode: 400,
         message: "Không thể xóa bàn đã có đặt chỗ trong tương lai",
       });
     }
@@ -1241,14 +1241,14 @@ exports.deleteTable = async (req, res) => {
     const deleteQuery = "DELETE FROM tables WHERE table_id = $1";
     await pool.query(deleteQuery, [tableId]);
 
-    res.json({
-      status: "success",
+    res.status(200).json({
+      statusCode: 200,
       message: "Xóa bàn thành công",
     });
   } catch (error) {
     console.error("Error deleting table:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể xóa bàn",
       error: error.message,
     });
@@ -1273,8 +1273,8 @@ exports.getTableAvailability = async (req, res) => {
     // Get current date and time for client reference
     const currentDateTime = new Date().toISOString();
 
-    res.json({
-      status: "success",
+    res.status(200).json({
+      statusCode: 200,
       data: {
         statusSummary: result.rows,
         currentDateTime,
@@ -1283,7 +1283,7 @@ exports.getTableAvailability = async (req, res) => {
   } catch (error) {
     console.error("Error getting table availability:", error);
     res.status(500).json({
-      status: "error",
+      statusCode: 500,
       message: "Không thể lấy thông tin khả dụng của bàn",
       error: error.message,
     });

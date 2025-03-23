@@ -12,7 +12,7 @@ class ReservationModel {
           u.Username,
           r.TableNumber,
           r.ReservationTime,
-          r.Status,
+          r.statusCode,
           r.created_at,
           r.updated_at
         FROM Reservations r
@@ -38,11 +38,11 @@ class ReservationModel {
           sql.DateTime,
           new Date(reservationData.reservationTime)
         )
-        .input("status", sql.VarChar(20), "pending").query(`
+        .input("statusCode", sql.VarChar(20), "pending").query(`
           INSERT INTO Reservations (
-            UserID, TableNumber, ReservationTime, Status, created_at, updated_at
+            UserID, TableNumber, ReservationTime, statusCode, created_at, updated_at
           ) VALUES (
-            @userId, @tableNumber, @reservationTime, @status, GETDATE(), GETDATE()
+            @userId, @tableNumber, @reservationTime, @statusCode, GETDATE(), GETDATE()
           );
           SELECT SCOPE_IDENTITY() AS ReservationID;
         `);
@@ -53,15 +53,15 @@ class ReservationModel {
     }
   }
 
-  static async updateReservationStatus(id, status) {
+  static async updateReservationStatus(id, statusCode) {
     try {
       const pool = await poolPromise;
       await pool
         .request()
         .input("reservationId", sql.Int, id)
-        .input("status", sql.VarChar(20), status).query(`
+        .input("statusCode", sql.VarChar(20), statusCode).query(`
           UPDATE Reservations 
-          SET Status = @status, updated_at = GETDATE()
+          SET statusCode = @statusCode, updated_at = GETDATE()
           WHERE ReservationID = @reservationId
         `);
     } catch (error) {

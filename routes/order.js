@@ -7,6 +7,6 @@ const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specifi
 router.get("/", adminAuth, orderController.getAllOrders); // Admin only
 router.get("/:id", auth, orderController.getOrderById); // Any authenticated user
 router.post("/", auth, orderController.createOrder); // Any authenticated user
-router.patch("/:id/status", auth, orderController.updateOrderStatus); // Any authenticated user
+router.patch("/:id/statusCode", auth, orderController.updateOrderStatus); // Any authenticated user
 
 module.exports = router;

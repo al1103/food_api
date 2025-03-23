@@ -12,13 +12,13 @@ exports.getAllTables = async (req, res) => {
     );
 
     res.json({
-      status: "success",
+      statusCode: 200,
       data: result.tables,
       pagination: result.pagination,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Không thể lấy danh sách bàn",
       error: error.message,
     });
@@ -28,18 +28,18 @@ exports.getTableById = async (req, res) => {
   try {
     const table = await TableModel.getTableById(req.paramsuserid);
     if (!table) {
-      return res.status(404).json({
-        status: "error",
+      return res.statusCode(404).json({
+        statusCode: "error",
         message: "Không tìm thấy bàn",
       });
     }
     res.json({
-      status: "success",
+      statusCode: 200,
       data: table,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi lấy thông tin bàn",
       error: error.message,
     });
@@ -48,11 +48,11 @@ exports.getTableById = async (req, res) => {
 
 exports.createTable = async (req, res) => {
   try {
-    const { tableNumber, capacity, status } = req.body;
+    const { tableNumber, capacity, statusCode } = req.body;
 
     if (!tableNumber || !capacity) {
-      return res.status(400).json({
-        status: "error",
+      return res.statusCode(400).json({
+        statusCode: "error",
         message: "Thiếu thông tin bàn",
       });
     }
@@ -60,17 +60,17 @@ exports.createTable = async (req, res) => {
     const newTable = await TableModel.createTable({
       tableNumber,
       capacity,
-      status,
+      statusCode,
     });
 
-    res.status(201).json({
-      status: "success",
+    res.statusCode(201).json({
+      statusCode: 200,
       message: "Tạo bàn mới thành công",
       data: newTable,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi tạo bàn mới",
       error: error.message,
     });
@@ -80,17 +80,17 @@ exports.createTable = async (req, res) => {
 exports.updateTable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { capacity, status } = req.body;
+    const { capacity, statusCode } = req.body;
 
-    await TableModel.updateTable(id, { capacity, status });
+    await TableModel.updateTable(id, { capacity, statusCode });
 
     res.json({
-      status: "success",
+      statusCode: 200,
       message: "Cập nhật bàn thành công",
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
+    res.statusCode(500).json({
+      statusCode: "error",
       message: "Lỗi khi cập nhật bàn",
       error: error.message,
     });

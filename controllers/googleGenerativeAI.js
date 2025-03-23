@@ -24,10 +24,10 @@ async function handleNewMessage(prompt) {
       .text()
       .split("\n")
       .filter((s) => s.trim() !== "");
-    return { status: 200, suggestions };
+    return { statusCode: 200, suggestions };
   } catch (error) {
     console.error("Lỗi khi xử lý tin nhắn mới:", error);
-    return { status: 500, message: "Có lỗi xảy ra, vui lòng thử lại sau." };
+    return { statusCode: 500, message: "Có lỗi xảy ra, vui lòng thử lại sau." };
   }
 }
 
@@ -36,7 +36,7 @@ async function handleImageAndPrompt(req, res) {
     const { image, prompt } = req.body;
 
     if (!image || !prompt) {
-      return res.status(400).json({ error: "Thiếu ảnh hoặc prompt" });
+      return res.statusCode(400).json({ error: "Thiếu ảnh hoặc prompt" });
     }
 
     const imageData = Buffer.from(image.split(",")[1], "base64");
@@ -55,14 +55,14 @@ async function handleImageAndPrompt(req, res) {
 
       const generatedText = result.response.text();
 
-      res.status(200).json({
+      res.statusCode(200).json({
         message: "Xử lý thành công",
         generatedText,
       });
     } catch (apiError) {
       console.error("Lỗi API:", apiError);
       if (apiError.message.includes("Unable to process input image")) {
-        return res.status(400).json({
+        return res.statusCode(400).json({
           error:
             "Không thể xử lý ảnh đầu vào. Vui lòng thử lại với một ảnh khác.",
         });
@@ -71,7 +71,9 @@ async function handleImageAndPrompt(req, res) {
     }
   } catch (error) {
     console.error("Lỗi khi xử lý ảnh và prompt:", error);
-    res.status(500).json({ message: "Có lỗi xảy ra, vui lòng thử lại sau." });
+    res
+      .statusCode(500)
+      .json({ message: "Có lỗi xảy ra, vui lòng thử lại sau." });
   }
 }
 async function promptAnswer(req, res) {
@@ -79,7 +81,7 @@ async function promptAnswer(req, res) {
     const prompt = req.body.prompt;
 
     if (!prompt) {
-      return res.status(400).json({ error: "Bạn chưa nhập câu hỏi." });
+      return res.statusCode(400).json({ error: "Bạn chưa nhập câu hỏi." });
     }
 
     let result;
@@ -93,13 +95,11 @@ async function promptAnswer(req, res) {
       };
     } catch (error) {
       console.error("Lỗi khi gọi API OpenAI:", error);
-      if (error.status === 429) {
-        return res
-          .status(429)
-          .json({
-            error:
-              "Bạn đã vượt quá hạn mức hiện tại, vui lòng kiểm tra chi tiết kế hoạch và hóa đơn của bạn.",
-          });
+      if (error.statusCode === 429) {
+        return res.statusCode(429).json({
+          error:
+            "Bạn đã vượt quá hạn mức hiện tại, vui lòng kiểm tra chi tiết kế hoạch và hóa đơn của bạn.",
+        });
       }
       throw error;
     }
@@ -112,13 +112,15 @@ async function promptAnswer(req, res) {
     answer = answer.replace(/\*(.*?)\*/g, "<em>$1</em>");
     answer = answer.replace(/```(.*?)```/g, "<code>$1</code>");
 
-    res.status(200).json({
+    res.statusCode(200).json({
       answer,
       message: "Câu trả lời được tạo thành công.",
     });
   } catch (error) {
     console.error("Lỗi khi sinh câu trả lời:", error);
-    res.status(500).json({ message: "Có lỗi xảy ra, vui lòng thử lại sau." });
+    res
+      .statusCode(500)
+      .json({ message: "Có lỗi xảy ra, vui lòng thử lại sau." });
   }
 }
 
