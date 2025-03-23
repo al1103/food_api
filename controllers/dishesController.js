@@ -7,9 +7,15 @@ const fs = require("fs");
 exports.getAllDishes = async (req, res) => {
   try {
     const { page, limit, offset } = getPaginationParams(req);
+    const { categoryId } = req.query;
 
-    // Truyền đầy đủ 3 tham số: page, limit, offset
-    const result = await DishModel.getAllDishes(page, limit, offset);
+    // Pass category ID as an optional filter
+    const result = await DishModel.getAllDishes(
+      page,
+      limit,
+      offset,
+      categoryId
+    );
 
     return res.status(200).json({
       statusCode: 200,
@@ -76,7 +82,7 @@ exports.createDish = async (req, res) => {
     const {
       name,
       description,
-      category,
+      categoryId, // Changed from category to categoryId
       price,
       preparation_time,
       has_small,
@@ -85,16 +91,23 @@ exports.createDish = async (req, res) => {
       medium_price,
       has_large,
       large_price,
-      // Mảng các id của topping đã tồn tại trong database
-      // Mảng các topping mới cần tạo
       new_toppings,
     } = req.body;
 
     // Validate required fields
-    if (!name || !description || !category || !price || !preparation_time) {
+    if (!name || !description || !categoryId || !price || !preparation_time) {
       return res.status(400).json({
-        statusCode: 500,
+        statusCode: 400,
         message: "Missing required fields",
+      });
+    }
+
+    // Validate if category exists
+    const category = await DishModel.getCategoryById(categoryId);
+    if (!category) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Invalid category ID",
       });
     }
 
@@ -113,7 +126,7 @@ exports.createDish = async (req, res) => {
     const dishId = await DishModel.createDish({
       name,
       description,
-      category,
+      categoryId,
       price,
       preparation_time,
       image: imageUrl,
@@ -511,6 +524,58 @@ exports.getAllToppings = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting toppings:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+exports.getAllCategories = async (req, res) => {
+  try {
+    const categories = await DishModel.getAllCategories();
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "Categories retrieved successfully",
+      categories,
+    });
+  } catch (error) {
+    console.error("Error getting categories:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+exports.createCategory = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Category name is required",
+      });
+    }
+
+    const categoryId = await DishModel.createCategory({
+      name,
+      description: description || null,
+    });
+
+    const newCategory = await DishModel.getCategoryById(categoryId);
+
+    return res.status(201).json({
+      statusCode: 201,
+      message: "Category created successfully",
+      category: newCategory,
+    });
+  } catch (error) {
+    console.error("Error creating category:", error);
     return res.status(500).json({
       statusCode: 500,
       message: "Server error",
