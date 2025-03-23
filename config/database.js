@@ -33,7 +33,7 @@ const poolPromise = {
 };
 
 // Handle pool errors
-pool.on("error", (err) => {
+pool.on(500, (err) => {
   console.error("Unexpected error on idle client", err);
 });
 

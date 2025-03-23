@@ -6,7 +6,7 @@ exports.getCart = async (req, res) => {
 
     if (!userId) {
       return res.statusCode(401).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Unauthorized: User ID not found in token",
       });
     }
@@ -22,13 +22,13 @@ exports.getCart = async (req, res) => {
 
     if (error.message === "User not found") {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "User not found",
       });
     }
 
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy giỏ hàng",
       error: error.message,
     });
@@ -42,7 +42,7 @@ exports.addToCart = async (req, res) => {
 
     if (!userId) {
       return res.statusCode(401).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Unauthorized: User ID not found in token",
       });
     }
@@ -51,7 +51,7 @@ exports.addToCart = async (req, res) => {
 
     if (!dishId) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Thiếu thông tin món ăn",
       });
     }
@@ -60,7 +60,7 @@ exports.addToCart = async (req, res) => {
     const parsedQuantity = parseInt(quantity);
     if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Số lượng không hợp lệ",
       });
     }
@@ -97,13 +97,13 @@ exports.addToCart = async (req, res) => {
 
     if (knownErrors.includes(error.message)) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: error.message,
       });
     }
 
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể thêm món ăn vào giỏ hàng",
       error: error.message,
     });
@@ -117,7 +117,7 @@ exports.updateCartItem = async (req, res) => {
 
     if (!userId) {
       return res.statusCode(401).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Unauthorized: User ID not found in token",
       });
     }
@@ -127,7 +127,7 @@ exports.updateCartItem = async (req, res) => {
 
     if (quantity === undefined) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Thiếu thông tin số lượng",
       });
     }
@@ -159,13 +159,13 @@ exports.updateCartItem = async (req, res) => {
 
     if (error.message === "Cart item not found") {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy món ăn trong giỏ hàng",
       });
     }
 
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể cập nhật giỏ hàng",
       error: error.message,
     });
@@ -179,7 +179,7 @@ exports.removeFromCart = async (req, res) => {
 
     if (!userId) {
       return res.statusCode(401).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Unauthorized: User ID not found in token",
       });
     }
@@ -204,13 +204,13 @@ exports.removeFromCart = async (req, res) => {
 
     if (error.message === "Cart item not found") {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy món ăn trong giỏ hàng",
       });
     }
 
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể xóa món ăn khỏi giỏ hàng",
       error: error.message,
     });
@@ -224,7 +224,7 @@ exports.clearCart = async (req, res) => {
 
     if (!userId) {
       return res.statusCode(401).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Unauthorized: User ID not found in token",
       });
     }
@@ -239,7 +239,7 @@ exports.clearCart = async (req, res) => {
   } catch (error) {
     console.error("Error clearing cart:", error);
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể xóa giỏ hàng",
       error: error.message,
     });

@@ -18,7 +18,7 @@ exports.getAllTables = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy danh sách bàn",
       error: error.message,
     });
@@ -29,7 +29,7 @@ exports.getTableById = async (req, res) => {
     const table = await TableModel.getTableById(req.paramsuserid);
     if (!table) {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy bàn",
       });
     }
@@ -39,7 +39,7 @@ exports.getTableById = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi lấy thông tin bàn",
       error: error.message,
     });
@@ -52,7 +52,7 @@ exports.createTable = async (req, res) => {
 
     if (!tableNumber || !capacity) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Thiếu thông tin bàn",
       });
     }
@@ -70,7 +70,7 @@ exports.createTable = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi tạo bàn mới",
       error: error.message,
     });
@@ -90,7 +90,7 @@ exports.updateTable = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi cập nhật bàn",
       error: error.message,
     });

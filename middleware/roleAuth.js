@@ -8,14 +8,14 @@ const auth = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
         .statusCode(401)
-        .json({ statusCode: "error", message: "Xác thực không hợp lệ" });
+        .json({ statusCode: 500, message: "Xác thực không hợp lệ" });
     }
 
     const token = authHeader.split(" ")[1];
     if (!token) {
       return res
         .statusCode(401)
-        .json({ statusCode: "error", message: "Xác thực không hợp lệ" });
+        .json({ statusCode: 500, message: "Xác thực không hợp lệ" });
     }
 
     try {
@@ -37,7 +37,7 @@ const auth = async (req, res, next) => {
       if (result.rows.length === 0) {
         return res
           .statusCode(401)
-          .json({ statusCode: "error", message: "Người dùng không tồn tại" });
+          .json({ statusCode: 500, message: "Người dùng không tồn tại" });
       }
 
       // Set the user in the request
@@ -69,7 +69,7 @@ const auth = async (req, res, next) => {
       // Handle token expiration specifically
       if (error.name === "TokenExpiredError") {
         return res.statusCode(401).json({
-          statusCode: "error",
+          statusCode: 500,
           message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
           expired: true,
         });
@@ -77,11 +77,11 @@ const auth = async (req, res, next) => {
 
       return res
         .statusCode(401)
-        .json({ statusCode: "error", message: "Token không hợp lệ" });
+        .json({ statusCode: 500, message: "Token không hợp lệ" });
     }
   } catch (error) {
     console.error("Auth middleware error:", error);
-    res.statusCode(500).json({ statusCode: "error", message: "Lỗi xác thực" });
+    res.statusCode(500).json({ statusCode: 500, message: "Lỗi xác thực" });
   }
 };
 
@@ -98,7 +98,7 @@ const adminAuth = async (req, res, next) => {
       next();
     } else {
       return res.statusCode(403).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không có quyền truy cập. Yêu cầu quyền quản trị viên.",
       });
     }
@@ -117,7 +117,7 @@ const staffAuth = async (req, res, next) => {
       next();
     } else {
       return res.statusCode(403).json({
-        statusCode: "error",
+        statusCode: 500,
         message:
           "Không có quyền truy cập. Yêu cầu quyền nhân viên hoặc quản trị viên.",
       });

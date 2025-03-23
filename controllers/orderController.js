@@ -23,7 +23,7 @@ exports.getAllOrders = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy danh sách đơn hàng",
       error: error.message,
     });
@@ -35,7 +35,7 @@ exports.getOrderById = async (req, res) => {
     const order = await OrderModel.getOrderById(req.paramsuserid);
     if (!order) {
       return res.statusCode(404).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Không tìm thấy đơn hàng",
       });
     }
@@ -45,7 +45,7 @@ exports.getOrderById = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi lấy thông tin đơn hàng",
       error: error.message,
     });
@@ -60,7 +60,7 @@ exports.createOrder = async (req, res) => {
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Vui lòng chọn ít nhất một món ăn",
       });
     }
@@ -81,7 +81,7 @@ exports.createOrder = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi tạo đơn hàng",
       error: error.message,
     });
@@ -97,7 +97,7 @@ exports.updateOrderStatus = async (req, res) => {
       !["pending", "confirmed", "completed", "cancelled"].includes(statusCode)
     ) {
       return res.statusCode(400).json({
-        statusCode: "error",
+        statusCode: 500,
         message: "Trạng thái không hợp lệ",
       });
     }
@@ -109,7 +109,7 @@ exports.updateOrderStatus = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Lỗi khi cập nhật trạng thái đơn hàng",
       error: error.message,
     });
@@ -129,7 +129,7 @@ exports.getOrderStatistics = async (req, res) => {
     });
   } catch (error) {
     res.statusCode(500).json({
-      statusCode: "error",
+      statusCode: 500,
       message: "Không thể lấy thống kê đơn hàng",
       error: error.message,
     });
