@@ -93,6 +93,20 @@ class OrderModel {
 
   static async getOrderById(id) {
     try {
+      console.log(`Looking up order with ID: ${id}`);
+
+      if (!id) {
+        console.error("Order ID is undefined or null");
+        return null;
+      }
+
+      // Try parsing the ID to ensure it's a number
+      const parsedId = parseInt(id);
+      if (isNaN(parsedId)) {
+        console.error(`Invalid order ID format: ${id}`);
+        return null;
+      }
+
       // Get the order information
       const orderQuery = `
         SELECT 
@@ -111,38 +125,46 @@ class OrderModel {
         WHERE o.order_id = $1
       `;
 
-      const orderResult = await pool.query(orderQuery, [id]);
+      console.log(`Executing order query with ID: ${parsedId}`);
+      const orderResult = await pool.query(orderQuery, [parsedId]);
 
       if (orderResult.rows.length === 0) {
+        console.log(`No order found with ID: ${parsedId}`);
         return null;
       }
 
       const order = orderResult.rows[0];
+      console.log(`Found order: ${order.orderId}`);
 
-      // Get order details - fix to use the correct column references
+      // Get order details
       const detailsQuery = `
         SELECT 
           od.id,
           od.dish_id AS "dishId",
           d.name AS "dishName",
-          d.image AS "imageUrl",  /* Changed from image_url to image based on schema */
+          d.image AS "imageUrl",
           od.quantity,
           od.price,
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.id  /* Changed from d.dish_id to d.id based on schema */
+        JOIN dishes d ON od.dish_id = d.id
         WHERE od.order_id = $1
       `;
 
-      const detailsResult = await pool.query(detailsQuery, [id]);
+      console.log(`Getting details for order: ${parsedId}`);
+      const detailsResult = await pool.query(detailsQuery, [parsedId]);
+      console.log(
+        `Found ${detailsResult.rows.length} items for order ${parsedId}`
+      );
 
       // Add details to order
       order.items = detailsResult.rows;
 
       return order;
     } catch (error) {
-      console.error("Error getting order by ID:", error);
+      console.error(`Error in getOrderById: ${error.message}`);
+      console.error(error.stack); // Include stack trace for better debugging
       throw error;
     }
   }
