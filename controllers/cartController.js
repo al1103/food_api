@@ -245,3 +245,52 @@ exports.clearCart = async (req, res) => {
     });
   }
 };
+
+// Add order to cart
+exports.addOrderToCart = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { orderId, clearExisting = true } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Thiếu thông tin orderId",
+      });
+    }
+
+    const result = await CartModel.addOrderToCart(
+      userId,
+      orderId,
+      clearExisting
+    );
+
+    res.status(200).json({
+      statusCode: 200,
+      message: "Đã thêm đơn hàng vào giỏ hàng",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error adding order to cart:", error);
+
+    if (error.message === "Order not found") {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    if (error.message === "Cannot add another user's order to cart") {
+      return res.status(403).json({
+        statusCode: 403,
+        message: "Không thể thêm đơn hàng của người dùng khác",
+      });
+    }
+
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể thêm đơn hàng vào giỏ hàng",
+      error: error.message,
+    });
+  }
+};
