@@ -93,27 +93,56 @@ class OrderModel {
 
   static async getOrderById(id) {
     try {
-      const result = await pool.query(
-        `SELECT 
+      // Get the order information
+      const orderQuery = `
+        SELECT 
           o.order_id AS "orderId",
           o.user_id AS "userId",
           o.total_price AS "totalPrice",
-          o.status AS "status",
+          o.status,
           o.table_id AS "tableId",
           o.order_date AS "orderDate",
           o.created_at AS "createdAt",
           o.updated_at AS "updatedAt",
-          u.username AS "username",
-          u.email AS "email"
+          u.username,
+          u.email
         FROM orders o
-        JOIN users u ON o.user_id = u.user_id
-        WHERE o.order_id = $1`,
-        [id]
-      );
+        LEFT JOIN users u ON o.user_id = u.user_id
+        WHERE o.order_id = $1
+      `;
 
-      return result.rows[0];
+      const orderResult = await pool.query(orderQuery, [id]);
+
+      if (orderResult.rows.length === 0) {
+        return null;
+      }
+
+      const order = orderResult.rows[0];
+
+      // Get order details - fix to use the correct column references
+      const detailsQuery = `
+        SELECT 
+          od.id,
+          od.dish_id AS "dishId",
+          d.name AS "dishName",
+          d.image AS "imageUrl",  /* Changed from image_url to image based on schema */
+          od.quantity,
+          od.price,
+          od.special_requests AS "specialRequests",
+          od.created_at AS "createdAt"
+        FROM order_details od
+        JOIN dishes d ON od.dish_id = d.id  /* Changed from d.dish_id to d.id based on schema */
+        WHERE od.order_id = $1
+      `;
+
+      const detailsResult = await pool.query(detailsQuery, [id]);
+
+      // Add details to order
+      order.items = detailsResult.rows;
+
+      return order;
     } catch (error) {
-      console.error("Lỗi khi lấy thông tin đơn hàng:", error);
+      console.error("Error getting order by ID:", error);
       throw error;
     }
   }
@@ -123,35 +152,153 @@ class OrderModel {
     try {
       await client.query("BEGIN");
 
-      const result = await client.query(
-        `INSERT INTO orders (user_id, total_price, status, table_id, order_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW())
-         RETURNING order_id AS "orderId"`,
-        [
-          orderData.userId,
-          orderData.totalPrice,
-          orderData.status || "pending",
-          orderData.tableId || null,
-        ]
-      );
+      console.log("Starting order creation process...");
 
-      // Calculate the order total
-      const orderTotal = parseFloat(result.rows[0].total_amount);
+      // Validate table if provided
+      if (orderData.tableId) {
+        const tableQuery = "SELECT status FROM tables WHERE table_id = $1";
+        const tableResult = await client.query(tableQuery, [orderData.tableId]);
 
-      // Distribute commissions to the referral tree
-      // Only call this if the order is paid
-      if (orderData.status === "paid" || orderData.status === "completed") {
-        await UserModel.distributeOrderCommission(orderData.userId, orderTotal);
+        if (tableResult.rows.length === 0) {
+          throw new Error("Bàn không tồn tại");
+        }
+
+        if (tableResult.rows[0].status === "occupied") {
+          throw new Error("Bàn đã được sử dụng");
+        }
       }
 
+      // Calculate the total price based on items
+      let totalPrice = 0;
+      const validatedItems = [];
+
+      // Validate and calculate price for each item
+      for (const item of orderData.items) {
+        const { dishId, quantity, specialRequests } = item;
+
+        // Based on your schema output, dishes table uses 'id', not 'dish_id'
+        const dishQuery = `
+          SELECT 
+            id, 
+            name, 
+            price, 
+            image AS image_url 
+          FROM dishes 
+          WHERE id = $1 
+          AND available = true
+        `;
+
+        const dishResult = await client.query(dishQuery, [dishId]);
+
+        if (dishResult.rows.length === 0) {
+          throw new Error(
+            `Món ăn với ID ${dishId} không tồn tại hoặc không khả dụng`
+          );
+        }
+
+        const dish = dishResult.rows[0];
+        const itemPrice = parseFloat(dish.price) * quantity;
+        totalPrice += itemPrice;
+
+        validatedItems.push({
+          dishId: dish.id, // Use the correct dish ID field
+          dishName: dish.name,
+          imageUrl: dish.image_url,
+          quantity,
+          price: dish.price,
+          specialRequests: specialRequests || null,
+        });
+      }
+
+      // Create the order with the calculated total price
+      const orderQuery = `
+        INSERT INTO orders (
+          user_id, 
+          total_price, 
+          status, 
+          table_id, 
+          order_date, 
+          created_at, 
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, NOW(), NOW(), NOW())
+        RETURNING 
+          order_id AS "orderId", 
+          user_id AS "userId", 
+          total_price AS "totalPrice", 
+          status, 
+          table_id AS "tableId",
+          order_date AS "orderDate", 
+          created_at AS "createdAt", 
+          updated_at AS "updatedAt"
+      `;
+
+      const orderResult = await client.query(orderQuery, [
+        orderData.userId,
+        totalPrice,
+        orderData.status || "pending",
+        orderData.tableId || null,
+      ]);
+
+      const newOrder = orderResult.rows[0];
+      console.log("Created order:", newOrder.orderId);
+
+      // Now insert the order details - use dish_id for order_details table
+      for (const item of validatedItems) {
+        const detailQuery = `
+          INSERT INTO order_details (
+            order_id, 
+            dish_id, 
+            quantity, 
+            price, 
+            special_requests, 
+            created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING id
+        `;
+
+        await client.query(detailQuery, [
+          newOrder.orderId,
+          item.dishId,
+          item.quantity,
+          item.price,
+          item.specialRequests,
+        ]);
+
+        console.log(`Added item ${item.dishName} to order ${newOrder.orderId}`);
+      }
+
+      // If table is specified, update table status
+      if (orderData.tableId) {
+        await client.query(
+          "UPDATE tables SET status = 'occupied', updated_at = NOW() WHERE table_id = $1",
+          [orderData.tableId]
+        );
+        console.log(`Updated table ${orderData.tableId} status to occupied`);
+      }
+
+      // Add the order items to the response
+      newOrder.items = validatedItems;
+
       await client.query("COMMIT");
-      return result.rows[0];
+      console.log("Transaction committed successfully");
+
+      return newOrder;
     } catch (error) {
-      await client.query("ROLLBACK");
-      console.error("Error creating order:", error);
+      try {
+        console.error(
+          "Error encountered, rolling back transaction:",
+          error.message
+        );
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Error during rollback:", rollbackError.message);
+      }
       throw error;
     } finally {
       client.release();
+      console.log("Database client released");
     }
   }
 
@@ -178,12 +325,13 @@ class OrderModel {
           od.id AS "id",
           od.dish_id AS "dishId",
           d.name AS "dishName",
+          d.image AS "imageUrl",  /* Changed from image_url to image based on schema */
           od.quantity AS "quantity",
           od.price AS "price",
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.dish_id
+        JOIN dishes d ON od.dish_id = d.id  /* Changed from d.dish_id to d.id based on schema */
         WHERE od.order_id = $1`,
         [orderId]
       );
