@@ -207,9 +207,10 @@ exports.getOrderByIdAdmin = async (req, res) => {
       });
     }
 
+    // Chuyển đổi dữ liệu thành mảng để phù hợp với yêu cầu
     res.status(200).json({
       status: "success",
-      data: order,
+      data: [order], // Bọc đơn hàng trong một mảng
     });
   } catch (error) {
     console.error("Error getting order:", error);
