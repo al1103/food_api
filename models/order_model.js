@@ -326,16 +326,44 @@ class OrderModel {
 
   static async updateOrderStatus(id, status) {
     try {
-      await pool.query(
-        `UPDATE orders 
-         SET status = $1, updated_at = NOW()
-         WHERE order_id = $2`,
-        [status, id]
-      );
+      console.log(`Attempting to update order ${id} to status: ${status}`);
 
-      return { message: "Cập nhật trạng thái đơn hàng thành công" };
+      // First verify the order exists
+      const checkOrderQuery = `SELECT order_id, status FROM orders WHERE order_id = $1`;
+      const orderResult = await pool.query(checkOrderQuery, [id]);
+
+      if (orderResult.rows.length === 0) {
+        throw new Error(`Order with ID ${id} not found`);
+      }
+
+      console.log(`Current order status: ${orderResult.rows[0].status}`);
+
+      // Directly update with 'status' column since we know that's what our table uses
+      // based on previous queries in getAllOrders and getOrderById
+      const updateQuery = `
+        UPDATE orders 
+        SET status = $1, updated_at = NOW()
+        WHERE order_id = $2
+        RETURNING order_id, status, updated_at
+      `;
+
+      console.log(`Executing update query with status=${status}, id=${id}`);
+      const result = await pool.query(updateQuery, [status, id]);
+
+      if (result.rows.length === 0) {
+        throw new Error(`Failed to update order ${id}`);
+      }
+
+      console.log(`Successfully updated order ${id} to ${status}`);
+      console.log(`Updated record:`, result.rows[0]);
+
+      return {
+        message: "Cập nhật trạng thái đơn hàng thành công",
+        order: result.rows[0],
+      };
     } catch (error) {
-      console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
+      console.error(`Error updating order status: ${error.message}`);
+      console.error(error.stack);
       throw error;
     }
   }

@@ -140,21 +140,56 @@ exports.createOrder = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    // Try to get status from either statusCode or status field
+    const statusUpdate = req.body.status || req.body.statusCode;
 
-    if (!["pending", "confirmed", "completed", "cancelled"].includes(status)) {
+    console.log(
+      `Received request to update order ${id} with status: `,
+      req.body
+    );
+
+    if (!statusUpdate) {
       return res.status(400).json({
         status: "error",
-        message: "Trạng thái không hợp lệ",
+        message: "Trạng thái đơn hàng là bắt buộc (status hoặc statusCode)",
       });
     }
 
-    await OrderModel.updateOrderStatus(id, status);
+    const validStatuses = [
+      "pending",
+      "confirmed",
+      "processing",
+      "completed",
+      "cancelled",
+    ];
+    if (!validStatuses.includes(statusUpdate)) {
+      return res.status(400).json({
+        status: "error",
+        message: `Trạng thái không hợp lệ. Các trạng thái hợp lệ: ${validStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    const result = await OrderModel.updateOrderStatus(id, statusUpdate);
+
     res.json({
       status: "success",
       message: "Cập nhật trạng thái đơn hàng thành công",
+      data: result.order,
     });
   } catch (error) {
+    console.error(`Error in updateOrderStatus controller: ${error.message}`);
+    console.error(error.stack);
+
+    // Special case for order not found
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
+        status: "error",
+        message: error.message,
+      });
+    }
+
     res.status(500).json({
       status: "error",
       message: "Lỗi khi cập nhật trạng thái đơn hàng",
