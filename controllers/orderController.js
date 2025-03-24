@@ -1,5 +1,6 @@
 const OrderModel = require("../models/order_model");
 const { getPaginationParams } = require("../utils/pagination");
+const { pool } = require("../config/database");
 
 exports.getAllOrders = async (req, res) => {
   try {
@@ -56,8 +57,9 @@ exports.getOrderById = async (req, res) => {
 exports.createOrder = async (req, res) => {
   try {
     const { tableId, items, customerName, phoneNumber, note } = req.body;
-    const userId = req.user?.userid; // Optional from auth middleware
+    const userId = req.user?.userId || req.user?.id; // Handle both userId and id formats
 
+    // Validate items
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         status: "error",
@@ -65,10 +67,45 @@ exports.createOrder = async (req, res) => {
       });
     }
 
+    // Validate each item has the required fields
+    for (const item of items) {
+      if (!item.dishId || !item.quantity || item.quantity <= 0) {
+        return res.status(400).json({
+          status: "error",
+          message: "Thông tin món ăn không hợp lệ",
+        });
+      }
+    }
+
+    // Validate table if provided
+    if (tableId) {
+      const tableQuery = "SELECT status FROM tables WHERE table_id = $1";
+      const tableResult = await pool.query(tableQuery, [tableId]);
+
+      if (tableResult.rows.length === 0) {
+        return res.status(404).json({
+          status: "error",
+          message: "Bàn không tồn tại",
+        });
+      }
+
+      if (tableResult.rows[0].status === "occupied") {
+        return res.status(400).json({
+          status: "error",
+          message: "Bàn đã được sử dụng",
+        });
+      }
+    }
+
+    // Create order with all necessary data
     const newOrder = await OrderModel.createOrder({
-      userId,
-      tableId,
-      items, // Array of {dish_id, quantity, specialRequests}
+      userId: userId,
+      tableId: tableId,
+      items: items.map((item) => ({
+        dishId: item.dishId,
+        quantity: item.quantity,
+        specialRequests: item.specialRequests || item.note,
+      })),
       customerName,
       phoneNumber,
       note,
@@ -80,9 +117,10 @@ exports.createOrder = async (req, res) => {
       data: newOrder,
     });
   } catch (error) {
+    console.error("Error creating order:", error);
     res.status(500).json({
       status: "error",
-      message: "Lỗi khi tạo đơn hàng",
+      message: "Lỗi khi tạo đơn hàng: " + error.message,
       error: error.message,
     });
   }
@@ -137,15 +175,29 @@ exports.getOrderStatistics = async (req, res) => {
 // Add to orderController.js
 exports.getUserOrders = async (req, res) => {
   try {
-    const userId = req.user.id; // From auth middleware
-    const { page, limit } = req.query;
+    const userId = req.user.userId || req.user.id; // Handle both formats
+    const { page, limit } = getPaginationParams(req);
 
-    // Add a new method in OrderModel
+    // Get orders for user
     const result = await OrderModel.getOrdersByUserId(userId, page, limit);
 
-    res.status(200).json(result);
+    // Get order details for each order
+    for (const order of result.orders) {
+      const orderDetails = await OrderModel.getOrderDetails(order.orderId);
+      order.items = orderDetails;
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: result.orders,
+      pagination: result.pagination,
+    });
   } catch (error) {
     console.error("Error fetching user orders:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi lấy danh sách đơn hàng",
+      error: error.message,
+    });
   }
 };
