@@ -135,3 +135,19 @@ exports.getOrderStatistics = async (req, res) => {
     });
   }
 };
+
+// Add to orderController.js
+exports.getUserOrders = async (req, res) => {
+  try {
+    const userId = req.user.id; // From auth middleware
+    const { page, limit } = req.query;
+
+    // Add a new method in OrderModel
+    const result = await OrderModel.getOrdersByUserId(userId, page, limit);
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching user orders:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

@@ -5,6 +5,7 @@ const { auth, adminAuth } = require("../middleware/roleAuth"); // Import specifi
 
 // Protected routes
 router.get("/", adminAuth, orderController.getAllOrders); // Admin only
+router.get("/my-orders", auth, orderController.getUserOrders); // New method to get only user's orders
 router.get("/:id", auth, orderController.getOrderById); // Any authenticated user
 router.post("/", auth, orderController.createOrder); // Any authenticated user
 router.patch("/:id/statusCode", auth, orderController.updateOrderStatus); // Any authenticated user

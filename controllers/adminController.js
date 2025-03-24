@@ -3,12 +3,13 @@ const UserModel = require("../models/user_model");
 const fs = require("fs");
 const { getPaginationParams } = require("../utils/pagination");
 const cloudinary = require("../config/cloudinary");
+const AdminModel = require("../models/admin_model");
+
 // Food management functions
 exports.createFood = async (req, res) => {
   try {
     const { name, description, price, imageUrl, category } = req.body;
 
-    // Validate required fields
     if (!name || !price || !category) {
       return res.status(400).json({
         statusCode: 500,
@@ -16,32 +17,17 @@ exports.createFood = async (req, res) => {
       });
     }
 
-    const query = `
-      INSERT INTO foods(name, description, price, image_url, category, created_at, updated_at)
-      VALUES($1, $2, $3, $4, $5, NOW(), NOW())
-      RETURNING 
-        food_id AS "foodId",
-        name,
-        description,
-        price,
-        image_url AS "imageUrl",
-        category,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-    `;
-
-    const result = await pool.query(query, [
+    const food = await AdminModel.createFood({
       name,
       description,
       price,
       imageUrl,
       category,
-    ]);
-
+    });
     res.status(201).json({
       statusCode: 200,
       message: "Tạo món ăn thành công",
-      data: result.rows[0],
+      data: food,
     });
   } catch (error) {
     console.error("Error creating food:", error);
@@ -58,7 +44,7 @@ exports.updateFood = async (req, res) => {
     const foodId = req.params.id;
     const { name, description, price, imageUrl, category } = req.body;
 
-    // Check if food exists
+    // Assuming FoodModel.getFoodById is still used for existence check
     const existingFood = await FoodModel.getFoodById(foodId);
     if (!existingFood) {
       return res.status(404).json({
@@ -67,70 +53,17 @@ exports.updateFood = async (req, res) => {
       });
     }
 
-    // Build the update parts
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
-
-    if (name !== undefined) {
-      updates.push(`name = $${paramIndex++}`);
-      values.push(name);
-    }
-
-    if (description !== undefined) {
-      updates.push(`description = $${paramIndex++}`);
-      values.push(description);
-    }
-
-    if (price !== undefined) {
-      updates.push(`price = $${paramIndex++}`);
-      values.push(price);
-    }
-
-    if (imageUrl !== undefined) {
-      updates.push(`image_url = $${paramIndex++}`);
-      values.push(imageUrl);
-    }
-
-    if (category !== undefined) {
-      updates.push(`category = $${paramIndex++}`);
-      values.push(category);
-    }
-
-    // Always update updated_at
-    updates.push(`updated_at = NOW()`);
-
-    if (updates.length === 1) {
-      // Only updated_at was added
-      return res.status(400).json({
-        statusCode: 500,
-        message: "Không có thông tin nào được cập nhật",
-      });
-    }
-
-    values.push(foodId);
-
-    const query = `
-      UPDATE foods
-      SET ${updates.join(", ")}
-      WHERE food_id = $${paramIndex}
-      RETURNING 
-        food_id AS "foodId",
-        name,
-        description,
-        price,
-        image_url AS "imageUrl",
-        category,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-    `;
-
-    const result = await pool.query(query, values);
-
+    const updatedFood = await AdminModel.updateFood(foodId, {
+      name,
+      description,
+      price,
+      imageUrl,
+      category,
+    });
     res.status(200).json({
       statusCode: 200,
       message: "Cập nhật món ăn thành công",
-      data: result.rows[0],
+      data: updatedFood,
     });
   } catch (error) {
     console.error("Error updating food:", error);
@@ -145,8 +78,6 @@ exports.updateFood = async (req, res) => {
 exports.deleteFood = async (req, res) => {
   try {
     const foodId = req.params.id;
-
-    // Check if food exists
     const existingFood = await FoodModel.getFoodById(foodId);
     if (!existingFood) {
       return res.status(404).json({
@@ -155,13 +86,7 @@ exports.deleteFood = async (req, res) => {
       });
     }
 
-    const query = `
-      DELETE FROM foods
-      WHERE food_id = $1
-    `;
-
-    await pool.query(query, [foodId]);
-
+    await AdminModel.deleteFood(foodId);
     res.status(200).json({
       statusCode: 200,
       message: "Xóa món ăn thành công",
@@ -175,6 +100,7 @@ exports.deleteFood = async (req, res) => {
     });
   }
 };
+
 exports.getAllUsers = async (req, res) => {
   try {
     const { page, limit } = getPaginationParams(req);
