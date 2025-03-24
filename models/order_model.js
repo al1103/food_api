@@ -324,9 +324,10 @@ class OrderModel {
     }
   }
 
+  // Cập nhật phương thức updateOrderStatus để làm việc với cả admin và user
   static async updateOrderStatus(id, status) {
     try {
-      console.log(`Attempting to update order ${id} to status: ${status}`);
+      console.log(`Updating order ${id} to status: ${status}`);
 
       // First verify the order exists
       const checkOrderQuery = `SELECT order_id, status FROM orders WHERE order_id = $1`;
@@ -336,10 +337,12 @@ class OrderModel {
         throw new Error(`Order with ID ${id} not found`);
       }
 
-      console.log(`Current order status: ${orderResult.rows[0].status}`);
+      const currentStatus = orderResult.rows[0].status;
+      console.log(
+        `Current order status: ${currentStatus}, changing to: ${status}`
+      );
 
-      // Directly update with 'status' column since we know that's what our table uses
-      // based on previous queries in getAllOrders and getOrderById
+      // Update the order status
       const updateQuery = `
         UPDATE orders 
         SET status = $1, updated_at = NOW()
@@ -347,7 +350,6 @@ class OrderModel {
         RETURNING order_id, status, updated_at
       `;
 
-      console.log(`Executing update query with status=${status}, id=${id}`);
       const result = await pool.query(updateQuery, [status, id]);
 
       if (result.rows.length === 0) {
@@ -355,7 +357,6 @@ class OrderModel {
       }
 
       console.log(`Successfully updated order ${id} to ${status}`);
-      console.log(`Updated record:`, result.rows[0]);
 
       return {
         message: "Cập nhật trạng thái đơn hàng thành công",
@@ -363,7 +364,6 @@ class OrderModel {
       };
     } catch (error) {
       console.error(`Error updating order status: ${error.message}`);
-      console.error(error.stack);
       throw error;
     }
   }
@@ -434,6 +434,27 @@ class OrderModel {
       };
     } catch (error) {
       console.error("Error getting user orders:", error);
+      throw error;
+    }
+  }
+
+  // Thêm phương thức getOrdersByDateRange để thống kê
+  static async getOrdersByDateRange(startDate, endDate) {
+    try {
+      const query = `
+        SELECT 
+          status, 
+          COUNT(*) as count, 
+          SUM(total_price) as total_revenue
+        FROM orders 
+        WHERE order_date BETWEEN $1 AND $2
+        GROUP BY status
+      `;
+
+      const result = await pool.query(query, [startDate, endDate]);
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting orders by date range:", error);
       throw error;
     }
   }

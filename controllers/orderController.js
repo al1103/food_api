@@ -1,74 +1,14 @@
 const OrderModel = require("../models/order_model");
-const { getPaginationParams } = require("../utils/pagination");
 const { pool } = require("../config/database");
+const { getPaginationParams } = require("../utils/pagination");
 
-exports.getAllOrders = async (req, res) => {
-  try {
-    const { page, limit, sortBy, sortOrder } = getPaginationParams(req);
-    const { status, startDate, endDate } = req.query;
+// ===== CONTROLLER CHO USER THÔNG THƯỜNG =====
 
-    const result = await OrderModel.getAllOrders({
-      page,
-      limit,
-      sortBy,
-      sortOrder,
-      status,
-      startDate,
-      endDate,
-    });
-
-    res.json({
-      status: "success",
-      data: result.orders,
-      pagination: result.pagination,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Không thể lấy danh sách đơn hàng",
-      error: error.message,
-    });
-  }
-};
-
-exports.getOrderById = async (req, res) => {
-  try {
-    // Fix: Change from req.paramsuserid to req.params.id
-    const orderId = req.params.id;
-
-    console.log(`Attempting to get order with ID: ${orderId}`);
-
-    const order = await OrderModel.getOrderById(orderId);
-
-    if (!order) {
-      console.log(`Order with ID ${orderId} not found`);
-      return res.status(404).json({
-        status: "error",
-        message: "Không tìm thấy đơn hàng",
-      });
-    }
-
-    console.log(`Successfully retrieved order: ${orderId}`);
-
-    res.json({
-      status: "success",
-      data: order,
-    });
-  } catch (error) {
-    console.error(`Error retrieving order: ${error.message}`);
-    res.status(500).json({
-      status: "error",
-      message: "Lỗi khi lấy thông tin đơn hàng",
-      error: error.message,
-    });
-  }
-};
-
-// Enhanced create order with line items
+// 1. Tạo đơn hàng mới
 exports.createOrder = async (req, res) => {
   try {
     const { tableId, items, customerName, phoneNumber, note } = req.body;
-    const userId = req.user?.userId || req.user?.id; // Handle both userId and id formats
+    const userId = req.user.userId;
 
     // Validate items
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -78,7 +18,7 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // Validate each item has the required fields
+    // Validate each item
     for (const item of items) {
       if (!item.dishId || !item.quantity || item.quantity <= 0) {
         return res.status(400).json({
@@ -88,35 +28,16 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    // Validate table if provided
-    if (tableId) {
-      const tableQuery = "SELECT status FROM tables WHERE table_id = $1";
-      const tableResult = await pool.query(tableQuery, [tableId]);
-
-      if (tableResult.rows.length === 0) {
-        return res.status(404).json({
-          status: "error",
-          message: "Bàn không tồn tại",
-        });
-      }
-
-      if (tableResult.rows[0].status === "occupied") {
-        return res.status(400).json({
-          status: "error",
-          message: "Bàn đã được sử dụng",
-        });
-      }
-    }
-
-    // Create order with all necessary data
+    // Create order with pending status
     const newOrder = await OrderModel.createOrder({
-      userId: userId,
-      tableId: tableId,
+      userId,
+      tableId,
       items: items.map((item) => ({
         dishId: item.dishId,
         quantity: item.quantity,
         specialRequests: item.specialRequests || item.note,
       })),
+      status: "pending", // Set default status as pending
       customerName,
       phoneNumber,
       note,
@@ -124,114 +45,25 @@ exports.createOrder = async (req, res) => {
 
     res.status(201).json({
       status: "success",
-      message: "Tạo đơn hàng thành công",
+      message: "Đặt món thành công! Đơn hàng của bạn đang chờ xác nhận",
       data: newOrder,
     });
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({
       status: "error",
-      message: "Lỗi khi tạo đơn hàng: " + error.message,
-      error: error.message,
+      message: "Không thể tạo đơn hàng: " + error.message,
     });
   }
 };
 
-exports.updateOrderStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    // Try to get status from either statusCode or status field
-    const statusUpdate = req.body.status || req.body.statusCode;
-
-    console.log(
-      `Received request to update order ${id} with status: `,
-      req.body
-    );
-
-    if (!statusUpdate) {
-      return res.status(400).json({
-        status: "error",
-        message: "Trạng thái đơn hàng là bắt buộc (status hoặc statusCode)",
-      });
-    }
-
-    const validStatuses = [
-      "pending",
-      "confirmed",
-      "processing",
-      "completed",
-      "cancelled",
-    ];
-    if (!validStatuses.includes(statusUpdate)) {
-      return res.status(400).json({
-        status: "error",
-        message: `Trạng thái không hợp lệ. Các trạng thái hợp lệ: ${validStatuses.join(
-          ", "
-        )}`,
-      });
-    }
-
-    const result = await OrderModel.updateOrderStatus(id, statusUpdate);
-
-    res.json({
-      status: "success",
-      message: "Cập nhật trạng thái đơn hàng thành công",
-      data: result.order,
-    });
-  } catch (error) {
-    console.error(`Error in updateOrderStatus controller: ${error.message}`);
-    console.error(error.stack);
-
-    // Special case for order not found
-    if (error.message.includes("not found")) {
-      return res.status(404).json({
-        status: "error",
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      status: "error",
-      message: "Lỗi khi cập nhật trạng thái đơn hàng",
-      error: error.message,
-    });
-  }
-};
-
-// Add order statistics feature
-exports.getOrderStatistics = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-
-    const stats = await OrderModel.getOrderStatistics(startDate, endDate);
-
-    res.json({
-      status: "success",
-      data: stats,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Không thể lấy thống kê đơn hàng",
-      error: error.message,
-    });
-  }
-};
-
-// Add to orderController.js
+// 2. Xem danh sách đơn hàng của user đăng nhập
 exports.getUserOrders = async (req, res) => {
   try {
-    const userId = req.user.userId || req.user.id; // Handle both formats
+    const userId = req.user.userId;
     const { page, limit } = getPaginationParams(req);
 
-    // Get orders for user
     const result = await OrderModel.getOrdersByUserId(userId, page, limit);
-
-    // Get order details for each order
-    for (const order of result.orders) {
-      const orderDetails = await OrderModel.getOrderDetails(order.orderId);
-      order.items = orderDetails;
-    }
 
     res.status(200).json({
       status: "success",
@@ -243,7 +75,213 @@ exports.getUserOrders = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Lỗi khi lấy danh sách đơn hàng",
-      error: error.message,
+    });
+  }
+};
+
+// 3. Xem chi tiết đơn hàng (user chỉ xem được đơn của mình)
+exports.getOrderById = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.userId;
+
+    const order = await OrderModel.getOrderById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        status: "error",
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    // Kiểm tra đơn hàng có thuộc về user không
+    if (order.userId != userId) {
+      return res.status(403).json({
+        status: "error",
+        message: "Bạn không có quyền xem đơn hàng này",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: order,
+    });
+  } catch (error) {
+    console.error("Error getting order:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi lấy thông tin đơn hàng",
+    });
+  }
+};
+
+// 4. Hủy đơn hàng (user chỉ được hủy đơn khi còn ở trạng thái pending)
+exports.cancelOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.userId;
+
+    // Kiểm tra đơn hàng tồn tại
+    const order = await OrderModel.getOrderById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        status: "error",
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    // Kiểm tra đơn hàng có thuộc về user không
+    if (order.userId != userId) {
+      return res.status(403).json({
+        status: "error",
+        message: "Bạn không có quyền hủy đơn hàng này",
+      });
+    }
+
+    // Kiểm tra trạng thái đơn hàng
+    if (order.status !== "pending") {
+      return res.status(400).json({
+        status: "error",
+        message:
+          "Chỉ có thể hủy đơn hàng khi đơn hàng đang ở trạng thái chờ xác nhận",
+      });
+    }
+
+    // Cập nhật trạng thái đơn hàng thành cancelled
+    await OrderModel.updateOrderStatus(orderId, "cancelled");
+
+    res.status(200).json({
+      status: "success",
+      message: "Đơn hàng đã được hủy thành công",
+    });
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi hủy đơn hàng",
+    });
+  }
+};
+
+// ===== CONTROLLER CHO ADMIN =====
+
+// 1. Xem tất cả đơn hàng (có filter, phân trang)
+exports.getAllOrders = async (req, res) => {
+  try {
+    const { page, limit } = getPaginationParams(req);
+    const { status, startDate, endDate } = req.query;
+
+    const result = await OrderModel.getAllOrders(page, limit, {
+      status,
+      startDate,
+      endDate,
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: result.orders,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Error getting all orders:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi lấy danh sách đơn hàng",
+    });
+  }
+};
+
+// 2. Admin xem chi tiết bất kỳ đơn hàng nào
+exports.getOrderByIdAdmin = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    const order = await OrderModel.getOrderById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        status: "error",
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: order,
+    });
+  } catch (error) {
+    console.error("Error getting order:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi lấy thông tin đơn hàng",
+    });
+  }
+};
+
+// 3. Admin cập nhật trạng thái đơn hàng (có thể cập nhật sang bất kỳ trạng thái nào)
+exports.updateOrderStatusAdmin = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = [
+      "pending",
+      "confirmed",
+      "processing",
+      "completed",
+      "cancelled",
+    ];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        status: "error",
+        message: `Trạng thái không hợp lệ. Các trạng thái hợp lệ: ${validStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Kiểm tra đơn hàng tồn tại
+    const order = await OrderModel.getOrderById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        status: "error",
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    // Logic cập nhật trạng thái theo quy trình hợp lý
+    if (order.status === "cancelled" || order.status === "completed") {
+      return res.status(400).json({
+        status: "error",
+        message: `Không thể thay đổi trạng thái của đơn hàng đã ${
+          order.status === "cancelled" ? "hủy" : "hoàn thành"
+        }`,
+      });
+    }
+
+    // Cập nhật trạng thái
+    await OrderModel.updateOrderStatus(orderId, status);
+
+    // Nếu hoàn thành hoặc hủy đơn có liên quan đến bàn, cập nhật trạng thái bàn
+    if ((status === "completed" || status === "cancelled") && order.tableId) {
+      await pool.query(
+        "UPDATE tables SET status = 'available', updated_at = NOW() WHERE table_id = $1",
+        [order.tableId]
+      );
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Cập nhật trạng thái đơn hàng thành công",
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi cập nhật trạng thái đơn hàng",
     });
   }
 };
