@@ -1,35 +1,80 @@
 const { pool } = require("../config/database");
 
 class OrderModel {
-  static async getAllOrders(page = 1, limit = 10) {
+  static async getAllOrders(page = 1, limit = 10, filters = {}) {
     try {
       page = parseInt(page);
       limit = parseInt(limit);
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 10;
       const offset = (page - 1) * limit;
 
-      // Get total count for pagination
-      const countResult = await pool.query(
-        `SELECT COUNT(*) AS total_count FROM orders`
-      );
+      // Build filter conditions
+      let conditions = [];
+      let params = [];
+      let paramIndex = 1;
+
+      if (filters.status) {
+        conditions.push(`o.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
+      }
+      if (filters.startDate) {
+        conditions.push(`o.order_date >= $${paramIndex}`);
+        params.push(filters.startDate);
+        paramIndex++;
+      }
+      if (filters.endDate) {
+        conditions.push(`o.order_date <= $${paramIndex}`);
+        params.push(filters.endDate);
+        paramIndex++;
+      }
+      let whereClause =
+        conditions.length > 0 ? " WHERE " + conditions.join(" AND ") : "";
+
+      // Determine sorting. Map inbound sortBy to DB columns.
+      const validSortColumns = {
+        orderdate: "o.order_date",
+        createdat: "o.created_at",
+        updatedat: "o.updated_at",
+      };
+      let sortColumn = validSortColumns.orderdate;
+      if (filters.sortBy) {
+        const key = filters.sortBy.toLowerCase();
+        if (validSortColumns[key]) {
+          sortColumn = validSortColumns[key];
+        }
+      }
+      let sortOrder = "DESC";
+      if (filters.sortOrder && filters.sortOrder.toUpperCase() === "ASC") {
+        sortOrder = "ASC";
+      }
+
+      // Total count based on filters
+      const countQuery = `SELECT COUNT(*) AS total_count FROM orders o ${whereClause}`;
+      const countResult = await pool.query(countQuery, params);
       const totalCount = parseInt(countResult.rows[0].total_count);
 
-      // Get paginated orders
-      const result = await pool.query(
-        `SELECT 
-          o.order_id AS "orderId",
-          o.user_id AS "userId",
-          u.username AS "username",
-          o.total_price AS "totalPrice",
-          o.status AS "status",
-          o.order_date AS "orderDate",
-          o.created_at AS "createdAt",
-          o.updated_at AS "updatedAt"
-        FROM orders o
-        JOIN users u ON o.user_id = u.user_id
-        ORDER BY o.order_date DESC
-        LIMIT $1 OFFSET $2`,
-        [limit, offset]
-      );
+      // Append pagination values to params
+      params.push(limit, offset);
+
+      const mainQuery = `
+          SELECT 
+            o.order_id AS "orderId",
+            o.user_id AS "userId",
+            u.username AS "username",
+            o.total_price AS "totalPrice",
+            o.status AS "status",
+            o.order_date AS "orderDate",
+            o.created_at AS "createdAt",
+            o.updated_at AS "updatedAt"
+          FROM orders o
+          JOIN users u ON o.user_id = u.user_id
+          ${whereClause}
+          ORDER BY ${sortColumn} ${sortOrder}
+          LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      const result = await pool.query(mainQuery, params);
 
       return {
         orders: result.rows,
@@ -41,7 +86,7 @@ class OrderModel {
         },
       };
     } catch (error) {
-      console.error("Lỗi khi lấy danh sách đơn hàng:", error);
+      console.error("Error getting orders:", error);
       throw error;
     }
   }
