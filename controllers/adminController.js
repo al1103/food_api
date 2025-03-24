@@ -1218,6 +1218,93 @@ exports.getTableAvailability = async (req, res) => {
   }
 };
 
+// Get all orders with pagination and optional filters
+exports.getAllOrders = async (req, res) => {
+  try {
+    const { page, limit } = getPaginationParams(req);
+    // You can pass query parameters as filters (e.g., ?statusCode=completed&fromDate=2025-03-01)
+    const filters = req.query;
+    const result = await AdminModel.getAllOrders(page, limit, filters);
+
+    res.status(200).json({
+      statusCode: 200,
+      data: result.orders,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Error getting orders:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể lấy danh sách đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
+// Get order by ID
+exports.getOrderById = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await AdminModel.getOrderById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Không tìm thấy đơn hàng",
+      });
+    }
+
+    res.status(200).json({
+      statusCode: 200,
+      data: order,
+    });
+  } catch (error) {
+    console.error("Error getting order by ID:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể lấy thông tin đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
+// Update order status
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { statusCode } = req.body;
+
+    if (!statusCode) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Trạng thái đơn hàng là bắt buộc",
+      });
+    }
+
+    const result = await AdminModel.updateOrderStatus(orderId, statusCode);
+
+    if (!result.success) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: result.message,
+      });
+    }
+
+    res.status(200).json({
+      statusCode: 200,
+      message: "Cập nhật trạng thái đơn hàng thành công",
+      data: result.data,
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể cập nhật trạng thái đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
 // Thêm hàm hỗ trợ trích xuất public_id
 function extractPublicIdFromUrl(url) {
   if (!url) return null;
