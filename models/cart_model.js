@@ -10,6 +10,7 @@ class CartModel {
         throw new Error("User not found");
       }
 
+      // Sửa truy vấn để sử dụng đúng tên cột và thêm kiểm tra để tránh lỗi
       const query = `
         SELECT 
           c.cart_id,
@@ -20,13 +21,13 @@ class CartModel {
           c.created_at,
           c.updated_at,
           d.name AS dish_name,
-          d.category,
+          d.category_id,  -- Thay category bằng category_id
           d.description,
           d.price AS base_price,
           COALESCE(d.available, true) AS is_available,
           ds.size_name,
-          ds.price_adjustment,  -- Updated column name for size adjustment
-          true AS size_available  -- Return default true (since ds.is_available doesn't exist)
+          ds.price_adjustment,
+          true AS size_available
         FROM cart c
         JOIN dishes d ON c.dish_id = d.id
         LEFT JOIN dish_sizes ds ON c.size_id = ds.id
@@ -60,7 +61,7 @@ class CartModel {
             name: item.dish_name,
             description: item.description,
             imageUrl: "",
-            category: item.category,
+            categoryId: item.category_id, // Đổi từ category sang category_id
             isAvailable:
               item.is_available && (item.size_id ? item.size_available : true),
             size: item.size_id
@@ -73,8 +74,6 @@ class CartModel {
             price: finalPrice,
             quantity: item.quantity,
           };
-
-          // Removed combo items section
 
           return cartItem;
         })
@@ -89,6 +88,85 @@ class CartModel {
       };
     } catch (error) {
       console.error("Error getting cart:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get detailed cart information including dish details
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Cart info with dish details
+   */
+  static async getDetailedCart(userId) {
+    try {
+      // First, check if cart exists
+      const cart = await this.getCart(userId);
+
+      if (!cart || !cart.items || cart.items.length === 0) {
+        return { items: [], totalPrice: 0 };
+      }
+
+      // Enhance cart items with more dish details
+      const enhancedItems = await Promise.all(
+        cart.items.map(async (item) => {
+          // Get more dish details from dishes table
+          const dishQuery = `
+          SELECT 
+            id,
+            name,
+            description,
+            price,
+            preparation_time,
+            image,
+            category_id,
+            available
+          FROM dishes 
+          WHERE id = $1
+        `;
+
+          const dishResult = await pool.query(dishQuery, [item.dishId]);
+
+          if (dishResult.rows.length === 0) {
+            return item; // Return original item if dish not found
+          }
+
+          const dish = dishResult.rows[0];
+
+          // If item has a sizeId, get size details
+          let sizeDetails = null;
+          if (item.size && item.size.sizeId) {
+            const sizeQuery = `
+            SELECT size_name, price_adjustment
+            FROM dish_sizes
+            WHERE id = $1
+          `;
+
+            const sizeResult = await pool.query(sizeQuery, [item.size.sizeId]);
+            if (sizeResult.rows.length > 0) {
+              sizeDetails = sizeResult.rows[0];
+            }
+          }
+
+          return {
+            ...item,
+            dishName: dish.name,
+            dishDescription: dish.description,
+            dishImage: dish.image,
+            basePrice: dish.price,
+            preparationTime: dish.preparation_time,
+            categoryId: dish.category_id, // Đổi từ category sang category_id
+            available: dish.available,
+            sizeDetails,
+          };
+        })
+      );
+
+      return {
+        items: enhancedItems,
+        totalPrice: cart.totalAmount, // Đảm bảo sử dụng trường totalAmount từ getCart()
+      };
+    } catch (error) {
+      console.error("Error getting detailed cart:", error);
       throw error;
     }
   }
@@ -291,6 +369,60 @@ class CartModel {
     } catch (error) {
       console.error("Error clearing cart:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Add items from an order to cart
+   * @param {string} userId - User ID
+   * @param {number} orderId - Order ID to copy items from
+   * @param {boolean} clearExisting - Whether to clear existing cart first
+   * @returns {Promise<Object>} Updated cart
+   */
+  static async addOrderToCart(userId, orderId, clearExisting = true) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Thêm dòng này để import OrderModel nếu chưa có
+      const OrderModel = require("./order_model");
+
+      // Get order details
+      const order = await OrderModel.getOrderById(orderId);
+
+      if (!order) {
+        throw new Error("Order not found");
+      }
+
+      if (order.userId != userId) {
+        throw new Error("Cannot add another user's order to cart");
+      }
+
+      // Clear existing cart if requested
+      if (clearExisting) {
+        await this.clearCart(userId);
+      }
+
+      // Add each order item to cart
+      for (const item of order.items) {
+        await this.addToCart(
+          userId,
+          item.dishId,
+          null, // We don't have size information in current order model
+          item.quantity
+        );
+      }
+
+      await client.query("COMMIT");
+
+      // Return updated cart
+      return await this.getCart(userId);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Error adding order to cart:", error);
+      throw error;
+    } finally {
+      client.release();
     }
   }
 }
