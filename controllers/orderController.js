@@ -33,18 +33,29 @@ exports.getAllOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
   try {
-    const order = await OrderModel.getOrderById(req.paramsuserid);
+    // Fix: Change from req.paramsuserid to req.params.id
+    const orderId = req.params.id;
+
+    console.log(`Attempting to get order with ID: ${orderId}`);
+
+    const order = await OrderModel.getOrderById(orderId);
+
     if (!order) {
+      console.log(`Order with ID ${orderId} not found`);
       return res.status(404).json({
         status: "error",
         message: "Không tìm thấy đơn hàng",
       });
     }
+
+    console.log(`Successfully retrieved order: ${orderId}`);
+
     res.json({
       status: "success",
       data: order,
     });
   } catch (error) {
+    console.error(`Error retrieving order: ${error.message}`);
     res.status(500).json({
       status: "error",
       message: "Lỗi khi lấy thông tin đơn hàng",
