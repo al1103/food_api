@@ -7,9 +7,6 @@ const { auth, adminAuth } = require("../middleware/roleAuth");
 // Tạo đơn hàng mới (User đăng nhập → Chọn món ăn → Đặt đơn → pending)
 router.post("/", auth, orderController.createOrder);
 
-// Thêm route mới để tạo đơn từ giỏ hàng
-router.post("/from-cart", auth, orderController.createOrderFromCart);
-
 // Xem danh sách đơn hàng của bản thân
 router.get("/my-orders", auth, orderController.getUserOrders);
 

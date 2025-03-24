@@ -58,65 +58,6 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// Thêm phương thức tạo đơn từ giỏ hàng
-exports.createOrderFromCart = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const { tableId, customerName, phoneNumber, note } = req.body;
-
-    // Lấy giỏ hàng hiện tại của user
-    const cart = await CartModel.getCart(userId);
-
-    // Kiểm tra giỏ hàng có trống không
-    if (!cart || !cart.items || cart.items.length === 0) {
-      return res.status(400).json({
-        status: "error",
-        message: "Giỏ hàng trống, không thể tạo đơn hàng",
-      });
-    }
-
-    // Chuyển đổi các item trong giỏ hàng thành định dạng phù hợp cho đơn hàng
-    const orderItems = cart.items.map((item) => ({
-      dishId: item.dishId,
-      quantity: item.quantity,
-      specialRequests: item.note || null,
-      // Nếu có kích thước, thêm vào yêu cầu đặc biệt
-      ...(item.sizeName && {
-        specialRequests: `Kích thước: ${item.sizeName}${
-          item.note ? `, ${item.note}` : ""
-        }`,
-      }),
-    }));
-
-    // Tạo đơn hàng mới
-    const newOrder = await OrderModel.createOrder({
-      userId,
-      tableId,
-      items: orderItems,
-      status: "pending", // Đơn hàng mới luôn có trạng thái pending
-      customerName,
-      phoneNumber,
-      note,
-    });
-
-    // Xóa giỏ hàng sau khi tạo đơn hàng thành công
-    await CartModel.clearCart(userId);
-
-    res.status(201).json({
-      status: "success",
-      message:
-        "Đặt món từ giỏ hàng thành công! Đơn hàng của bạn đang chờ xác nhận",
-      data: newOrder,
-    });
-  } catch (error) {
-    console.error("Error creating order from cart:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Không thể tạo đơn hàng: " + error.message,
-    });
-  }
-};
-
 // 2. Xem danh sách đơn hàng của user đăng nhập
 exports.getUserOrders = async (req, res) => {
   try {
