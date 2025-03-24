@@ -203,108 +203,15 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
+
 exports.getDashboardStats = async (req, res) => {
   try {
-    // Get orders statistics
-    const totalOrdersResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM orders"
-    );
-    const totalOrders = parseInt(totalOrdersResult.rows[0].total);
-
-    const completedOrdersResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM orders WHERE status = 'completed'"
-    );
-    const completedOrders = parseInt(completedOrdersResult.rows[0].total);
-
-    const pendingOrdersResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM orders WHERE status = 'pending'"
-    );
-    const pendingOrders = parseInt(pendingOrdersResult.rows[0].total);
-
-    // Calculate total revenue
-    const revenueResult = await pool.query(
-      "SELECT SUM(total_price) AS total FROM orders WHERE status = 'completed'"
-    );
-    const totalRevenue = parseFloat(revenueResult.rows[0].total || 0);
-
-    // Get reservation statistics
-    const totalReservationsResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM reservations"
-    );
-    const totalReservations = parseInt(totalReservationsResult.rows[0].total);
-
-    const todayReservationsResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM reservations WHERE reservation_time::date = CURRENT_DATE"
-    );
-    const todayReservations = parseInt(todayReservationsResult.rows[0].total);
-
-    // Get table information
-    const totalTablesResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM tables"
-    );
-    const totalTables = parseInt(totalTablesResult.rows[0].total);
-
-    const availableTablesResult = await pool.query(
-      "SELECT COUNT(*) AS total FROM tables WHERE status = 'available'"
-    );
-    const availableTables = parseInt(availableTablesResult.rows[0].total);
-
-    // Get popular dishes (top 5)
-    const popularDishesResult = await pool.query(`
-      SELECT 
-        d.id AS "dishId", 
-        d.name AS "dishName",
-        SUM(od.quantity) AS "count",
-        d.price
-      FROM order_details od
-      JOIN dishes d ON od.dish_id = d.id
-      JOIN orders o ON od.order_id = o.order_id
-      WHERE o.status = 'completed'
-      GROUP BY d.id, d.name, d.price
-      ORDER BY "count" DESC
-      LIMIT 5
-    `);
-
-    // Get dishes totals
-    const dishCountResult = await pool.query(`
-      SELECT COUNT(*) AS total,
-      SUM(CASE WHEN available = true THEN 1 ELSE 0 END) AS available_count
-      FROM dishes
-    `);
-
-    const dishesTotal = parseInt(dishCountResult.rows[0].total || 0);
-    const dishesAvailable = parseInt(
-      dishCountResult.rows[0].available_count || 0
-    );
+    const stats = await AdminModel.getDashboardStats();
 
     // Send response
     res.status(200).json({
       statusCode: 200,
-      data: [
-        {
-          orders: {
-            total: totalOrders,
-            completed: completedOrders,
-            pending: pendingOrders,
-          },
-          revenue: {
-            total: totalRevenue,
-          },
-          reservations: {
-            total: totalReservations,
-            today: todayReservations,
-          },
-          tables: {
-            total: totalTables,
-            available: availableTables,
-          },
-          dishes: {
-            total: dishesTotal,
-            available: dishesAvailable,
-          },
-          popularDishes: popularDishesResult.rows,
-        },
-      ],
+      data: [stats],
     });
   } catch (error) {
     console.error("Dashboard error:", error);
@@ -327,63 +234,18 @@ exports.getAllDishes = async (req, res) => {
     } = getPaginationParams(req);
     const { category } = req.query;
 
-    // Build query conditions
-    let queryConditions = "";
-    const queryParams = [];
-    let paramIndex = 1;
+    const filters = {
+      category,
+      sortBy,
+      sortOrder,
+    };
 
-    if (category) {
-      queryConditions = "WHERE category = $1";
-      queryParams.push(category);
-      paramIndex++;
-    }
-
-    // Get total count
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM dishes
-      ${queryConditions}
-    `;
-
-    const countResult = await pool.query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
-
-    // Calculate pagination values
-    const offset = (page - 1) * limit;
-    const totalPages = Math.ceil(total / limit);
-
-    // Add pagination parameters
-    const paginatedQueryParams = [...queryParams, limit, offset];
-
-    // Get dishes with pagination
-    const query = `
-      SELECT 
-        dish_id AS "dishId",
-        name,
-        description,
-        price,
-        image_url AS "imageUrl",
-        rating,
-        category,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM dishes
-      ${queryConditions}
-      ORDER BY ${sortBy} ${sortOrder}
-      LIMIT $${paramIndex++} OFFSET $${paramIndex}
-    `;
-
-    const result = await pool.query(query, paginatedQueryParams);
+    const result = await AdminModel.getAllDishes(page, limit, filters);
 
     res.status(200).json({
       statusCode: 200,
-      data: result.rows,
-      pagination: {
-        totalItems: total,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-      },
+      data: result.dishes,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("Error getting dishes:", error);
@@ -407,24 +269,9 @@ exports.getDishById = async (req, res) => {
       });
     }
 
-    const query = `
-      SELECT 
-        dish_id AS "dishId",
-        name,
-        description,
-        price,
-        image_url AS "imageUrl",
-        rating,
-        category,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM dishes
-      WHERE dish_id = $1
-    `;
+    const dish = await AdminModel.getDishById(dishId);
 
-    const result = await pool.query(query, [dishId]);
-
-    if (result.rows.length === 0) {
+    if (!dish) {
       return res.status(404).json({
         statusCode: 404,
         message: "Không tìm thấy món ăn",
@@ -433,7 +280,7 @@ exports.getDishById = async (req, res) => {
 
     res.status(200).json({
       statusCode: 200,
-      data: result.rows[0],
+      data: dish,
     });
   } catch (error) {
     console.error("Error getting dish:", error);
@@ -444,7 +291,7 @@ exports.getDishById = async (req, res) => {
     });
   }
 };
-// Create new dish
+
 // Create new dish
 exports.createDish = async (req, res) => {
   try {
@@ -524,36 +371,20 @@ exports.createDish = async (req, res) => {
       }
     }
 
-    // Thêm vào database
-    const query = `
-      INSERT INTO dishes (
-        name, description, price, image_url, category, rating, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, NOW(), NOW()
-      ) RETURNING 
-        dish_id AS "dishId", 
-        name, 
-        description, 
-        price, 
-        image_url AS "imageUrl", 
-        category, 
-        rating, 
-        created_at AS "createdAt"
-    `;
-
-    const result = await pool.query(query, [
+    // Use model method to create dish
+    const dish = await AdminModel.createDish({
       name,
-      description || null,
-      parseFloat(price),
-      imageUrl, // URL từ Cloudinary hoặc null nếu không có ảnh
+      description: description || null,
+      price: parseFloat(price),
+      imageUrl,
       category,
-      0.0, // Initial rating
-    ]);
+      available: true,
+    });
 
     res.status(201).json({
       statusCode: 200,
       message: "Tạo món ăn mới thành công",
-      data: result.rows[0],
+      data: dish,
     });
   } catch (error) {
     console.error("Error creating dish:", error);
@@ -572,17 +403,17 @@ exports.createDish = async (req, res) => {
     });
   }
 };
+
 // Update dish
 exports.updateDish = async (req, res) => {
   try {
     const dishId = req.params.id;
     const { name, description, price, category, rating } = req.body;
 
-    // Check if dish exists
-    const checkQuery = "SELECT image_url FROM dishes WHERE dish_id = $1";
-    const checkResult = await pool.query(checkQuery, [dishId]);
+    // Check if dish exists using model method
+    const existingDish = await AdminModel.getDishById(dishId);
 
-    if (checkResult.rows.length === 0) {
+    if (!existingDish) {
       // Xóa file tạm nếu có
       if (req.file && req.file.path) {
         fs.unlink(req.file.path, (err) => {
@@ -596,7 +427,7 @@ exports.updateDish = async (req, res) => {
     }
 
     // Lưu URL ảnh cũ (nếu có)
-    const oldImageUrl = checkResult.rows[0].image_url;
+    const oldImageUrl = existingDish.imageUrl;
 
     // Upload ảnh mới nếu có
     let imageUrl = undefined; // Không thay đổi ảnh mặc định
@@ -645,93 +476,44 @@ exports.updateDish = async (req, res) => {
       }
     }
 
-    // Build update query dynamically based on provided fields
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
-
-    if (name !== undefined) {
-      updates.push(`name = $${paramIndex++}`);
-      values.push(name);
-    }
-
-    if (description !== undefined) {
-      updates.push(`description = $${paramIndex++}`);
-      values.push(description);
-    }
-
-    if (price !== undefined) {
-      if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-        return res.status(400).json({
-          statusCode: 400,
-          message: "Giá món ăn không hợp lệ",
-        });
-      }
-      updates.push(`price = $${paramIndex++}`);
-      values.push(parseFloat(price));
-    }
-
-    if (imageUrl !== undefined) {
-      updates.push(`image_url = $${paramIndex++}`);
-      values.push(imageUrl);
-    }
-
-    if (category !== undefined) {
-      updates.push(`category = $${paramIndex++}`);
-      values.push(category);
-    }
-
-    if (rating !== undefined) {
-      if (
-        isNaN(parseFloat(rating)) ||
-        parseFloat(rating) < 0 ||
-        parseFloat(rating) > 5
-      ) {
-        return res.status(400).json({
-          statusCode: 400,
-          message: "Đánh giá không hợp lệ (0-5)",
-        });
-      }
-      updates.push(`rating = $${paramIndex++}`);
-      values.push(parseFloat(rating));
-    }
-
-    // Always update the updated_at timestamp
-    updates.push(`updated_at = NOW()`);
-
-    // If no fields to update
-    if (updates.length === 1) {
-      // Only updated_at
+    // Validate price if provided
+    if (
+      price !== undefined &&
+      (isNaN(parseFloat(price)) || parseFloat(price) <= 0)
+    ) {
       return res.status(400).json({
         statusCode: 400,
-        message: "Không có thông tin nào được cập nhật",
+        message: "Giá món ăn không hợp lệ",
       });
     }
 
-    // Add dish_id to values array
-    values.push(dishId);
+    // Validate rating if provided
+    if (
+      rating !== undefined &&
+      (isNaN(parseFloat(rating)) ||
+        parseFloat(rating) < 0 ||
+        parseFloat(rating) > 5)
+    ) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Đánh giá không hợp lệ (0-5)",
+      });
+    }
 
-    const query = `
-      UPDATE dishes
-      SET ${updates.join(", ")}
-      WHERE dish_id = $${paramIndex}
-      RETURNING 
-        dish_id AS "dishId", 
-        name, 
-        description, 
-        price, 
-        image_url AS "imageUrl", 
-        category, 
-        rating, 
-        updated_at AS "updatedAt"
-    `;
-
-    const result = await pool.query(query, values);
+    // Use model to update dish
+    const updatedDish = await AdminModel.updateDish(dishId, {
+      name,
+      description,
+      price: price ? parseFloat(price) : undefined,
+      imageUrl,
+      category,
+      rating: rating ? parseFloat(rating) : undefined,
+    });
 
     res.status(200).json({
       statusCode: 200,
       message: "Cập nhật món ăn thành công",
-      data: result.rows[0],
+      data: updatedDish,
     });
   } catch (error) {
     console.error("Error updating dish:", error);
@@ -748,37 +530,22 @@ exports.deleteDish = async (req, res) => {
   try {
     const dishId = req.params.id;
 
-    // Check if dish exists
-    const checkQuery = "SELECT 1 FROM dishes WHERE dish_id = $1";
-    const checkResult = await pool.query(checkQuery, [dishId]);
+    // Check if dish exists using model method
+    const dish = await AdminModel.getDishById(dishId);
 
-    if (checkResult.rows.length === 0) {
+    if (!dish) {
       return res.status(404).json({
         statusCode: 404,
         message: "Không tìm thấy món ăn",
       });
     }
 
-    // Check if dish is used in any orders
-    const orderCheckQuery = `
-      SELECT 1 FROM order_details WHERE dish_id = $1 LIMIT 1
-    `;
-    const orderCheckResult = await pool.query(orderCheckQuery, [dishId]);
-
-    if (orderCheckResult.rows.length > 0) {
-      return res.status(400).json({
-        statusCode: 400,
-        message: "Không thể xóa món ăn đã được sử dụng trong đơn hàng",
-      });
-    }
-
-    // Delete dish
-    const deleteQuery = "DELETE FROM dishes WHERE dish_id = $1";
-    await pool.query(deleteQuery, [dishId]);
+    // Use model to delete dish (which includes validation checks)
+    const result = await AdminModel.deleteDish(dishId);
 
     res.status(200).json({
       statusCode: 200,
-      message: "Xóa món ăn thành công",
+      message: result.message,
     });
   } catch (error) {
     console.error("Error deleting dish:", error);
@@ -801,60 +568,18 @@ exports.getAllTables = async (req, res) => {
     } = getPaginationParams(req);
     const { status } = req.query;
 
-    // Build query conditions
-    let queryConditions = "";
-    const queryParams = [];
-    let paramIndex = 1;
+    const filters = {
+      status,
+      sortBy,
+      sortOrder,
+    };
 
-    if (status) {
-      queryConditions = "WHERE status = $1";
-      queryParams.push(status);
-      paramIndex++;
-    }
-
-    // Get total count
-    const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM tables
-      ${queryConditions}
-    `;
-
-    const countResult = await pool.query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
-
-    // Calculate pagination values
-    const offset = (page - 1) * limit;
-    const totalPages = Math.ceil(total / limit);
-
-    // Add pagination parameters
-    const paginatedQueryParams = [...queryParams, limit, offset];
-
-    // Get tables with pagination
-    const query = `
-      SELECT 
-        table_id AS "tableId",
-        table_number AS "tableNumber",
-        capacity,
-        status,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM tables
-      ${queryConditions}
-      ORDER BY ${sortBy} ${sortOrder}
-      LIMIT $${paramIndex++} OFFSET $${paramIndex}
-    `;
-
-    const result = await pool.query(query, paginatedQueryParams);
+    const result = await AdminModel.getAllTables(page, limit, filters);
 
     res.status(200).json({
       statusCode: 200,
-      data: result.rows,
-      pagination: {
-        totalItems: total,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-      },
+      data: result.tables,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("Error getting tables:", error);
@@ -878,21 +603,9 @@ exports.getTableById = async (req, res) => {
       });
     }
 
-    const query = `
-      SELECT 
-        table_id AS "tableId",
-        table_number AS "tableNumber",
-        capacity,
-        status,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt"
-      FROM tables
-      WHERE table_id = $1
-    `;
+    const table = await AdminModel.getTableById(tableId);
 
-    const result = await pool.query(query, [tableId]);
-
-    if (result.rows.length === 0) {
+    if (!table) {
       return res.status(404).json({
         statusCode: 400,
         message: "Không tìm thấy bàn",
@@ -901,7 +614,7 @@ exports.getTableById = async (req, res) => {
 
     res.status(200).json({
       statusCode: 200,
-      data: result.rows[0],
+      data: table,
     });
   } catch (error) {
     console.error("Error getting table:", error);
@@ -941,17 +654,6 @@ exports.createTable = async (req, res) => {
       });
     }
 
-    // Check if table number already exists
-    const checkQuery = "SELECT 1 FROM tables WHERE table_number = $1";
-    const checkResult = await pool.query(checkQuery, [tableNumber]);
-
-    if (checkResult.rows.length > 0) {
-      return res.status(400).json({
-        statusCode: 400,
-        message: "Số bàn đã tồn tại",
-      });
-    }
-
     // Validate status
     const validStatuses = ["available", "occupied", "reserved", "maintenance"];
     if (!validStatuses.includes(status)) {
@@ -961,29 +663,17 @@ exports.createTable = async (req, res) => {
       });
     }
 
-    const query = `
-      INSERT INTO tables (
-        table_number, capacity, status, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, NOW(), NOW()
-      ) RETURNING 
-        table_id AS "tableId", 
-        table_number AS "tableNumber", 
-        capacity, 
-        status, 
-        created_at AS "createdAt"
-    `;
-
-    const result = await pool.query(query, [
-      parseInt(tableNumber),
-      parseInt(capacity),
+    // Use model to create new table
+    const table = await AdminModel.createTable({
+      tableNumber: parseInt(tableNumber),
+      capacity: parseInt(capacity),
       status,
-    ]);
+    });
 
     res.status(201).json({
       statusCode: 200,
       message: "Tạo bàn mới thành công",
-      data: result.rows[0],
+      data: table,
     });
   } catch (error) {
     console.error("Error creating table:", error);
@@ -1001,58 +691,25 @@ exports.updateTable = async (req, res) => {
     const tableId = req.params.id;
     const { tableNumber, capacity, status } = req.body;
 
-    // Check if table exists
-    const checkQuery = "SELECT 1 FROM tables WHERE table_id = $1";
-    const checkResult = await pool.query(checkQuery, [tableId]);
-
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({
-        statusCode: 404,
-        message: "Không tìm thấy bàn",
+    // Validate inputs if provided
+    if (
+      tableNumber !== undefined &&
+      (isNaN(parseInt(tableNumber)) || parseInt(tableNumber) <= 0)
+    ) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Số bàn không hợp lệ",
       });
     }
 
-    // Build update query dynamically based on provided fields
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
-
-    if (tableNumber !== undefined) {
-      if (isNaN(parseInt(tableNumber)) || parseInt(tableNumber) <= 0) {
-        return res.status(400).json({
-          statusCode: 400,
-          message: "Số bàn không hợp lệ",
-        });
-      }
-
-      // Check if the new table number already exists (except for the current table)
-      const duplicateQuery =
-        "SELECT 1 FROM tables WHERE table_number = $1 AND table_id != $2";
-      const duplicateResult = await pool.query(duplicateQuery, [
-        tableNumber,
-        tableId,
-      ]);
-
-      if (duplicateResult.rows.length > 0) {
-        return res.status(400).json({
-          statusCode: 400,
-          message: "Số bàn đã tồn tại",
-        });
-      }
-
-      updates.push(`table_number = $${paramIndex++}`);
-      values.push(parseInt(tableNumber));
-    }
-
-    if (capacity !== undefined) {
-      if (isNaN(parseInt(capacity)) || parseInt(capacity) <= 0) {
-        return res.status(400).json({
-          statusCode: 400,
-          message: "Sức chứa không hợp lệ",
-        });
-      }
-      updates.push(`capacity = $${paramIndex++}`);
-      values.push(parseInt(capacity));
+    if (
+      capacity !== undefined &&
+      (isNaN(parseInt(capacity)) || parseInt(capacity) <= 0)
+    ) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Sức chứa không hợp lệ",
+      });
     }
 
     if (status !== undefined) {
@@ -1068,43 +725,19 @@ exports.updateTable = async (req, res) => {
           message: "Trạng thái bàn không hợp lệ",
         });
       }
-      updates.push(`status = $${paramIndex++}`);
-      values.push(status);
     }
 
-    // Always update the updated_at timestamp
-    updates.push(`updated_at = NOW()`);
-
-    // If no fields to update
-    if (updates.length === 1) {
-      // Only updated_at
-      return res.status(400).json({
-        statusCode: 400,
-        message: "Không có thông tin nào được cập nhật",
-      });
-    }
-
-    // Add table_id to values array
-    values.push(tableId);
-
-    const query = `
-      UPDATE tables
-      SET ${updates.join(", ")}
-      WHERE table_id = $${paramIndex}
-      RETURNING 
-        table_id AS "tableId", 
-        table_number AS "tableNumber", 
-        capacity, 
-        status, 
-        updated_at AS "updatedAt"
-    `;
-
-    const result = await pool.query(query, values);
+    // Use model to update table (which includes validation checks)
+    const updatedTable = await AdminModel.updateTable(tableId, {
+      tableNumber: tableNumber ? parseInt(tableNumber) : undefined,
+      capacity: capacity ? parseInt(capacity) : undefined,
+      status,
+    });
 
     res.status(200).json({
       statusCode: 200,
       message: "Cập nhật bàn thành công",
-      data: result.rows[0],
+      data: updatedTable,
     });
   } catch (error) {
     console.error("Error updating table:", error);
@@ -1121,57 +754,12 @@ exports.deleteTable = async (req, res) => {
   try {
     const tableId = req.params.id;
 
-    // Check if table exists
-    const checkQuery = "SELECT 1 FROM tables WHERE table_id = $1";
-    const checkResult = await pool.query(checkQuery, [tableId]);
-
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({
-        statusCode: 500,
-        message: "Không tìm thấy bàn",
-      });
-    }
-
-    // Check if table is used in any active orders
-    const orderCheckQuery = `
-      SELECT 1 FROM orders 
-      WHERE table_id = $1 AND status IN ('pending', 'in-progress')
-      LIMIT 1
-    `;
-    const orderCheckResult = await pool.query(orderCheckQuery, [tableId]);
-
-    if (orderCheckResult.rows.length > 0) {
-      return res.status(400).json({
-        statusCode: 500,
-        message:
-          "Không thể xóa bàn đang được sử dụng trong các đơn hàng đang hoạt động",
-      });
-    }
-
-    // Check if table has future reservations
-    const reservationCheckQuery = `
-      SELECT 1 FROM reservations 
-      WHERE table_id = $1 AND reservation_time > NOW() AND status = 'confirmed'
-      LIMIT 1
-    `;
-    const reservationCheckResult = await pool.query(reservationCheckQuery, [
-      tableId,
-    ]);
-
-    if (reservationCheckResult.rows.length > 0) {
-      return res.status(400).json({
-        statusCode: 400,
-        message: "Không thể xóa bàn đã có đặt chỗ trong tương lai",
-      });
-    }
-
-    // Delete table
-    const deleteQuery = "DELETE FROM tables WHERE table_id = $1";
-    await pool.query(deleteQuery, [tableId]);
+    // Use model to delete table (which includes validation checks)
+    const result = await AdminModel.deleteTable(tableId);
 
     res.status(200).json({
       statusCode: 200,
-      message: "Xóa bàn thành công",
+      message: result.message,
     });
   } catch (error) {
     console.error("Error deleting table:", error);
@@ -1186,26 +774,26 @@ exports.deleteTable = async (req, res) => {
 // Get tables availability status summary
 exports.getTableAvailability = async (req, res) => {
   try {
-    const query = `
-      SELECT 
-        status,
-        COUNT(*) AS count,
-        SUM(capacity) AS total_capacity
-      FROM tables
-      GROUP BY status
-      ORDER BY status
-    `;
-
-    const result = await pool.query(query);
+    // Use model to get availability data
+    const availability = await AdminModel.getTableAvailability();
 
     // Get current date and time for client reference
     const currentDateTime = new Date().toISOString();
 
+    // Format response to match current structure
+    const statusSummary = Object.entries(availability)
+      .filter(([key]) => key !== "total")
+      .map(([status, count]) => ({
+        status,
+        count,
+      }));
+
     res.status(200).json({
       statusCode: 200,
       data: {
-        statusSummary: result.rows,
+        statusSummary,
         currentDateTime,
+        totalCount: availability.total,
       },
     });
   } catch (error) {
@@ -1305,7 +893,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-// Thêm hàm hỗ trợ trích xuất public_id
+// Helper function for extracting Cloudinary public IDs
 function extractPublicIdFromUrl(url) {
   if (!url) return null;
   try {
