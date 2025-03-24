@@ -31,6 +31,11 @@ router.post("/tables", adminController.createTable);
 router.put("/tables/:id", adminController.updateTable);
 router.delete("/tables/:id", adminController.deleteTable);
 
+// In routes/adminRoutes.js - Add these endpoints
+router.get("/orders", adminController.getAllOrders);
+router.get("/orders/:id", adminController.getOrderById);
+router.patch("/orders/:id/statusCode", adminController.updateOrderStatus);
+
 router.post("/", adminController.createFood);
 router.put("/:id", adminController.updateFood);
 router.delete("/:id", adminController.deleteFood);

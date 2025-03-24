@@ -152,6 +152,51 @@ class OrderModel {
       throw error;
     }
   }
+
+  static async getOrdersByUserId(userId, page = 1, limit = 10) {
+    try {
+      page = parseInt(page);
+      limit = parseInt(limit);
+      const offset = (page - 1) * limit;
+
+      // Get total count for pagination
+      const countResult = await pool.query(
+        `SELECT COUNT(*) AS total_count FROM orders WHERE user_id = $1`,
+        [userId]
+      );
+      const totalCount = parseInt(countResult.rows[0].total_count);
+
+      // Get paginated orders for specific user
+      const result = await pool.query(
+        `SELECT 
+          o.order_id AS "orderId",
+          o.user_id AS "userId",
+          o.total_price AS "totalPrice",
+          o.statusCode AS "statusCode",
+          o.order_date AS "orderDate",
+          o.created_at AS "createdAt",
+          o.updated_at AS "updatedAt"
+        FROM orders o
+        WHERE o.user_id = $1
+        ORDER BY o.order_date DESC
+        LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      );
+
+      return {
+        orders: result.rows,
+        pagination: {
+          totalItems: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: page,
+          pageSize: limit,
+        },
+      };
+    } catch (error) {
+      console.error("Error getting user orders:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = OrderModel;
