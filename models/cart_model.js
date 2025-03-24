@@ -192,56 +192,52 @@ class CartModel {
       }
 
       // Handle sizing logic
-      let finalSizeId = sizeId;
+      let finalSizeId = sizeId || 1; // Nếu không có sizeId, sử dụng mặc định là 1
       let finalPrice = parseFloat(dish.price);
 
-      if (sizeId) {
-        // Check if selected size exists and is available
-        const sizeResult = await client.query(
-          `SELECT * FROM dish_sizes WHERE id = $1 AND dish_id = $2`,
-          [sizeId, dishId]
-        );
+      console.log(`Using size ID: ${finalSizeId} for dish ID: ${dishId}`);
 
-        if (sizeResult.rows.length === 0) {
-          throw new Error("Invalid size for this dish");
+      if (finalSizeId) {
+        // Check if selected size exists
+        const sizeQuery = `
+          SELECT * FROM dish_sizes WHERE id = $1
+        `;
+        const sizeResult = await client.query(sizeQuery, [finalSizeId]);
+
+        if (sizeResult.rows.length > 0) {
+          // Size exists, get price adjustment
+          const priceAdjustment = parseFloat(
+            sizeResult.rows[0].price_adjustment || 0
+          );
+          finalPrice = finalPrice + priceAdjustment;
+          console.log(
+            `Applied price adjustment: ${priceAdjustment}, final price: ${finalPrice}`
+          );
+        } else {
+          console.log(
+            `Size ID ${finalSizeId} not found, using base price: ${finalPrice}`
+          );
         }
-
-        const size = sizeResult.rows[0];
-        if (size.is_available === false) {
-          throw new Error("Selected size is currently not available");
-        }
-
-        finalPrice = parseFloat(size.price);
-      } else {
-        // Try to find a default size
-        const defaultSizeResult = await client.query(
-          `SELECT * FROM dish_sizes 
-           WHERE dish_id = $1 AND is_default = true
-           ORDER BY price ASC
-           LIMIT 1`,
-          [dishId]
-        );
-
-        // If we find a default size, use it
-        if (defaultSizeResult.rows.length > 0) {
-          finalSizeId = defaultSizeResult.rows[0].size_id;
-          finalPrice = parseFloat(defaultSizeResult.rows[0].price);
-        }
-        // Otherwise, we'll use null for sizeId and the base dish price
       }
 
       // Check if item already exists in cart with the same size
-      const existingItem = await client.query(
-        `SELECT * FROM cart 
-         WHERE user_id = $1 AND dish_id = $2 AND 
-         (size_id = $3 OR (size_id IS NULL AND $3 IS NULL))`,
-        [userId, dishId, finalSizeId]
-      );
+      const existingQuery = `
+        SELECT * FROM cart 
+        WHERE user_id = $1 AND dish_id = $2 AND size_id = $3
+      `;
+      const existingItem = await client.query(existingQuery, [
+        userId,
+        dishId,
+        finalSizeId,
+      ]);
 
       let result;
       if (existingItem.rows.length > 0) {
         // Update quantity if item exists
         const newQuantity = existingItem.rows[0].quantity + quantity;
+        console.log(
+          `Updating existing cart item, new quantity: ${newQuantity}`
+        );
 
         result = await client.query(
           `UPDATE cart 
@@ -252,6 +248,9 @@ class CartModel {
         );
       } else {
         // Add new item to cart
+        console.log(
+          `Adding new item to cart: dishId=${dishId}, sizeId=${finalSizeId}, quantity=${quantity}`
+        );
         result = await client.query(
           `INSERT INTO cart (user_id, dish_id, size_id, quantity, created_at, updated_at)
            VALUES ($1, $2, $3, $4, NOW(), NOW())
@@ -261,11 +260,22 @@ class CartModel {
       }
 
       await client.query("COMMIT");
+      console.log("Transaction committed successfully");
 
-      // Return cart item with price
-      return {
+      // Return cart item with additional info
+      const addedItem = {
         ...result.rows[0],
         price: finalPrice,
+        subtotal: finalPrice * (result.rows[0].quantity || quantity),
+      };
+
+      console.log("Added/updated cart item:", addedItem);
+      return {
+        message:
+          existingItem.rows.length > 0
+            ? "Cart item updated"
+            : "Item added to cart",
+        addedItem,
       };
     } catch (error) {
       await client.query("ROLLBACK");
@@ -273,6 +283,7 @@ class CartModel {
       throw error;
     } finally {
       client.release();
+      console.log("Database client released");
     }
   }
 
