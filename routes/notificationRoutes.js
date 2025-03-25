@@ -4,23 +4,23 @@ const NotificationController = require("../controllers/notificationController");
 const { auth, adminAuth } = require("../middleware/roleAuth");
 
 // User notification routes
-router.get("/user", auth, NotificationController.getUserNotifications);
+router.get("/", auth, NotificationController.getUserNotifications);
 router.post("/read/:id", auth, NotificationController.markAsRead);
 router.post("/read-all", auth, NotificationController.markAllAsRead);
-
-// SSE subscription endpoint for users
-router.get(
-  "/subscribe",
-  auth,
-  NotificationController.subscribeUserNotifications
-);
+router.get("/subscribe", auth, NotificationController.setupSSEForUser);
 
 // Admin notification routes
-router.get("/admin", adminAuth, NotificationController.getAdminNotifications);
+router.get(
+  "/admin",
+  auth,
+  adminAuth,
+  NotificationController.getAdminNotifications
+);
 router.get(
   "/admin/subscribe",
+  auth,
   adminAuth,
-  NotificationController.subscribeAdminNotifications
+  NotificationController.setupSSEForAdmin
 );
 
 module.exports = router;

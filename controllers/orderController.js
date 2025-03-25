@@ -225,11 +225,25 @@ exports.getOrderByIdAdmin = async (req, res) => {
   }
 };
 
-// 3. Admin cập nhật trạng thái đơn hàng (có thể cập nhật sang bất kỳ trạng thái nào)
+// 3. Admin cập nhật trạng thái đơn hàng
 exports.updateOrderStatusAdmin = async (req, res) => {
   try {
+    // Dòng log để debug
+    console.log(
+      `Received request to update status for order ID: ${req.params.id}`
+    );
+    console.log(`Body: ${JSON.stringify(req.body)}`);
+
     const orderId = req.params.id;
     const { status } = req.body;
+
+    // Kiểm tra nếu status không được gửi lên
+    if (!status) {
+      return res.status(400).json({
+        status: "error",
+        message: "Trạng thái đơn hàng không được cung cấp",
+      });
+    }
 
     // Validate status
     const validStatuses = [
@@ -270,9 +284,11 @@ exports.updateOrderStatusAdmin = async (req, res) => {
 
     // Store the old status for notification
     const oldStatus = order.status;
+    console.log(`Updating order from ${oldStatus} to ${status}`);
 
     // Cập nhật trạng thái
-    await OrderModel.updateOrderStatus(orderId, status);
+    const updateResult = await OrderModel.updateOrderStatus(orderId, status);
+    console.log("Update result:", updateResult);
 
     // Nếu hoàn thành hoặc hủy đơn có liên quan đến bàn, cập nhật trạng thái bàn
     if ((status === "completed" || status === "cancelled") && order.tableId) {
@@ -280,25 +296,33 @@ exports.updateOrderStatusAdmin = async (req, res) => {
         "UPDATE tables SET status = 'available', updated_at = NOW() WHERE table_id = $1",
         [order.tableId]
       );
+      console.log(`Updated table ${order.tableId} status to available`);
     }
 
     // Create notification for status change
-    await NotificationController.integrateWithOrderUpdate(
-      orderId,
-      order.userId,
-      oldStatus,
-      status
-    );
+    try {
+      await NotificationController.integrateWithOrderUpdate(
+        orderId,
+        order.userId,
+        oldStatus,
+        status
+      );
+      console.log("Notification created for status update");
+    } catch (notifError) {
+      console.error("Error creating notification:", notifError);
+      // Continue execution even if notification fails
+    }
 
     res.status(200).json({
       status: "success",
       message: "Cập nhật trạng thái đơn hàng thành công",
+      data: updateResult,
     });
   } catch (error) {
     console.error("Error updating order status:", error);
     res.status(500).json({
       status: "error",
-      message: "Lỗi khi cập nhật trạng thái đơn hàng",
+      message: "Lỗi khi cập nhật trạng thái đơn hàng: " + error.message,
     });
   }
 };
