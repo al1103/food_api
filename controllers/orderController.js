@@ -2,6 +2,7 @@ const OrderModel = require("../models/order_model");
 const { pool } = require("../config/database");
 const { getPaginationParams } = require("../utils/pagination");
 const CartModel = require("../models/cart_model");
+const NotificationController = require("../controllers/notificationController");
 
 // ===== CONTROLLER CHO USER THÔNG THƯỜNG =====
 
@@ -43,6 +44,9 @@ exports.createOrder = async (req, res) => {
       phoneNumber,
       note,
     });
+
+    // Create notification for the new order
+    await NotificationController.integrateWithOrderCreate(newOrder, userId);
 
     res.status(201).json({
       status: "success",
@@ -264,6 +268,9 @@ exports.updateOrderStatusAdmin = async (req, res) => {
       });
     }
 
+    // Store the old status for notification
+    const oldStatus = order.status;
+
     // Cập nhật trạng thái
     await OrderModel.updateOrderStatus(orderId, status);
 
@@ -274,6 +281,14 @@ exports.updateOrderStatusAdmin = async (req, res) => {
         [order.tableId]
       );
     }
+
+    // Create notification for status change
+    await NotificationController.integrateWithOrderUpdate(
+      orderId,
+      order.userId,
+      oldStatus,
+      status
+    );
 
     res.status(200).json({
       status: "success",

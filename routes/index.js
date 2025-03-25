@@ -9,6 +9,7 @@ const reservationRoutes = require("./Reservations");
 const adminRoutes = require("./adminRoutes"); // Add admin routes
 const cartRoutes = require("./cart");
 const uploadRoutes = require("./uploadRoutes");
+const notificationsRoutes = require("./notificationRoutes");
 
 function routes(app) {
   // User management
@@ -16,6 +17,8 @@ function routes(app) {
 
   // Admin routes
   app.use("/api/admin", adminRoutes);
+
+  app.use("/api/notifications", notificationsRoutes);
 
   // AI features
   app.use("/api/ai", aiRoutes);
