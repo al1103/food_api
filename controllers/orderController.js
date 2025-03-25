@@ -287,3 +287,67 @@ exports.updateOrderStatusAdmin = async (req, res) => {
     });
   }
 };
+
+// Add this new controller method for statistics
+exports.getOrderStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // Validate date parameters
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        status: "error",
+        message: "Vui lòng cung cấp ngày bắt đầu và ngày kết thúc",
+      });
+    }
+
+    // Parse dates to ensure valid format
+    const parsedStartDate = new Date(startDate);
+    const parsedEndDate = new Date(endDate);
+
+    // Check if dates are valid
+    if (isNaN(parsedStartDate.getTime()) || isNaN(parsedEndDate.getTime())) {
+      return res.status(400).json({
+        status: "error",
+        message: "Định dạng ngày không hợp lệ. Sử dụng định dạng YYYY-MM-DD",
+      });
+    }
+
+    // Get order statistics from the model
+    const statistics = await OrderModel.getOrdersByDateRange(
+      startDate,
+      endDate
+    );
+
+    // Calculate total revenue and order count
+    let totalRevenue = 0;
+    let totalOrders = 0;
+
+    statistics.forEach((stat) => {
+      totalRevenue += parseFloat(stat.total_revenue || 0);
+      totalOrders += parseInt(stat.count || 0);
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        byStatus: statistics,
+        summary: {
+          totalOrders: totalOrders,
+          totalRevenue: totalRevenue,
+          period: {
+            start: startDate,
+            end: endDate,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting order statistics:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Lỗi khi lấy thống kê đơn hàng",
+      error: error.message,
+    });
+  }
+};

@@ -30,4 +30,7 @@ router.patch(
   orderController.updateOrderStatusAdmin
 );
 
+// Add this to your admin routes section
+router.get("/admin/statistics", adminAuth, orderController.getOrderStatistics);
+
 module.exports = router;
