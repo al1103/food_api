@@ -681,7 +681,7 @@ exports.getDishesByCategory = async (req, res) => {
         statusCode: 404,
         message: "Category not found",
       });
-    }
+    } 
 
     const result = await DishModel.getDishesByCategory(
       parseInt(categoryId),

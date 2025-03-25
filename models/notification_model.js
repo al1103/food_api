@@ -10,40 +10,53 @@ class NotificationModel {
         referenceId,
         isRead = false,
         status = "unread",
-        userId = null,
+        userId, // Cần là UUID hoặc null
         priority = "low",
       } = notificationData;
+
+      // Kiểm tra xem userId có phải là UUID không
+      if (
+        userId !== null &&
+        typeof userId === "string" &&
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          userId
+        )
+      ) {
+        console.warn(
+          `Warning: userId ${userId} does not appear to be a valid UUID`
+        );
+        // Quyết định xem có nên tiếp tục hay không - có thể throw error hoặc set userId = null
+      }
 
       const query = `
         INSERT INTO notifications (
           title, content, type, reference_id, is_read, status, user_id, priority, created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
-        ) RETURNING
-          notification_id AS "notificationId",
-          title,
-          content,
-          type,
-          reference_id AS "referenceId",
-          is_read AS "isRead",
-          status,
-          user_id AS "userId",
-          priority,
-          created_at AS "createdAt",
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        RETURNING 
+          notification_id AS "notificationId", 
+          title, 
+          content, 
+          type, 
+          reference_id AS "referenceId", 
+          is_read AS "isRead", 
+          status, 
+          user_id AS "userId", 
+          priority, 
+          created_at AS "createdAt", 
           updated_at AS "updatedAt"
       `;
 
-      const values = [
+      const result = await pool.query(query, [
         title,
         content,
         type,
         referenceId,
         isRead,
         status,
-        userId,
+        userId, // Có thể là UUID hoặc null
         priority,
-      ];
-      const result = await pool.query(query, values);
+      ]);
 
       return result.rows[0];
     } catch (error) {
@@ -52,8 +65,20 @@ class NotificationModel {
     }
   }
 
+  // Đảm bảo các phương thức khác cũng xử lý UUID đúng
   static async getNotificationsByUserId(userId, page = 1, limit = 10) {
     try {
+      // Validate userId
+      if (
+        !userId ||
+        typeof userId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          userId
+        )
+      ) {
+        throw new Error(`Invalid UUID format for userId: ${userId}`);
+      }
+
       // Validate params
       page = parseInt(page);
       limit = parseInt(limit);
