@@ -13,9 +13,12 @@ exports.getCart = async (req, res) => {
 
     const cart = await CartModel.getCart(userId);
 
+    // Return the modified structure - items array directly in data property
     res.status(200).json({
       statusCode: 200,
-      data: cart,
+      data: cart.items,
+      totalAmount: cart.totalAmount,
+      totalItems: cart.totalItems,
     });
   } catch (error) {
     console.error("Error getting cart:", error);
@@ -34,6 +37,8 @@ exports.getCart = async (req, res) => {
     });
   }
 };
+
+// The rest of your controller functions need similar modifications...
 
 // Add item to cart
 exports.addToCart = async (req, res) => {
@@ -80,10 +85,13 @@ exports.addToCart = async (req, res) => {
       message: "Đã thêm món ăn vào giỏ hàng",
       data: {
         addedItem: result,
-        cart: updatedCart,
+        cart: updatedCart.items, // Return items array directly
+        totalAmount: updatedCart.totalAmount,
+        totalItems: updatedCart.totalItems,
       },
     });
   } catch (error) {
+    // Error handling remains unchanged
     console.error("Error adding to cart:", error);
 
     const knownErrors = [
@@ -151,7 +159,9 @@ exports.updateCartItem = async (req, res) => {
           : "Đã xóa món ăn khỏi giỏ hàng",
       data: {
         updatedItem: result,
-        cart: updatedCart,
+        cart: updatedCart.items, // Return items array directly
+        totalAmount: updatedCart.totalAmount,
+        totalItems: updatedCart.totalItems,
       },
     });
   } catch (error) {
@@ -196,7 +206,9 @@ exports.removeFromCart = async (req, res) => {
       message: "Đã xóa món ăn khỏi giỏ hàng",
       data: {
         removedItem: result.removedItem,
-        cart: updatedCart,
+        cart: updatedCart.items, // Return items array directly
+        totalAmount: updatedCart.totalAmount,
+        totalItems: updatedCart.totalItems,
       },
     });
   } catch (error) {
@@ -265,10 +277,13 @@ exports.addOrderToCart = async (req, res) => {
       clearExisting
     );
 
+    // Return the modified structure with items array directly
     res.status(200).json({
       statusCode: 200,
       message: "Đã thêm đơn hàng vào giỏ hàng",
-      data: result,
+      data: result.items,
+      totalAmount: result.totalAmount,
+      totalItems: result.totalItems,
     });
   } catch (error) {
     console.error("Error adding order to cart:", error);
