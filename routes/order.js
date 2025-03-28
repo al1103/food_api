@@ -21,7 +21,7 @@ router.get("/admin/orders", adminAuth, orderController.getAllOrders);
 
 // Xem chi tiết đơn hàng bất kỳ
 router.get("/admin/orders/:id", adminAuth, orderController.getOrderByIdAdmin);
-
+  
 // Cập nhật trạng thái đơn hàng
 router.patch(
   "/admin/orders/:id/status",

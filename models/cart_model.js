@@ -312,10 +312,11 @@ class CartModel {
         [quantity, cartId, userId]
       );
 
-      // Get price information
+      // Sửa truy vấn để lấy thông tin giá chính xác
       const priceQuery = `
         SELECT 
-          COALESCE(ds.price, d.price) AS price
+          d.price AS base_price,
+          ds.price_adjustment
         FROM cart c
         JOIN dishes d ON c.dish_id = d.id
         LEFT JOIN dish_sizes ds ON c.size_id = ds.id
@@ -323,13 +324,21 @@ class CartModel {
       `;
 
       const priceResult = await pool.query(priceQuery, [cartId]);
-      const price =
-        priceResult.rows.length > 0 ? parseFloat(priceResult.rows[0].price) : 0;
+
+      // Tính toán giá đúng cách
+      let finalPrice = 0;
+      if (priceResult.rows.length > 0) {
+        const basePrice = parseFloat(priceResult.rows[0].base_price) || 0;
+        const adjustment = priceResult.rows[0].price_adjustment
+          ? parseFloat(priceResult.rows[0].price_adjustment)
+          : 0;
+        finalPrice = basePrice + adjustment;
+      }
 
       return {
         ...result.rows[0],
-        price,
-        subtotal: price * quantity,
+        price: finalPrice,
+        subtotal: finalPrice * quantity,
       };
     } catch (error) {
       console.error("Error updating cart item:", error);
