@@ -13,9 +13,12 @@ exports.getCart = async (req, res) => {
 
     const cart = await CartModel.getCart(userId);
 
+    // Return the modified structure while maintaining the expected format
     res.status(200).json({
       statusCode: 200,
-      data: cart,
+      data: cart.items || [], // Ensure we always return an array, even if empty
+      totalAmount: cart.totalAmount || 0,
+      totalItems: cart.totalItems || 0,
     });
   } catch (error) {
     console.error("Error getting cart:", error);
@@ -78,10 +81,10 @@ exports.addToCart = async (req, res) => {
     res.status(201).json({
       statusCode: 200,
       message: "Đã thêm món ăn vào giỏ hàng",
-      data: {
-        addedItem: result,
-        cart: updatedCart,
-      },
+      data: result.addedItem, // Return the added item in data
+      cart: updatedCart.items || [], // Include cart items as a separate property
+      totalAmount: updatedCart.totalAmount || 0,
+      totalItems: updatedCart.totalItems || 0,
     });
   } catch (error) {
     console.error("Error adding to cart:", error);
@@ -149,10 +152,10 @@ exports.updateCartItem = async (req, res) => {
         parsedQuantity > 0
           ? "Đã cập nhật số lượng"
           : "Đã xóa món ăn khỏi giỏ hàng",
-      data: {
-        updatedItem: result,
-        cart: updatedCart,
-      },
+      data: result, // Return the updated item directly
+      cart: updatedCart.items || [], // Include cart items separately
+      totalAmount: updatedCart.totalAmount || 0,
+      totalItems: updatedCart.totalItems || 0,
     });
   } catch (error) {
     console.error("Error updating cart item:", error);
@@ -194,10 +197,10 @@ exports.removeFromCart = async (req, res) => {
     res.status(200).json({
       statusCode: 200,
       message: "Đã xóa món ăn khỏi giỏ hàng",
-      data: {
-        removedItem: result.removedItem,
-        cart: updatedCart,
-      },
+      data: result.removedItem, // Return removed item directly
+      cart: updatedCart.items || [], // Include cart items separately
+      totalAmount: updatedCart.totalAmount || 0,
+      totalItems: updatedCart.totalItems || 0,
     });
   } catch (error) {
     console.error("Error removing from cart:", error);
@@ -268,7 +271,9 @@ exports.addOrderToCart = async (req, res) => {
     res.status(200).json({
       statusCode: 200,
       message: "Đã thêm đơn hàng vào giỏ hàng",
-      data: result,
+      data: result.items || [], // Return items array directly
+      totalAmount: result.totalAmount || 0,
+      totalItems: result.totalItems || 0,
     });
   } catch (error) {
     console.error("Error adding order to cart:", error);
