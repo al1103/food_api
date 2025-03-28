@@ -6,7 +6,6 @@ const NotificationController = require("../controllers/notificationController");
 
 // ===== CONTROLLER CHO USER THÔNG THƯỜNG =====
 
-// 1. Tạo đơn hàng mới
 exports.createOrder = async (req, res) => {
   try {
     const { tableId, items, customerName, phoneNumber, note } = req.body;
@@ -48,10 +47,10 @@ exports.createOrder = async (req, res) => {
     // Create notification for the new order
     await NotificationController.integrateWithOrderCreate(newOrder, userId);
 
+  
     res.status(201).json({
       status: "success",
-      message: "Đặt món thành công! Đơn hàng của bạn đang chờ xác nhận",
-      data: newOrder,
+      data: items
     });
   } catch (error) {
     console.error("Error creating order:", error);
@@ -61,7 +60,6 @@ exports.createOrder = async (req, res) => {
     });
   }
 };
-
 // 2. Xem danh sách đơn hàng của user đăng nhập
 exports.getUserOrders = async (req, res) => {
   try {
