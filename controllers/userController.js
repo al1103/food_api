@@ -75,9 +75,11 @@ exports.register = async (req, res) => {
 
     return res.status(200).json({
       statusCode: 200,
-      code: sentCode,
       message: "Vui lòng kiểm tra email để lấy mã xác nhận",
-      email,
+      data: {
+        code: sentCode,
+        email,
+      },
     });
   } catch (error) {
     console.error("Lỗi đăng ký:", error);
