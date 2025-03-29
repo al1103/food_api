@@ -16,14 +16,9 @@ exports.getCart = async (req, res) => {
     // Return the modified structure while maintaining the expected format
     res.status(200).json({
       statusCode: 200,
-      data: [
-        {
-          items: cart.items || [],
-          totalAmount: cart.totalAmount || 0,
-          totalItems: cart.totalItems || 0,
-        },
-      ],
-      message: "Lấy giỏ hàng thành công",
+      data: cart.items || [], // Ensure we always return an array, even if empty
+      totalAmount: cart.totalAmount || 0,
+      totalItems: cart.totalItems || 0,
     });
   } catch (error) {
     console.error("Error getting cart:", error);
