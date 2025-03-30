@@ -612,29 +612,18 @@ class AdminTableController {
   }
 
   // Hủy đặt bàn
-  async cancelReservation(req, res) {
-    try {
-      const { tableId } = req.params;
-
-      // Hủy đặt bàn
-      const canceledTable = await TableModel.cancelReservation(tableId);
-
-      return ApiResponse.success(
-        res,
-        200,
-        "Hủy đặt bàn thành công",
-        canceledTable
-      );
-    } catch (error) {
-      console.error("Lỗi khi hủy đặt bàn:", error);
-      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi hủy đặt bàn");
-    }
-  }
 
   // Client gửi yêu cầu đặt bàn
   async createReservationRequest(req, res) {
     try {
-      const { tableId, reservationTime, partySize, customerName, phoneNumber, specialRequests } = req.body;
+      const {
+        tableId,
+        reservationTime,
+        partySize,
+        customerName,
+        phoneNumber,
+        specialRequests,
+      } = req.body;
 
       // Lấy userId từ token (giả sử middleware đã giải mã token và lưu userId vào req.user)
       const userId = req.user.id;
@@ -667,7 +656,11 @@ class AdminTableController {
       );
     } catch (error) {
       console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
-      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn");
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn"
+      );
     }
   }
 
@@ -724,6 +717,32 @@ class AdminTableController {
         res,
         500,
         "Đã xảy ra lỗi khi lấy danh sách yêu cầu đặt bàn"
+      );
+    }
+  }
+
+  // Hủy yêu cầu đặt bàn
+  async cancelReservationRequest(req, res) {
+    try {
+      const { reservationId } = req.params;
+
+      // Hủy yêu cầu đặt bàn
+      const cancelledReservation = await TableModel.cancelReservationRequest(
+        reservationId
+      );
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Yêu cầu đặt bàn đã được hủy thành công",
+        cancelledReservation
+      );
+    } catch (error) {
+      console.error("Lỗi khi hủy yêu cầu đặt bàn:", error);
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi hủy yêu cầu đặt bàn"
       );
     }
   }
