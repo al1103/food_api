@@ -489,62 +489,6 @@ class AdminTableController {
     }
   }
 
-  // Gán bàn và tạo đơn hàng
-  async assignTableAndCreateOrder(req, res) {
-    try {
-      const { numberOfGuests, userId, orderItems } = req.body;
-
-      // Kiểm tra đầu vào
-      if (
-        !numberOfGuests ||
-        !userId ||
-        !orderItems ||
-        orderItems.length === 0
-      ) {
-        return ApiResponse.error(
-          res,
-          400,
-          "Vui lòng cung cấp đầy đủ thông tin"
-        );
-      }
-
-      // Tìm bàn trống phù hợp
-      const availableTable = await TableModel.findAvailableTable(
-        numberOfGuests
-      );
-      if (!availableTable) {
-        return ApiResponse.error(res, 400, "Không có bàn trống phù hợp");
-      }
-
-      // Cập nhật trạng thái bàn thành 'occupied'
-      await TableModel.updateTableStatus(availableTable.tableId, "occupied");
-
-      // Tạo đơn hàng
-      const order = await OrderModel.createOrder(
-        availableTable.tableId,
-        userId,
-        orderItems
-      );
-
-      return ApiResponse.success(
-        res,
-        200,
-        "Đã gán bàn và tạo đơn hàng thành công",
-        {
-          table: availableTable,
-          order: order,
-        }
-      );
-    } catch (error) {
-      console.error("Lỗi khi gán bàn và tạo đơn hàng:", error);
-      return ApiResponse.error(
-        res,
-        500,
-        "Đã xảy ra lỗi khi gán bàn và tạo đơn hàng"
-      );
-    }
-  }
-
   // Đặt bàn trước
   async reserveTable(req, res) {
     try {
