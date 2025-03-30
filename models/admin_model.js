@@ -697,6 +697,8 @@ class AdminModel {
           capacity,
           status,
           created_at AS "createdAt",
+          reservation_time AS "reservationTime",
+          note,
           updated_at AS "updatedAt"
         FROM tables
         WHERE table_id = $1
