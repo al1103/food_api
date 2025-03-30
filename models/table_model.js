@@ -252,18 +252,14 @@ class TableModel {
     try {
       const result = await pool.query(
         `UPDATE tables SET
-          statusCode = $1,
+          status = $1,
           updated_at = NOW()
         WHERE table_id = $2
-        RETURNING table_id AS "tableId"`,
+        RETURNING table_id AS "tableId", table_number AS "tableNumber", status`,
         [statusCode, id]
       );
 
-      if (result.rows.length === 0) {
-        return null; // Không tìm thấy bàn
-      }
-
-      return await this.getTableById(result.rows[0].tableId);
+      return result.rows[0];
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái bàn:", error);
       throw error;
@@ -356,6 +352,233 @@ class TableModel {
       return result.rows;
     } catch (error) {
       console.error("Error fetching active orders for table:", error);
+      throw error;
+    }
+  }
+
+  // Tìm bàn trống phù hợp với số lượng khách
+  static async findAvailableTable(numberOfGuests) {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          table_id AS "tableId",
+          table_number AS "tableNumber",
+          capacity,
+          status
+        FROM tables
+        WHERE status = 'available' AND capacity >= $1
+        ORDER BY capacity ASC
+        LIMIT 1`,
+        [numberOfGuests]
+      );
+
+      return result.rows[0]; // Trả về bàn phù hợp nhất
+    } catch (error) {
+      console.error("Lỗi khi tìm bàn trống:", error);
+      throw error;
+    }
+  }
+
+  // Đặt bàn trước
+  static async reserveTable(tableId, reservationTime) {
+    try {
+      const result = await pool.query(
+        `UPDATE tables
+        SET status = 'reserved',
+            reservation_time = $1,
+            updated_at = NOW()
+        WHERE table_id = $2 AND status = 'available'
+        RETURNING table_id AS "tableId", table_number AS "tableNumber", status AS "reservationStatus", reservation_time AS "reservationTime"`,
+        [reservationTime, tableId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Bàn không khả dụng hoặc đã được đặt trước");
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi đặt bàn trước:", error);
+      throw error;
+    }
+  }
+
+  // Hủy đặt bàn
+  static async cancelReservation(tableId) {
+    try {
+      const result = await pool.query(
+        `UPDATE tables
+        SET status = 'available',
+            reservation_time = NULL,
+            updated_at = NOW()
+        WHERE table_id = $1 AND status = 'reserved'
+        RETURNING table_id AS "tableId", table_number AS "tableNumber", status AS "reservationStatus"`,
+        [tableId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error(
+          "Không thể hủy đặt bàn. Bàn không ở trạng thái 'reserved'"
+        );
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi hủy đặt bàn:", error);
+      throw error;
+    }
+  }
+
+  // Đặt bàn trước với số lượng người, ngày giờ và ghi chú
+  static async reserveTableWithDetails(numberOfGuests, reservationTime, note) {
+    try {
+      // Tìm bàn trống phù hợp
+      const result = await pool.query(
+        `SELECT 
+          table_id AS "tableId",
+          table_number AS "tableNumber",
+          capacity,
+          status
+        FROM tables
+        WHERE status = 'available' AND capacity >= $1
+        ORDER BY capacity ASC
+        LIMIT 1`,
+        [numberOfGuests]
+      );
+
+      const table = result.rows[0];
+      if (!table) {
+        throw new Error("Không có bàn trống phù hợp");
+      }
+
+      // Đặt bàn trước
+      const updateResult = await pool.query(
+        `UPDATE tables
+        SET status = 'reserved',
+            reservation_time = $1,
+            note = $2,
+            updated_at = NOW()
+        WHERE table_id = $3
+        RETURNING table_id AS "tableId", table_number AS "tableNumber", status AS "reservationStatus", reservation_time AS "reservationTime", note`,
+        [reservationTime, note, table.tableId]
+      );
+
+      return updateResult.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi đặt bàn trước:", error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách các yêu cầu đặt bàn
+  static async getReservations() {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          table_id AS "tableId",
+          table_number AS "tableNumber",
+          status AS "reservationStatus",
+          reservation_time AS "reservationTime",
+          note,
+          capacity
+        FROM tables
+        WHERE status = 'reserved'
+        ORDER BY reservation_time ASC`
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách yêu cầu đặt bàn:", error);
+      throw error;
+    }
+  }
+
+  // Lưu yêu cầu đặt bàn từ client
+  static async createReservationRequest(
+    userId,
+    tableId,
+    reservationTime,
+    partySize,
+    customerName,
+    phoneNumber,
+    specialRequests
+  ) {
+    try {
+      const result = await pool.query(
+        `INSERT INTO reservations (
+          user_id, table_id, reservation_time, party_size, customer_name, phone_number, special_requests, status, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, 'pending', NOW(), NOW()
+        )
+        RETURNING reservation_id AS "reservationId", user_id AS "userId", table_id AS "tableId", reservation_time AS "reservationTime", party_size AS "partySize", customer_name AS "customerName", phone_number AS "phoneNumber", special_requests AS "specialRequests", status, created_at AS "createdAt", updated_at AS "updatedAt"`,
+        [
+          userId,
+          tableId,
+          reservationTime,
+          partySize,
+          customerName,
+          phoneNumber,
+          specialRequests,
+        ]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách yêu cầu đặt bàn
+  static async getPendingReservations() {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          reservation_id AS "reservationId",
+          user_id AS "userId",
+          table_id AS "tableId",
+          reservation_time AS "reservationTime",
+          party_size AS "partySize",
+          customer_name AS "customerName",
+          phone_number AS "phoneNumber",
+          special_requests AS "specialRequests",
+          status,
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM reservations
+        WHERE status = 'pending'
+        ORDER BY reservation_time ASC`
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách yêu cầu đặt bàn:", error);
+      throw error;
+    }
+  }
+
+  // Xác nhận yêu cầu đặt bàn và gán bàn
+  static async confirmReservation(reservationId, tableId) {
+    try {
+      const result = await pool.query(
+        `UPDATE reservations
+        SET status = 'confirmed', table_id = $1, updated_at = NOW()
+        WHERE reservation_id = $2
+        RETURNING reservation_id AS "reservationId", user_id AS "userId", table_id AS "tableId", reservation_time AS "reservationTime", party_size AS "partySize", customer_name AS "customerName", phone_number AS "phoneNumber", special_requests AS "specialRequests", status, created_at AS "createdAt", updated_at AS "updatedAt"`,
+        [tableId, reservationId]
+      );
+
+      // Cập nhật trạng thái bàn thành 'reserved'
+      await pool.query(
+        `UPDATE tables
+        SET status = 'reserved', updated_at = NOW()
+        WHERE table_id = $1`,
+        [tableId]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi xác nhận yêu cầu đặt bàn:", error);
       throw error;
     }
   }

@@ -12,8 +12,10 @@ class AdminTableController {
       return ApiResponse.success(res, 200, "Lấy danh sách bàn thành công", {
         tables,
         totalTables: tables.length,
-        occupiedTables: tables.filter((table) => table.isOccupied).length,
-        availableTables: tables.filter((table) => !table.isOccupied).length,
+        occupiedTables: tables.filter((table) => table.status === "occupied")
+          .length,
+        availableTables: tables.filter((table) => table.status === "available")
+          .length,
       });
     } catch (error) {
       console.error("Lỗi khi lấy danh sách bàn:", error);
@@ -487,42 +489,242 @@ class AdminTableController {
     }
   }
 
-  // Kiểm tra lịch sử khách hàng ở bàn
-  async getTableHistory(req, res) {
+  // Gán bàn và tạo đơn hàng
+  async assignTableAndCreateOrder(req, res) {
     try {
-      const { id } = req.params;
-      const { startDate, endDate } = req.query;
+      const { numberOfGuests, userId, orderItems } = req.body;
 
-      // Kiểm tra bàn tồn tại
-      const existingTable = await TableModel.getTableById(id);
-      if (!existingTable) {
-        return ApiResponse.error(res, 404, "Không tìm thấy bàn");
+      // Kiểm tra đầu vào
+      if (
+        !numberOfGuests ||
+        !userId ||
+        !orderItems ||
+        orderItems.length === 0
+      ) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp đầy đủ thông tin"
+        );
       }
 
-      // Xác định khoảng thời gian tìm kiếm
-      const start = startDate
-        ? new Date(startDate)
-        : new Date(new Date().setDate(new Date().getDate() - 30)); // mặc định 30 ngày trước
-      const end = endDate ? new Date(endDate) : new Date();
+      // Tìm bàn trống phù hợp
+      const availableTable = await TableModel.findAvailableTable(
+        numberOfGuests
+      );
+      if (!availableTable) {
+        return ApiResponse.error(res, 400, "Không có bàn trống phù hợp");
+      }
 
-      // Lấy lịch sử đơn hàng của bàn
-      const orderHistory = await TableModel.getTableOrderHistory(
-        id,
-        start,
-        end
+      // Cập nhật trạng thái bàn thành 'occupied'
+      await TableModel.updateTableStatus(availableTable.tableId, "occupied");
+
+      // Tạo đơn hàng
+      const order = await OrderModel.createOrder(
+        availableTable.tableId,
+        userId,
+        orderItems
       );
 
-      return ApiResponse.success(res, 200, "Lấy lịch sử bàn thành công", {
-        tableId: id,
-        tableNumber: existingTable.tableNumber,
-        startDate: start,
-        endDate: end,
-        totalOrders: orderHistory.length,
-        history: orderHistory,
-      });
+      return ApiResponse.success(
+        res,
+        200,
+        "Đã gán bàn và tạo đơn hàng thành công",
+        {
+          table: availableTable,
+          order: order,
+        }
+      );
     } catch (error) {
-      console.error("Lỗi khi lấy lịch sử bàn:", error);
-      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi lấy lịch sử bàn");
+      console.error("Lỗi khi gán bàn và tạo đơn hàng:", error);
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi gán bàn và tạo đơn hàng"
+      );
+    }
+  }
+
+  // Đặt bàn trước
+  async reserveTable(req, res) {
+    try {
+      const { tableId } = req.params;
+      const { reservationTime } = req.body;
+
+      // Kiểm tra đầu vào
+      if (!reservationTime) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp thời gian đặt bàn"
+        );
+      }
+
+      // Đặt bàn trước
+      const reservedTable = await TableModel.reserveTable(
+        tableId,
+        reservationTime
+      );
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Đặt bàn trước thành công",
+        reservedTable
+      );
+    } catch (error) {
+      console.error("Lỗi khi đặt bàn trước:", error);
+      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi đặt bàn trước");
+    }
+  }
+
+  // Đặt bàn trước với số lượng người, ngày giờ và ghi chú
+  async reserveTableWithDetails(req, res) {
+    try {
+      const { numberOfGuests, reservationTime, note } = req.body;
+
+      // Kiểm tra đầu vào
+      if (!numberOfGuests || !reservationTime) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp số lượng người và thời gian đặt bàn"
+        );
+      }
+
+      // Đặt bàn trước
+      const reservedTable = await TableModel.reserveTableWithDetails(
+        numberOfGuests,
+        reservationTime,
+        note || null
+      );
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Đặt bàn trước thành công",
+        reservedTable
+      );
+    } catch (error) {
+      console.error("Lỗi khi đặt bàn trước:", error);
+      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi đặt bàn trước");
+    }
+  }
+
+  // Hủy đặt bàn
+  async cancelReservation(req, res) {
+    try {
+      const { tableId } = req.params;
+
+      // Hủy đặt bàn
+      const canceledTable = await TableModel.cancelReservation(tableId);
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Hủy đặt bàn thành công",
+        canceledTable
+      );
+    } catch (error) {
+      console.error("Lỗi khi hủy đặt bàn:", error);
+      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi hủy đặt bàn");
+    }
+  }
+
+  // Client gửi yêu cầu đặt bàn
+  async createReservationRequest(req, res) {
+    try {
+      const { tableId, reservationTime, partySize, customerName, phoneNumber, specialRequests } = req.body;
+
+      // Lấy userId từ token (giả sử middleware đã giải mã token và lưu userId vào req.user)
+      const userId = req.user.id;
+
+      // Kiểm tra đầu vào
+      if (!reservationTime || !partySize || !customerName || !phoneNumber) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp đầy đủ thông tin yêu cầu đặt bàn"
+        );
+      }
+
+      // Lưu yêu cầu đặt bàn
+      const reservation = await TableModel.createReservationRequest(
+        userId,
+        tableId || null,
+        reservationTime,
+        partySize,
+        customerName,
+        phoneNumber,
+        specialRequests || null
+      );
+
+      return ApiResponse.success(
+        res,
+        201,
+        "Yêu cầu đặt bàn đã được gửi",
+        reservation
+      );
+    } catch (error) {
+      console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
+      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn");
+    }
+  }
+
+  // Admin xác nhận yêu cầu đặt bàn
+  async confirmReservation(req, res) {
+    try {
+      const { reservationId, tableId } = req.body;
+
+      // Kiểm tra đầu vào
+      if (!reservationId || !tableId) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp ID yêu cầu đặt bàn và ID bàn"
+        );
+      }
+
+      // Xác nhận yêu cầu đặt bàn
+      const confirmedReservation = await TableModel.confirmReservation(
+        reservationId,
+        tableId
+      );
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Yêu cầu đặt bàn đã được xác nhận",
+        confirmedReservation
+      );
+    } catch (error) {
+      console.error("Lỗi khi xác nhận yêu cầu đặt bàn:", error);
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi xác nhận yêu cầu đặt bàn"
+      );
+    }
+  }
+
+  // Lấy danh sách yêu cầu đặt bàn
+  async getPendingReservations(req, res) {
+    try {
+      const reservations = await TableModel.getPendingReservations();
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Lấy danh sách yêu cầu đặt bàn thành công",
+        reservations
+      );
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách yêu cầu đặt bàn:", error);
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi lấy danh sách yêu cầu đặt bàn"
+      );
     }
   }
 }
