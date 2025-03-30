@@ -498,25 +498,12 @@ class UserModel {
 
   static async getUserByEmail(email) {
     try {
-      const result = await pool.query(
-        `SELECT 
-          user_id AS "userId", 
-          email, 
-          password,
-          username, 
-          full_name AS "fullName", 
-          phone_number AS "phoneNumber",
-          referral_code AS "referralCode",
-          wallet_balance AS "walletBalance",
-          created_at AS "createdAt",
-          updated_at AS "updatedAt"
-        FROM users WHERE email = $1`,
-        [email]
-      );
-
-      return result.rows[0] || null;
+      const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [
+        email,
+      ]);
+      return result.rows[0];
     } catch (error) {
-      console.error("Lỗi trong getUserByEmail:", error);
+      console.error("Lỗi khi lấy thông tin người dùng qua email:", error);
       throw error;
     }
   }
@@ -762,6 +749,18 @@ class UserModel {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  static async updatePassword(email, newPassword) {
+    try {
+      await pool.query(
+        `UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2`,
+        [newPassword, email]
+      );
+    } catch (error) {
+      console.error("Lỗi khi cập nhật mật khẩu:", error);
+      throw error;
     }
   }
 }

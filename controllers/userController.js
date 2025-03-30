@@ -786,35 +786,27 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Kiểm tra xem email có tồn tại trong hệ thống không
     const user = await UserModel.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({
-        statusCode: 400,
+        statusCode: 404,
         message: "Không tìm thấy tài khoản với email này",
       });
     }
 
-    // Generate random code
+    // Tạo mã xác nhận ngẫu nhiên (6 chữ số)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Send email with code
+    // Gửi email chứa mã xác nhận
     await sendRandomCodeEmail(email, code);
 
-    // Save code to database
-    await UserModel.sendCode(email, code);
-
-    // Create a reset token
-    const resetToken = jwt.sign(
-      { email: user.email },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: "15m" }
-    );
+    // Lưu mã xác nhận vào cơ sở dữ liệu
+    await UserModel.saveVerificationCode(email, code);
 
     return res.status(200).json({
       statusCode: 200,
       message: "Mã xác nhận đã được gửi đến email của bạn",
-      resetToken,
     });
   } catch (error) {
     console.error("Lỗi quên mật khẩu:", error);
@@ -827,9 +819,9 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { resetToken, code, newPassword } = req.body;
+    const { email, code, newPassword } = req.body;
 
-    if (!resetToken || !code || !newPassword) {
+    if (!email || !code || !newPassword) {
       return res.status(400).json({
         statusCode: 400,
         message: "Thiếu thông tin cần thiết",
@@ -843,19 +835,8 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Verify token
-    let decoded;
-    try {
-      decoded = jwt.verify(resetToken, process.env.JWT_SECRET_KEY);
-    } catch (error) {
-      return res.status(400).json({
-        statusCode: 400,
-        message: "Token không hợp lệ hoặc đã hết hạn",
-      });
-    }
-
-    // Verify code
-    const isCodeValid = await UserModel.verifyCode(decoded.email, code);
+    // Kiểm tra mã xác nhận
+    const isCodeValid = await UserModel.verifyCode(email, code);
     if (!isCodeValid) {
       return res.status(400).json({
         statusCode: 400,
@@ -863,14 +844,11 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Delete verification code
-    await UserModel.deleteVerificationCode(decoded.email, code);
+    // Xóa mã xác nhận sau khi sử dụng
+    await UserModel.deleteVerificationCode(email, code);
 
-    // Update password in database
-    await pool.query(
-      `UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2`,
-      [newPassword, decoded.email]
-    );
+    // Cập nhật mật khẩu trong cơ sở dữ liệu
+    await UserModel.updatePassword(email, newPassword);
 
     return res.status(200).json({
       statusCode: 200,
