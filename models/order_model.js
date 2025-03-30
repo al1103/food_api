@@ -458,6 +458,50 @@ class OrderModel {
       throw error;
     }
   }
+
+  // Thêm phương thức updateOrderPayment vào OrderModel
+
+  // Phương thức cập nhật thông tin thanh toán đơn hàng
+  static async updateOrderPayment(orderId, paymentData) {
+    try {
+      const { paidStatus, paidAmount, paymentMethod, paidAt } = paymentData;
+
+      const result = await pool.query(
+        `UPDATE orders SET
+          paid_status = $1,
+          paid_amount = $2,
+          payment_method = $3,
+          paid_at = $4,
+          updated_at = NOW()
+        WHERE order_id = $5
+        RETURNING *`,
+        [paidStatus, paidAmount, paymentMethod, paidAt, orderId]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      // Format kết quả trả về
+      const order = result.rows[0];
+      return {
+        orderId: order.order_id,
+        userId: order.user_id,
+        tableId: order.table_id,
+        status: order.status,
+        totalAmount: order.total_amount,
+        paidStatus: order.paid_status,
+        paidAmount: order.paid_amount,
+        paymentMethod: order.payment_method,
+        paidAt: order.paid_at,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+      };
+    } catch (error) {
+      console.error("Lỗi khi cập nhật thanh toán đơn hàng:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = OrderModel;

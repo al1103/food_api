@@ -79,7 +79,7 @@ class TableModel {
           table_id AS "tableId",
           table_number AS "tableNumber",
           capacity,
-          statusCode,
+          status,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM tables 
@@ -140,6 +140,222 @@ class TableModel {
       return { message: "Xóa bàn thành công" };
     } catch (error) {
       console.error("Lỗi khi xóa bàn:", error);
+      throw error;
+    }
+  }
+
+  static async getTableWithCustomers(tableId) {
+    try {
+      // Lấy thông tin bàn
+      const tableResult = await pool.query(
+        `SELECT 
+          table_id AS "tableId",
+          table_number AS "tableNumber",
+          capacity,
+          statusCode,
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM tables 
+        WHERE table_id = $1`,
+        [tableId]
+      );
+
+      const table = tableResult.rows[0];
+
+      if (!table) {
+        return null;
+      }
+
+      // Lấy thông tin đơn hàng hiện tại đang sử dụng bàn này (nếu có)
+      const orderResult = await pool.query(
+        `SELECT
+          o.order_id AS "orderId",
+          o.user_id AS "userId",
+          o.status,
+          o.total_amount AS "totalAmount",
+          o.created_at AS "createdAt",
+          o.updated_at AS "updatedAt",
+          u.name AS "userName",
+          u.email AS "userEmail",
+          u.phone AS "userPhone"
+        FROM orders o
+        JOIN users u ON o.user_id = u.user_id
+        WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
+        ORDER BY o.created_at DESC
+        LIMIT 1`,
+        [tableId]
+      );
+
+      // Kết hợp thông tin
+      return {
+        ...table,
+        currentOrder: orderResult.rows[0] || null,
+        isOccupied: orderResult.rows.length > 0,
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin chi tiết bàn:", error);
+      throw error;
+    }
+  }
+
+  static async getAllTablesWithStatus() {
+    try {
+      // Lấy danh sách tất cả bàn
+      const result = await pool.query(
+        `SELECT 
+          t.table_id AS "tableId",
+          t.table_number AS "tableNumber",
+          t.capacity,
+          t.statusCode,
+          t.created_at AS "tableCreatedAt",
+          t.updated_at AS "tableUpdatedAt",
+          o.order_id AS "currentOrderId",
+          o.status AS "orderStatus",
+          o.created_at AS "orderCreatedAt",
+          u.name AS "customerName"
+        FROM tables t
+        LEFT JOIN (
+          SELECT DISTINCT ON (table_id) *
+          FROM orders
+          WHERE status NOT IN ('completed', 'cancelled')
+          ORDER BY table_id, created_at DESC
+        ) o ON t.table_id = o.table_id
+        LEFT JOIN users u ON o.user_id = u.user_id
+        ORDER BY t.table_number ASC`
+      );
+
+      // Xử lý kết quả
+      return result.rows.map((row) => ({
+        tableId: row.tableId,
+        tableNumber: row.tableNumber,
+        capacity: row.capacity,
+        statusCode: row.statusCode,
+        createdAt: row.tableCreatedAt,
+        updatedAt: row.tableUpdatedAt,
+        currentOrder: row.currentOrderId
+          ? {
+              orderId: row.currentOrderId,
+              status: row.orderStatus,
+              createdAt: row.orderCreatedAt,
+              customerName: row.customerName,
+            }
+          : null,
+        isOccupied: !!row.currentOrderId,
+      }));
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách bàn với trạng thái:", error);
+      throw error;
+    }
+  }
+
+  static async updateTableStatus(id, statusCode) {
+    try {
+      const result = await pool.query(
+        `UPDATE tables SET
+          statusCode = $1,
+          updated_at = NOW()
+        WHERE table_id = $2
+        RETURNING table_id AS "tableId"`,
+        [statusCode, id]
+      );
+
+      if (result.rows.length === 0) {
+        return null; // Không tìm thấy bàn
+      }
+
+      return await this.getTableById(result.rows[0].tableId);
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái bàn:", error);
+      throw error;
+    }
+  }
+
+  // Lấy thông tin khách hàng và món ăn đã đặt tại bàn
+  static async getTableCustomersAndOrders(tableId) {
+    try {
+      // Lấy thông tin khách hàng và đơn hàng đang hoạt động tại bàn
+      const result = await pool.query(
+        `SELECT 
+          o.order_id AS "orderId",
+          o.user_id AS "userId",
+          u.name AS "userName",
+          u.phone AS "userPhone",
+          o.status AS "orderStatus",
+          o.total_amount AS "totalAmount",
+          o.created_at AS "orderCreatedAt",
+          o.updated_at AS "orderUpdatedAt",
+          od.item_id AS "itemId",
+          i.name AS "itemName",
+          od.quantity AS "quantity",
+          od.price AS "price"
+        FROM orders o
+        JOIN users u ON o.user_id = u.user_id
+        JOIN order_details od ON o.order_id = od.order_id
+        JOIN items i ON od.item_id = i.item_id
+        WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
+        ORDER BY o.created_at ASC`,
+        [tableId]
+      );
+
+      // Xử lý kết quả để nhóm món ăn theo từng khách hàng
+      const orders = {};
+      result.rows.forEach((row) => {
+        if (!orders[row.orderId]) {
+          orders[row.orderId] = {
+            orderId: row.orderId,
+            userId: row.userId,
+            userName: row.userName,
+            userPhone: row.userPhone,
+            orderStatus: row.orderStatus,
+            totalAmount: row.totalAmount,
+            orderCreatedAt: row.orderCreatedAt,
+            orderUpdatedAt: row.orderUpdatedAt,
+            items: [],
+          };
+        }
+        orders[row.orderId].items.push({
+          itemId: row.itemId,
+          itemName: row.itemName,
+          quantity: row.quantity,
+          price: row.price,
+        });
+      });
+
+      // Trả về danh sách khách hàng và món ăn đã đặt
+      return Object.values(orders);
+    } catch (error) {
+      console.error(
+        "Lỗi khi lấy thông tin khách hàng và món ăn tại bàn:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Method to get all active orders for a specific table
+  static async getActiveOrdersByTableId(tableId) {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          o.order_id AS "orderId",
+          o.user_id AS "userId",
+          u.username AS "userName",
+          u.phone_number AS "userPhone",
+          o.status AS "status",
+          o.total_price AS "totalAmount",
+          o.status AS "paidStatus",
+          o.created_at AS "createdAt",
+          o.updated_at AS "updatedAt"
+        FROM orders o
+        JOIN users u ON o.user_id = u.user_id
+        WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
+        ORDER BY o.created_at ASC`,
+        [tableId]
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error("Error fetching active orders for table:", error);
       throw error;
     }
   }

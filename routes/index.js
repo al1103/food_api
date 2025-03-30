@@ -10,7 +10,7 @@ const adminRoutes = require("./adminRoutes"); // Add admin routes
 const cartRoutes = require("./cart");
 const uploadRoutes = require("./uploadRoutes");
 const notificationsRoutes = require("./notificationRoutes");
-
+const adminTableRoutes = require("./adminTableRoutes");
 function routes(app) {
   // User management
   app.use("/api/users", usersRouter);
@@ -39,7 +39,7 @@ function routes(app) {
 
   // Upload management
   app.use("/api/uploads", uploadRoutes);
-
+  app.use("/api/admin", adminTableRoutes);
   // Error handling middleware
   app.use((err, req, res, next) => {
     console.error(err.stack);
