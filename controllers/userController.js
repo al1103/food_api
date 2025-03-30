@@ -798,11 +798,32 @@ exports.forgotPassword = async (req, res) => {
     // Tạo mã xác nhận ngẫu nhiên (6 chữ số)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Tạo dữ liệu lưu vào user_data (cần được lưu vì bảng yêu cầu NOT NULL)
+    const userData = {
+      type: "password_reset",
+      email: email,
+    };
+
+    // Xóa mã xác nhận cũ (nếu có)
+    await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
+      email,
+    ]);
+
+    // Thêm mã xác nhận mới với expiration_time 15 phút
+    const expirationTime = new Date();
+    expirationTime.setMinutes(expirationTime.getMinutes() + 15);
+
+    await pool.query(
+      `INSERT INTO verification_codes (email, code, expiration_time, user_data, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [email, code, expirationTime, JSON.stringify(userData)]
+    );
+
     // Gửi email chứa mã xác nhận
     await sendRandomCodeEmail(email, code);
 
-    // Lưu mã xác nhận vào cơ sở dữ liệu
-    await UserModel.saveVerificationCode(email, code);
+    // Log mã xác nhận (chỉ dùng cho môi trường phát triển)
+    console.log(`Verification code for password reset: ${code}`);
 
     return res.status(200).json({
       statusCode: 200,
@@ -836,19 +857,43 @@ exports.resetPassword = async (req, res) => {
     }
 
     // Kiểm tra mã xác nhận
-    const isCodeValid = await UserModel.verifyCode(email, code);
-    if (!isCodeValid) {
+    const verificationResult = await pool.query(
+      `SELECT * FROM verification_codes 
+       WHERE email = $1 AND code = $2 AND expiration_time > NOW()`,
+      [email, code]
+    );
+
+    if (verificationResult.rows.length === 0) {
       return res.status(400).json({
         statusCode: 400,
         message: "Mã xác nhận không hợp lệ hoặc đã hết hạn",
       });
     }
 
-    // Xóa mã xác nhận sau khi sử dụng
-    await UserModel.deleteVerificationCode(email, code);
+    // Hash mật khẩu mới nếu cần
+    // const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    const hashedPassword = newPassword; // Nếu không cần hash
 
     // Cập nhật mật khẩu trong cơ sở dữ liệu
-    await UserModel.updatePassword(email, newPassword);
+    const updateResult = await pool.query(
+      `UPDATE users 
+       SET password = $1, updated_at = NOW()
+       WHERE email = $2
+       RETURNING user_id, email`,
+      [hashedPassword, email]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Không tìm thấy tài khoản với email này",
+      });
+    }
+
+    // Xóa mã xác nhận sau khi sử dụng
+    await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
+      email,
+    ]);
 
     return res.status(200).json({
       statusCode: 200,
