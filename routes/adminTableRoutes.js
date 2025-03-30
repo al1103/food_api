@@ -32,7 +32,6 @@ router.post("/tables/assign", adminTableController.assignTableAndCreateOrder);
 router.post("/tables/:tableId/reserve", adminTableController.reserveTable);
 
 // Routes quản lý yêu cầu đặt bàn
-router.post("/reservations", adminTableController.createReservationRequest); // Client gửi yêu cầu đặt bàn
 router.get("/reservations", adminTableController.getPendingReservations); // Admin xem danh sách yêu cầu đặt bàn
 router.post("/reservations/confirm", adminTableController.confirmReservation); // Admin xác nhận đặt bàn
 router.post(
