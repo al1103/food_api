@@ -429,6 +429,53 @@ class TableModel {
     }
   }
 
+  static async cancelReservation(reservationId) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Lấy thông tin yêu cầu đặt bàn
+      const reservationResult = await client.query(
+        `SELECT table_id FROM reservations WHERE reservation_id = $1 AND status = 'confirmed'`,
+        [reservationId]
+      );
+
+      const tableId = reservationResult.rows[0]?.table_id;
+
+      if (!tableId) {
+        throw new Error(
+          "Không thể hủy đặt bàn. Yêu cầu chưa được xác nhận hoặc không tồn tại."
+        );
+      }
+
+      // Cập nhật trạng thái của yêu cầu đặt bàn
+      await client.query(
+        `UPDATE reservations
+        SET status = 'cancelled', updated_at = NOW()
+        WHERE reservation_id = $1`,
+        [reservationId]
+      );
+
+      // Cập nhật trạng thái của bàn
+      await client.query(
+        `UPDATE tables
+        SET status = 'available', updated_at = NOW()
+        WHERE table_id = $1`,
+        [tableId]
+      );
+
+      await client.query("COMMIT");
+
+      return { message: "Hủy đặt bàn thành công" };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Lỗi khi hủy đặt bàn:", error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   // Đặt bàn trước với số lượng người, ngày giờ và ghi chú
   static async reserveTableWithDetails(numberOfGuests, reservationTime, note) {
     try {
@@ -559,8 +606,12 @@ class TableModel {
 
   // Xác nhận yêu cầu đặt bàn và gán bàn
   static async confirmReservation(reservationId, tableId) {
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
+      await client.query("BEGIN");
+
+      // Cập nhật trạng thái của yêu cầu đặt bàn
+      const reservationResult = await client.query(
         `UPDATE reservations
         SET status = 'confirmed', table_id = $1, updated_at = NOW()
         WHERE reservation_id = $2
@@ -568,18 +619,23 @@ class TableModel {
         [tableId, reservationId]
       );
 
-      // Cập nhật trạng thái bàn thành 'reserved'
-      await pool.query(
+      // Cập nhật trạng thái của bàn
+      await client.query(
         `UPDATE tables
         SET status = 'reserved', updated_at = NOW()
         WHERE table_id = $1`,
         [tableId]
       );
 
-      return result.rows[0];
+      await client.query("COMMIT");
+
+      return reservationResult.rows[0];
     } catch (error) {
+      await client.query("ROLLBACK");
       console.error("Lỗi khi xác nhận yêu cầu đặt bàn:", error);
       throw error;
+    } finally {
+      client.release();
     }
   }
 }
