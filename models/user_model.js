@@ -3,58 +3,72 @@ const { v4: uuidv4 } = require("uuid");
 const { generateReferralCode } = require("../utils/referral");
 
 class UserModel {
-  static async updateUser(userId, updates) {
+  static async updateUser(userId, userData) {
+    const client = await pool.connect();
     try {
-      const { fullName, phoneNumber, avatar } = updates;
-      const params = [userId];
-      let paramCounter = 2;
-      let updateString = "";
+      await client.query("BEGIN");
 
-      // Build update string dynamically
-      if (fullName !== undefined) {
-        updateString += `full_name = $${paramCounter++}, `; // Make sure this matches your DB column name
-        params.push(fullName);
+      const { fullName, phoneNumber, address, avatar } = userData;
+
+      // Xây dựng câu truy vấn cập nhật động
+      const updateFields = [];
+      const queryParams = [];
+      let paramCounter = 1;
+
+      if (fullName) {
+        updateFields.push(`full_name = $${paramCounter}`);
+        queryParams.push(fullName);
+        paramCounter++;
       }
 
-      if (phoneNumber !== undefined) {
-        updateString += `phone_number = $${paramCounter++}, `;
-        params.push(phoneNumber);
+      if (phoneNumber) {
+        updateFields.push(`phone_number = $${paramCounter}`);
+        queryParams.push(phoneNumber);
+        paramCounter++;
       }
 
-      if (avatar !== undefined) {
-        updateString += `avatar = $${paramCounter++}, `;
-        params.push(avatar);
+      if (address !== undefined) {
+        // Kiểm tra undefined để cho phép cập nhật địa chỉ thành chuỗi rỗng
+        updateFields.push(`address = $${paramCounter}`);
+        queryParams.push(address);
+        paramCounter++;
       }
 
-      // If no updates, return
-      if (updateString === "") {
+      if (avatar) {
+        updateFields.push(`avatar = $${paramCounter}`);
+        queryParams.push(avatar);
+        paramCounter++;
+      }
+
+      // Thêm tham số cuối cùng là user_id
+      queryParams.push(userId);
+
+      // Nếu không có trường nào được cập nhật
+      if (updateFields.length === 0) {
         return null;
       }
 
-      // Remove trailing comma and add updated_at
-      updateString = updateString.slice(0, -2);
-      updateString += `, updated_at = NOW()`;
-
-      // Execute query - using the imported pool
-      const query = `
-        UPDATE users 
-        SET ${updateString} 
-        WHERE user_id = $1
-        RETURNING user_id, username, email, full_name as "fullName", phone_number as "phoneNumber", 
-                 avatar, role, wallet_balance as "walletBalance", referral_code as "referralCode", 
-                 created_at as "createdAt", updated_at as "updatedAt"
+      // Xây dựng và thực thi câu truy vấn
+      const updateQuery = `
+        UPDATE users
+        SET ${updateFields.join(", ")}, updated_at = NOW()
+        WHERE user_id = $${paramCounter}
+        RETURNING user_id, username, email, full_name, phone_number, address, avatar
       `;
 
-      console.log("UPDATE QUERY:", query);
-      console.log("PARAMS:", params);
+      const result = await client.query(updateQuery, queryParams);
+      await client.query("COMMIT");
 
-      const result = await pool.query(query, params);
       return result.rows[0];
     } catch (error) {
+      await client.query("ROLLBACK");
       console.error("Error updating user:", error);
       throw error;
+    } finally {
+      client.release();
     }
   }
+
   // Modify the register method to include role
   static async register(
     username,
@@ -402,34 +416,42 @@ class UserModel {
   // Update the login method to return role information
   static async login(email, password) {
     try {
-      const result = await pool.query(
-        `SELECT 
-          user_id AS "userId", 
-          email, 
-          password, 
-          username, 
+      const query = `
+        SELECT 
+          user_id AS "userId",
+          username,
+          email,
+          password,
           full_name AS "fullName",
+          phone_number AS "phoneNumber",
+          address,
+          wallet_balance AS "walletBalance",
+          referral_code AS "referralCode",
           role
-        FROM users 
-        WHERE email = $1`,
-        [email]
-      );
+        FROM users
+        WHERE email = $1
+      `;
+
+      const result = await pool.query(query, [email]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
 
       const user = result.rows[0];
 
-      if (user) {
-        const isValidPassword = password === user.password;
-
-        if (isValidPassword) {
-          const { password, ...userWithoutPassword } = user;
-          return userWithoutPassword;
-        }
+      // Kiểm tra mật khẩu
+      if (user.password !== password) {
+        return null;
       }
 
-      return null;
+      // Xóa mật khẩu trước khi trả về
+      delete user.password;
+
+      return user;
     } catch (error) {
-      console.error("Lỗi trong quá trình đăng nhập:", error);
-      throw new Error("Đăng nhập thất bại.");
+      console.error("Error during login:", error);
+      throw error;
     }
   }
 
@@ -502,24 +524,33 @@ class UserModel {
   // Update the getUserById method to return role information
   static async getUserById(userId) {
     try {
-      const result = await pool.query(
-        `SELECT 
-          user_id AS "userId", 
-          username, 
-          email, 
-          full_name AS "fullName", 
+      const query = `
+        SELECT 
+          user_id AS "userId",
+          username,
+          email,
+          password AS "password",
+          full_name AS "fullName",
           phone_number AS "phoneNumber",
-          referral_code AS "referralCode",
+          address,
           wallet_balance AS "walletBalance",
-          role
-        FROM users 
-        WHERE user_id = $1`,
-        [userId]
-      );
+          avatar,
+          referral_code AS "referralCode",
+          role,
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM users
+        WHERE user_id = $1
+      `;
+      const result = await pool.query(query, [userId]);
 
-      return result.rows[0] || null;
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0];
     } catch (error) {
-      console.error("Lỗi trong getUserById:", error);
+      console.error("Error getting user by ID:", error);
       throw error;
     }
   }
