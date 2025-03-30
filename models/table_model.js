@@ -404,31 +404,6 @@ class TableModel {
   }
 
   // Hủy đặt bàn
-  static async cancelReservation(tableId) {
-    try {
-      const result = await pool.query(
-        `UPDATE tables
-        SET status = 'available',
-            reservation_time = NULL,
-            updated_at = NOW()
-        WHERE table_id = $1 AND status = 'reserved'
-        RETURNING table_id AS "tableId", table_number AS "tableNumber", status AS "reservationStatus"`,
-        [tableId]
-      );
-
-      if (result.rows.length === 0) {
-        throw new Error(
-          "Không thể hủy đặt bàn. Bàn không ở trạng thái 'reserved'"
-        );
-      }
-
-      return result.rows[0];
-    } catch (error) {
-      console.error("Lỗi khi hủy đặt bàn:", error);
-      throw error;
-    }
-  }
-
   static async cancelReservation(reservationId) {
     const client = await pool.connect();
     try {
@@ -473,6 +448,29 @@ class TableModel {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  static async cancelReservationRequest(reservationId) {
+    try {
+      const result = await pool.query(
+        `UPDATE reservations
+        SET status = 'cancelled', updated_at = NOW()
+        WHERE reservation_id = $1 AND status = 'pending'
+        RETURNING reservation_id AS "reservationId", status`,
+        [reservationId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error(
+          "Không thể hủy yêu cầu đặt bàn. Yêu cầu không tồn tại hoặc đã được xử lý."
+        );
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi hủy yêu cầu đặt bàn:", error);
+      throw error;
     }
   }
 
