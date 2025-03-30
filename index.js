@@ -60,7 +60,7 @@ function startServer() {
     res.status(500).send("Đã xảy ra lỗi!");
   });
 
-  const PORT = process.env.DB_PORT || 9999;
+  const PORT = process.env.PORT || 9999;
   server.listen(PORT, () => {
     console.log(`🚀 Server đang chạy trên cổng ${PORT}`);
   });
