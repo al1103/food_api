@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const adminTableController = require("../controllers/adminTableController");
-const { adminAuth } = require("../middleware/roleAuth");
+const { adminAuth, auth } = require("../middleware/roleAuth");
 
 // Áp dụng middleware adminAuth cho tất cả các routes
-router.use(adminAuth);
+router.use(auth);
 
 // Routes quản lý bàn cho admin
 router.get("/tables", adminTableController.getAllTablesWithStatus);
