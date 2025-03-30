@@ -10,9 +10,9 @@ class AdminModel {
       let paramIndex = 1;
 
       // Add status filter if provided
-      if (filters.statusCode) {
-        conditions += `WHERE o.statusCode = $${paramIndex++}`;
-        queryParams.push(filters.statusCode);
+      if (filters.status) {
+        conditions += `WHERE o.status = $${paramIndex++}`;
+        queryParams.push(filters.status);
       }
 
       // Add date range filter if provided
@@ -57,7 +57,7 @@ class AdminModel {
           o.user_id AS "userId",
           u.username AS "username",
           o.total_price AS "totalPrice",
-          o.statusCode AS "statusCode",
+          o.status AS "status",
           o.table_id AS "tableId",
           o.order_date AS "orderDate",
           o.created_at AS "createdAt",
@@ -96,7 +96,7 @@ class AdminModel {
           u.username AS "username",
           u.email AS "email",
           o.total_price AS "totalPrice",
-          o.statusCode AS "statusCode",
+          o.status AS "status",
           o.table_id AS "tableId",
           o.order_date AS "orderDate",
           o.created_at AS "createdAt",
@@ -141,33 +141,170 @@ class AdminModel {
     }
   }
 
-  static async updateOrderStatus(orderId, statusCode) {
+  static async updateOrderStatus(
+    orderId,
+    status,
+    tableId = null,
+    reservationId = null
+  ) {
     try {
-      // Check if order exists
-      const checkQuery = "SELECT 1 FROM orders WHERE order_id = $1";
-      const checkResult = await pool.query(checkQuery, [orderId]);
+      const client = await pool.connect();
 
-      if (checkResult.rows.length === 0) {
-        return { success: false, message: "Không tìm thấy đơn hàng" };
+      try {
+        // Start transaction
+        await client.query("BEGIN");
+
+        // Check if order exists
+        const checkOrderQuery = "SELECT 1 FROM orders WHERE order_id = $1";
+        const checkOrderResult = await client.query(checkOrderQuery, [orderId]);
+
+        if (checkOrderResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          return { success: false, message: "Không tìm thấy đơn hàng" };
+        }
+
+        // Update order status
+        const updateOrderQuery = `
+          UPDATE orders 
+          SET status = $1, 
+              table_id = COALESCE($2, table_id),
+              updated_at = NOW()
+          WHERE order_id = $3
+          RETURNING 
+            order_id AS "orderId",
+            status AS "status",
+            table_id AS "tableId",
+            updated_at AS "updatedAt"
+        `;
+
+        const orderResult = await client.query(updateOrderQuery, [
+          status,
+          tableId,
+          orderId,
+        ]);
+        const updatedOrder = orderResult.rows[0];
+        let updatedTable = null;
+        let updatedReservation = null;
+
+        // If tableId is provided, update the table status based on order status
+        if (tableId) {
+          // Check if table exists
+          const checkTableQuery = "SELECT 1 FROM tables WHERE table_id = $1";
+          const checkTableResult = await client.query(checkTableQuery, [
+            tableId,
+          ]);
+
+          if (checkTableResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return { success: false, message: "Không tìm thấy bàn" };
+          }
+
+          // Determine table status based on order status
+          let tableStatus = "available";
+          if (
+            status === "processing" ||
+            status === "ready" ||
+            status === "serving"
+          ) {
+            tableStatus = "occupied";
+          } else if (status === "completed" || status === "canceled") {
+            tableStatus = "available";
+          }
+
+          // Update table status
+          const updateTableQuery = `
+            UPDATE tables 
+            SET status = $1, updated_at = NOW()
+            WHERE table_id = $2
+            RETURNING 
+              table_id AS "tableId",
+              table_number AS "tableNumber",
+              status,
+              updated_at AS "updatedAt"
+          `;
+
+          const tableResult = await client.query(updateTableQuery, [
+            tableStatus,
+            tableId,
+          ]);
+          updatedTable = tableResult.rows[0];
+        }
+
+        // If reservationId is provided, update the reservation status
+        if (reservationId) {
+          // Check if reservation exists
+          const checkReservationQuery =
+            "SELECT 1 FROM reservations WHERE reservation_id = $1";
+          const checkReservationResult = await client.query(
+            checkReservationQuery,
+            [reservationId]
+          );
+
+          if (checkReservationResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return {
+              success: false,
+              message: "Không tìm thấy thông tin đặt bàn",
+            };
+          }
+
+          // Determine reservation status based on order status
+          let reservationStatus = "pending";
+          if (
+            status === "processing" ||
+            status === "ready" ||
+            status === "serving"
+          ) {
+            reservationStatus = "confirmed";
+          } else if (status === "completed") {
+            reservationStatus = "completed";
+          } else if (status === "canceled") {
+            reservationStatus = "canceled";
+          }
+
+          // Update reservation status
+          const updateReservationQuery = `
+            UPDATE reservations 
+            SET status = $1, 
+                table_id = COALESCE($2, table_id),
+                updated_at = NOW()
+            WHERE reservation_id = $3
+            RETURNING 
+              reservation_id AS "reservationId",
+              status,
+              table_id AS "tableId",
+              updated_at AS "updatedAt"
+          `;
+
+          const reservationResult = await client.query(updateReservationQuery, [
+            reservationStatus,
+            tableId,
+            reservationId,
+          ]);
+          updatedReservation = reservationResult.rows[0];
+        }
+
+        // Commit transaction
+        await client.query("COMMIT");
+
+        return {
+          success: true,
+          message: `Cập nhật trạng thái đơn hàng thành '${status}' thành công`,
+          data: {
+            order: updatedOrder,
+            table: updatedTable,
+            reservation: updatedReservation,
+          },
+        };
+      } catch (error) {
+        // Rollback transaction on error
+        await client.query("ROLLBACK");
+        console.error("Transaction error:", error);
+        throw error;
+      } finally {
+        // Release client back to pool
+        client.release();
       }
-
-      // Update order status
-      const updateQuery = `
-        UPDATE orders 
-        SET statusCode = $1, updated_at = NOW()
-        WHERE order_id = $2
-        RETURNING 
-          order_id AS "orderId",
-          statusCode AS "statusCode",
-          updated_at AS "updatedAt"
-      `;
-
-      const result = await pool.query(updateQuery, [statusCode, orderId]);
-
-      return {
-        success: true,
-        data: result.rows[0],
-      };
     } catch (error) {
       console.error("Error updating order status:", error);
       throw error;
@@ -958,6 +1095,207 @@ class AdminModel {
       return availability;
     } catch (error) {
       console.error("Error getting table availability:", error);
+      throw error;
+    }
+  }
+
+  // Get confirmed reserved tables by user
+  static async getConfirmedReservedTables(page = 1, limit = 10, filters = {}) {
+    try {
+      // Set default values
+      const offset = (page - 1) * limit;
+
+      // Base query to get reservations
+      let query = `
+        SELECT 
+          r.reservation_id, 
+          r.user_id, 
+          r.table_id, 
+          r.reservation_time, 
+          r.party_size, 
+          r.status, 
+          r.special_requests,
+          r.created_at,
+          t.table_number,
+          t.capacity,
+          u.username,
+          u.email,
+          u.phone_number
+        FROM 
+          reservations r
+        JOIN 
+          tables t ON r.table_id = t.table_id
+        JOIN 
+          users u ON r.user_id = u.user_id
+        WHERE 
+          r.status = 'confirmed'
+      `;
+
+      // Add filter conditions
+      const queryParams = [];
+      let paramIndex = 1;
+
+      if (filters.userId) {
+        query += ` AND r.user_id = $${paramIndex++}`;
+        queryParams.push(filters.userId);
+      }
+
+      // Add LIMIT and OFFSET for pagination
+      query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+      queryParams.push(limit, offset);
+
+      // Execute query with parameters
+      const result = await pool.query(query, queryParams);
+
+      // Get total count for pagination
+      let countQuery = `
+        SELECT COUNT(*) as total 
+        FROM reservations r
+        WHERE r.status = 'confirmed'
+      `;
+
+      const countParams = [];
+      let countParamIndex = 1;
+
+      if (filters.userId) {
+        countQuery += ` AND r.user_id = $${countParamIndex++}`;
+        countParams.push(filters.userId);
+      }
+      const countResult = await pool.query(countQuery, countParams);
+      // Calculate pagination information
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / limit);
+      const hasNext = page < totalPages;
+      const hasPrev = page > 1;
+
+      return {
+        reservations: result.rows,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNext,
+          hasPrev,
+        },
+      };
+    } catch (error) {
+      console.error("Error in getConfirmedReservedTables:", error);
+      throw error;
+    }
+  }
+
+  static async updateReservationStatus(reservationId, status, tableId = null) {
+    try {
+      const client = await pool.connect();
+
+      try {
+        // Start transaction
+        await client.query("BEGIN");
+
+        // Update reservation status
+        const updateReservationQuery = `
+          UPDATE reservations 
+          SET status = $1, 
+              ${tableId ? "table_id = $3," : ""} 
+              updated_at = NOW()
+          WHERE reservation_id = $2
+          RETURNING *
+        `;
+
+        const params = tableId
+          ? [status, reservationId, tableId]
+          : [status, reservationId];
+
+        const reservationResult = await client.query(
+          updateReservationQuery,
+          params
+        );
+
+        if (reservationResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          return {
+            success: false,
+            message: "Không tìm thấy thông tin đặt bàn",
+          };
+        }
+
+        const updatedReservation = reservationResult.rows[0];
+        let updatedTable = null;
+
+        // If confirmed, update the table status to 'reserved'
+        if (status === "confirmed") {
+          // Use the tableId parameter if provided, otherwise use the one from the reservation
+          const tableIdToUpdate = tableId || updatedReservation.table_id;
+
+          if (tableIdToUpdate) {
+            const updateTableQuery = `
+              UPDATE tables
+              SET status = 'reserved', updated_at = NOW()
+              WHERE table_id = $1
+              RETURNING *
+            `;
+
+            const tableResult = await client.query(updateTableQuery, [
+              tableIdToUpdate,
+            ]);
+
+            if (tableResult.rows.length === 0) {
+              await client.query("ROLLBACK");
+              return {
+                success: false,
+                message: "Không tìm thấy bàn để cập nhật",
+              };
+            }
+
+            updatedTable = tableResult.rows[0];
+          }
+        }
+
+        // If canceled or completed, update the table status back to 'available'
+        if (status === "canceled" || status === "completed") {
+          // Use the tableId parameter if provided, otherwise use the one from the reservation
+          const tableIdToUpdate = tableId || updatedReservation.table_id;
+
+          if (tableIdToUpdate) {
+            const updateTableQuery = `
+              UPDATE tables
+              SET status = 'available', updated_at = NOW()
+              WHERE table_id = $1
+              RETURNING *
+            `;
+
+            const tableResult = await client.query(updateTableQuery, [
+              tableIdToUpdate,
+            ]);
+
+            if (tableResult.rows.length > 0) {
+              updatedTable = tableResult.rows[0];
+            }
+          }
+        }
+
+        // Commit transaction
+        await client.query("COMMIT");
+
+        return {
+          success: true,
+          message: `Cập nhật trạng thái đặt bàn thành '${status}' thành công`,
+          data: {
+            reservation: updatedReservation,
+            table: updatedTable,
+          },
+        };
+      } catch (error) {
+        // Rollback transaction on error
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        // Release client back to pool
+        client.release();
+      }
+    } catch (error) {
+      console.error("Error updating reservation status:", error);
       throw error;
     }
   }

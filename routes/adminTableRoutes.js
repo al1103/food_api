@@ -28,7 +28,6 @@ router.post(
   "/tables/:tableId/orders/:orderId/action",
   adminTableController.removeCustomerFromTable
 );
-router.post("/tables/assign", adminTableController.assignTableAndCreateOrder);
 router.post("/tables/:tableId/reserve", adminTableController.reserveTable);
 
 // Routes quản lý yêu cầu đặt bàn

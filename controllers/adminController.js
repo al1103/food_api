@@ -806,6 +806,43 @@ exports.getTableAvailability = async (req, res) => {
   }
 };
 
+// Get confirmed reserved tables by user
+exports.getConfirmedReservedTables = async (req, res) => {
+  try {
+    const { page, limit } = getPaginationParams(req);
+    const userId = req.query.userId; // Optional: filter by specific user
+    const dateFilter = req.query.date; // Optional: filter by specific date
+
+    // Prepare filters object
+    const filters = {
+      status: "reserved", // Only get tables with reserved status
+      userId: userId || undefined,
+      date: dateFilter || undefined,
+    };
+
+    // Call model method to get confirmed reservations
+    const result = await AdminModel.getConfirmedReservedTables(
+      page,
+      limit,
+      filters
+    );
+
+    res.status(200).json({
+      statusCode: 200,
+      message: "Lấy danh sách bàn đã đặt thành công",
+      data: result.reservations,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Error getting confirmed reserved tables:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể lấy danh sách bàn đã đặt",
+      error: error.message,
+    });
+  }
+};
+
 // Get all orders with pagination and optional filters
 exports.getAllOrders = async (req, res) => {
   try {
@@ -860,16 +897,21 @@ exports.getOrderById = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
-    const { statusCode } = req.body;
+    const { status, tableId, reservationId } = req.body;
 
-    if (!statusCode) {
+    if (!status) {
       return res.status(400).json({
         statusCode: 400,
         message: "Trạng thái đơn hàng là bắt buộc",
       });
     }
 
-    const result = await AdminModel.updateOrderStatus(orderId, statusCode);
+    const result = await AdminModel.updateOrderStatus(
+      orderId,
+      status,
+      tableId,
+      reservationId
+    );
 
     if (!result.success) {
       return res.status(404).json({
@@ -888,6 +930,57 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({
       statusCode: 500,
       message: "Không thể cập nhật trạng thái đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
+// Update reservation status
+exports.updateReservationStatus = async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const { status, tableId } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Trạng thái đặt bàn là bắt buộc",
+      });
+    }
+
+    // Validate status
+    const validStatuses = ["pending", "confirmed", "canceled", "completed"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        statusCode: 400,
+        message:
+          "Trạng thái không hợp lệ. Chỉ chấp nhận: pending, confirmed, canceled, completed",
+      });
+    }
+
+    const result = await AdminModel.updateReservationStatus(
+      reservationId,
+      status,
+      tableId
+    );
+
+    if (!result.success) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: result.message,
+      });
+    }
+
+    res.status(200).json({
+      statusCode: 200,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (error) {
+    console.error("Error updating reservation status:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể cập nhật trạng thái đặt bàn",
       error: error.message,
     });
   }

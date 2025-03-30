@@ -6,7 +6,7 @@ const { auth } = require("../middleware/roleAuth"); // Import specific middlewar
 // Protected routes
 router.post("/", auth, reservationsController.createReservation); // Any authenticated user
 router.patch(
-  "/:id/statusCode",
+  "/:id/status",
   auth,
   reservationsController.updateReservationStatus
 ); // Any authenticated user
