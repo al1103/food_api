@@ -893,6 +893,44 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+exports.updateTopDishes = async (req, res) => {
+  try {
+    const topDishes = await AdminModel.updateTopDishes();
+
+    res.status(200).json({
+      statusCode: 200,
+      message: "Cập nhật món đứng top thành công",
+      data: topDishes,
+    });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật món đứng top:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể cập nhật món đứng top",
+      error: error.message,
+    });
+  }
+};
+
+exports.getTopDishes = async (req, res) => {
+  try {
+    const topDishes = await AdminModel.getTopDishes();
+
+    res.status(200).json({
+      statusCode: 200,
+      message: "Lấy danh sách món ăn đứng top thành công",
+      data: topDishes,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách món ăn đứng top:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Không thể lấy danh sách món ăn đứng top",
+      error: error.message,
+    });
+  }
+};
+
 // Helper function for extracting Cloudinary public IDs
 function extractPublicIdFromUrl(url) {
   if (!url) return null;

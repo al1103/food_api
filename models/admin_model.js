@@ -325,6 +325,12 @@ class AdminModel {
       );
       const availableTables = parseInt(availableTablesResult.rows[0].total);
 
+      // Get user statistics
+      const totalUsersResult = await pool.query(
+        "SELECT COUNT(*) AS total FROM users"
+      );
+      const totalUsers = parseInt(totalUsersResult.rows[0].total);
+
       // Get popular dishes (top 5)
       const popularDishesResult = await pool.query(`
         SELECT 
@@ -370,6 +376,9 @@ class AdminModel {
           total: totalTables,
           available: availableTables,
         },
+        users: {
+          total: totalUsers, // Thêm số lượng người dùng
+        },
         dishes: {
           total: dishesTotal,
           available: dishesAvailable,
@@ -385,23 +394,16 @@ class AdminModel {
   // --- Dish management methods ---
   static async getAllDishes(page = 1, limit = 10, filters = {}) {
     try {
-      // Build query conditions
       let queryConditions = "";
       const queryParams = [];
       let paramIndex = 1;
 
-      // Set default sort options
-      const sortBy = filters.sortBy || "dish_id";
-      const sortOrder = filters.sortOrder || "ASC";
-
-      // Add category filter if provided
       if (filters.category) {
         queryConditions = "WHERE category = $1";
         queryParams.push(filters.category);
         paramIndex++;
       }
 
-      // Get total count
       const countQuery = `
         SELECT COUNT(*) AS total
         FROM dishes
@@ -411,14 +413,11 @@ class AdminModel {
       const countResult = await pool.query(countQuery, queryParams);
       const total = parseInt(countResult.rows[0].total);
 
-      // Calculate pagination values
       const offset = (page - 1) * limit;
       const totalPages = Math.ceil(total / limit);
 
-      // Add pagination parameters
       const paginatedQueryParams = [...queryParams, limit, offset];
 
-      // Get dishes with pagination
       const query = `
         SELECT 
           dish_id AS "dishId",
@@ -428,11 +427,14 @@ class AdminModel {
           image_url AS "imageUrl",
           available,
           category,
+          is_top AS "isTop",
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM dishes
         ${queryConditions}
-        ORDER BY ${sortBy} ${sortOrder}
+        ORDER BY is_top DESC, ${filters.sortBy || "dish_id"} ${
+        filters.sortOrder || "ASC"
+      }
         LIMIT $${paramIndex++} OFFSET $${paramIndex}
       `;
 
@@ -617,6 +619,73 @@ class AdminModel {
       return { success: true, message: "Xóa món ăn thành công" };
     } catch (error) {
       console.error("Error deleting dish:", error);
+      throw error;
+    }
+  }
+
+  static async updateTopDishes() {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Đặt tất cả các món ăn về trạng thái không phải top
+      await client.query(`UPDATE dishes SET is_top = FALSE`);
+
+      // Đánh dấu các món ăn đứng top (dựa trên số lượng bán ra)
+      const result = await client.query(`
+        WITH top_dishes AS (
+          SELECT 
+            d.dish_id
+          FROM dishes d
+          JOIN order_details od ON d.dish_id = od.dish_id
+          JOIN orders o ON od.order_id = o.order_id
+          WHERE o.status = 'completed'
+          GROUP BY d.dish_id
+          ORDER BY SUM(od.quantity) DESC
+          LIMIT 5
+        )
+        UPDATE dishes
+        SET is_top = TRUE
+        WHERE dish_id IN (SELECT dish_id FROM top_dishes)
+        RETURNING dish_id AS "dishId", name, is_top AS "isTop"
+      `);
+
+      await client.query("COMMIT");
+
+      return result.rows;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Lỗi khi cập nhật món đứng top:", error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  static async getTopDishes() {
+    try {
+      const query = `
+        SELECT 
+          dish_id AS "dishId",
+          name,
+          description,
+          price,
+          image_url AS "imageUrl",
+          category,
+          available,
+          is_top AS "isTop",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM dishes
+        WHERE is_top = TRUE
+        ORDER BY updated_at DESC
+      `;
+
+      const result = await pool.query(query);
+
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting top dishes:", error);
       throw error;
     }
   }
