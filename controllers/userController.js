@@ -21,8 +21,15 @@ function generateReferralCode() {
 
 exports.register = async (req, res) => {
   try {
-    const { username, email, password, fullName, phoneNumber, referralCode } =
-      req.body;
+    const {
+      username,
+      email,
+      password,
+      fullName,
+      phoneNumber,
+      address,
+      referralCode,
+    } = req.body;
 
     // Basic validation
     if (!username || !email || !password || !fullName) {
@@ -79,6 +86,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       fullName,
       phoneNumber,
+      address, // Thêm trường address
       referralCode,
     };
 
@@ -289,8 +297,15 @@ exports.verifyRegistration = async (req, res) => {
 
     try {
       // Extract user data for registration
-      const { username, email, password, fullName, phoneNumber, referralCode } =
-        userData;
+      const {
+        username,
+        email,
+        password,
+        fullName,
+        phoneNumber,
+        address,
+        referralCode,
+      } = userData;
 
       // THÊM KIỂM TRA NÀY: Kiểm tra lại xem username/email đã tồn tại chưa
       const checkExistingQuery = `
@@ -336,12 +351,12 @@ exports.verifyRegistration = async (req, res) => {
       const insertUserQuery = `
         INSERT INTO users (
           user_id, username, email, password, 
-          full_name, phone_number, referral_code,
+          full_name, phone_number, address, referral_code,
           referred_by, role, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
         )
-        RETURNING user_id, username, email, full_name, referral_code
+        RETURNING user_id, username, email, full_name, address, referral_code
       `;
 
       const insertedUser = await client.query(insertUserQuery, [
@@ -351,6 +366,7 @@ exports.verifyRegistration = async (req, res) => {
         password,
         fullName,
         phoneNumber,
+        address, // Thêm trường address
         userReferralCode,
         referrerId,
         "customer",
@@ -453,6 +469,7 @@ exports.verifyRegistration = async (req, res) => {
           username: insertedUser.rows[0].username,
           email: insertedUser.rows[0].email,
           fullName: insertedUser.rows[0].full_name,
+          address: insertedUser.rows[0].address, // Thêm trường address
           referralCode: userReferralCode,
         },
       });
@@ -926,9 +943,10 @@ exports.getUserProfile = async (req, res) => {
     // Remove sensitive information
     const { Password, ...userProfile } = user;
 
+    // Đảm bảo address được bao gồm trong response
     res.status(200).json({
       statusCode: 200,
-      data: [userProfile],
+      data: [userProfile], // address đã được bao gồm trong userProfile
     });
   } catch (error) {
     console.error("Lỗi lấy thông tin người dùng:", error);
@@ -939,14 +957,16 @@ exports.getUserProfile = async (req, res) => {
     });
   }
 };
+
 exports.updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { fullName, phoneNumber, avatar } = req.body;
+    const { fullName, phoneNumber, address, avatar } = req.body;
 
     const updatedUserData = await UserModel.updateUser(userId, {
       fullName,
       phoneNumber,
+      address, // Thêm trường address
       avatar,
     });
 
@@ -971,6 +991,7 @@ exports.updateUserProfile = async (req, res) => {
     });
   }
 };
+
 exports.uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
