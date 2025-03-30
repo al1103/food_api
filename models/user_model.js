@@ -485,13 +485,12 @@ class UserModel {
     try {
       const result = await pool.query(
         `SELECT * FROM verification_codes 
-         WHERE email = $1 AND code = $2`,
+         WHERE email = $1 AND code = $2 `,
         [email, code]
       );
-
       return result.rows.length > 0;
     } catch (error) {
-      console.error("Lỗi trong verifyCode:", error);
+      console.error("Lỗi khi xác minh mã xác nhận:", error);
       throw error;
     }
   }
@@ -564,6 +563,25 @@ class UserModel {
       );
     } catch (error) {
       console.error("Lỗi trong saveRefreshToken:", error);
+      throw error;
+    }
+  }
+
+  static async saveVerificationCode(email, code) {
+    try {
+      // Xóa mã xác nhận cũ (nếu có)
+      await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
+        email,
+      ]);
+
+      // Thêm mã xác nhận mới
+      await pool.query(
+        `INSERT INTO verification_codes (email, code, expiration_time, created_at)
+         VALUES ($1, $2, NOW() + INTERVAL '15 minutes', NOW())`,
+        [email, code]
+      );
+    } catch (error) {
+      console.error("Lỗi khi lưu mã xác nhận:", error);
       throw error;
     }
   }
@@ -754,10 +772,18 @@ class UserModel {
 
   static async updatePassword(email, newPassword) {
     try {
-      await pool.query(
-        `UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2`,
-        [newPassword, email]
+      // const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      const hashedPassword = newPassword; // Nếu không cần hash
+
+      const result = await pool.query(
+        `UPDATE users 
+         SET password = $1, updated_at = NOW()
+         WHERE email = $2
+         RETURNING user_id, email`,
+        [hashedPassword, email]
       );
+
+      return result.rows[0];
     } catch (error) {
       console.error("Lỗi khi cập nhật mật khẩu:", error);
       throw error;
