@@ -22,6 +22,8 @@ router.get("/dishes/:id", adminController.getDishById);
 router.post("/dishes", upload.single("image"), adminController.createDish);
 router.put("/dishes/:id", upload.single("image"), adminController.updateDish);
 router.delete("/dishes/:id", adminController.deleteDish);
+router.post("/dishes/update-top", adminController.updateTopDishes);
+router.get("/dishes/top", adminController.getTopDishes);
 
 // Table management routes
 router.get("/tables", adminController.getAllTables);
