@@ -7,12 +7,12 @@ const { adminAuth, auth } = require("../middleware/roleAuth");
 router.use(auth);
 
 // Routes quản lý bàn cho admin
-router.get("/tables", adminTableController.getAllTablesWithStatus);
-router.get("/tables/:id", adminTableController.getTableDetail);
-router.post("/tables", adminTableController.createTable);
-router.put("/tables/:id", adminTableController.updateTable);
-router.patch("/tables/:id/status", adminTableController.updateTableStatus);
-router.delete("/tables/:id", adminTableController.deleteTable);
+// router.get("/tables", adminTableController.getAllTablesWithStatus);
+// router.get("/tables/:id", adminTableController.getTableDetail);
+// router.post("/tables", adminTableController.createTable);
+// router.put("/tables/:id", adminTableController.updateTable);
+// router.patch("/tables/:id/status", adminTableController.updateTableStatus);
+// router.delete("/tables/:id", adminTableController.deleteTable);
 
 // Routes mới để quản lý khách hàng trong bàn
 router.get("/tables/:id/customers", adminTableController.getTableCustomers);
