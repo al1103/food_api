@@ -48,7 +48,7 @@ exports.createOrder = async (req, res) => {
     await NotificationController.integrateWithOrderCreate(newOrder, userId);
 
     res.status(201).json({
-      status: "success",
+      statusCode: 200,
       data: items,
     });
   } catch (error) {
