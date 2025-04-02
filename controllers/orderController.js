@@ -68,7 +68,7 @@ exports.getUserOrders = async (req, res) => {
     const result = await OrderModel.getOrdersByUserId(userId, page, limit);
 
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
       data: result.orders,
       pagination: result.pagination,
     });
@@ -105,7 +105,8 @@ exports.getOrderById = async (req, res) => {
     }
 
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
+
       data: order,
     });
   } catch (error) {
@@ -154,7 +155,8 @@ exports.cancelOrder = async (req, res) => {
     await OrderModel.updateOrderStatus(orderId, "cancelled");
 
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
+
       message: "Đơn hàng đã được hủy thành công",
     });
   } catch (error) {
@@ -210,7 +212,8 @@ exports.getOrderByIdAdmin = async (req, res) => {
 
     // Chuyển đổi dữ liệu thành mảng để phù hợp với yêu cầu
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
+
       data: [order], // Bọc đơn hàng trong một mảng
     });
   } catch (error) {
@@ -311,7 +314,8 @@ exports.updateOrderStatusAdmin = async (req, res) => {
     }
 
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
+
       message: "Cập nhật trạng thái đơn hàng thành công",
       data: updateResult,
     });
@@ -365,7 +369,8 @@ exports.getOrderStatistics = async (req, res) => {
     });
 
     res.status(200).json({
-      status: "success",
+      statusCode: 200,
+
       data: {
         byStatus: statistics,
         summary: {
