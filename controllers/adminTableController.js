@@ -53,7 +53,7 @@ class AdminTableController {
   // Tạo bàn mới (chỉ admin mới có quyền)
   async createTable(req, res) {
     try {
-      const { tableNumber, capacity, statusCode } = req.body;
+      const { tableNumber, capacity } = req.body;
 
       // Validate đầu vào
       if (!tableNumber || !capacity) {
@@ -78,7 +78,7 @@ class AdminTableController {
       const newTable = await TableModel.createTable({
         tableNumber,
         capacity,
-        statusCode: statusCode || "available",
+        status: "available",
       });
 
       return ApiResponse.success(res, 201, "Tạo bàn mới thành công", newTable);
