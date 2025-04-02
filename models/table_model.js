@@ -208,7 +208,7 @@ class TableModel {
           o.order_id AS "currentOrderId",
           o.status AS "orderStatus",
           o.created_at AS "orderCreatedAt",
-          u.name AS "customerName"
+          u.username AS "customerName"
         FROM tables t
         LEFT JOIN (
           SELECT DISTINCT ON (table_id) *
