@@ -22,7 +22,7 @@ class ReservationModel {
           u.username,
           r.table_id AS "tableId",
           r.reservation_time AS "reservationTime",
-          r.statusCode,
+          r.status,
           r.party_size AS "partySize",
           r.customer_name AS "customerName",
           r.phone_number AS "phoneNumber",
@@ -61,7 +61,7 @@ class ReservationModel {
       const result = await pool.query(
         `INSERT INTO reservations (
           user_id, table_id, reservation_time, party_size,
-          statusCode, customer_name, phone_number, special_requests, 
+          status, customer_name, phone_number, special_requests, 
           created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
@@ -94,7 +94,7 @@ class ReservationModel {
           u.username,
           r.table_id AS "tableId",
           r.reservation_time AS "reservationTime",
-          r.statusCode,
+          r.status,
           r.party_size AS "partySize",
           r.customer_name AS "customerName",
           r.phone_number AS "phoneNumber",
@@ -114,13 +114,13 @@ class ReservationModel {
     }
   }
 
-  static async updateReservationStatus(id, statusCode) {
+  static async updateReservationStatus(id, status) {
     try {
       await pool.query(
         `UPDATE reservations 
-         SET statusCode = $1, updated_at = NOW()
+         SET status = $1, updated_at = NOW()
          WHERE reservation_id = $2`,
-        [statusCode, id]
+        [status, id]
       );
 
       return await this.getReservationById(id);

@@ -26,12 +26,12 @@ router.post("/dishes/update-top", adminController.updateTopDishes);
 router.get("/dishes/top", adminController.getTopDishes);
 
 // Table management routes
-router.get("/tables", adminController.getAllTables);
-router.get("/tables/availability", adminController.getTableAvailability);
-router.get("/tables/:id", adminController.getTableById);
-router.post("/tables", adminController.createTable);
-router.put("/tables/:id", adminController.updateTable);
-router.delete("/tables/:id", adminController.deleteTable);
+// router.get("/tables", adminController.getAllTables);
+// router.get("/tables/availability", adminController.getTableAvailability);
+// router.get("/tables/:id", adminController.getTableById);
+// router.post("/tables", adminController.createTable);
+// router.put("/tables/:id", adminController.updateTable);
+// router.delete("/tables/:id", adminController.deleteTable);
 
 // Get confirmed reserved tables route
 router.get("/reserved-tables", adminController.getConfirmedReservedTables);

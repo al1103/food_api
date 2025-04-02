@@ -17,7 +17,7 @@ class TableModel {
         "table_id",
         "table_number",
         "capacity",
-        "statusCode",
+        "status",
         "created_at",
         "updated_at",
       ];
@@ -43,7 +43,7 @@ class TableModel {
           table_id AS "tableId",
           table_number AS "tableNumber",
           capacity,
-          statusCode,
+          status,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM tables
@@ -98,15 +98,11 @@ class TableModel {
     try {
       const result = await pool.query(
         `INSERT INTO tables (
-          table_number, capacity, statusCode, created_at, updated_at
+          table_number, capacity, status, created_at, updated_at
         ) VALUES (
           $1, $2, $3, NOW(), NOW()
         ) RETURNING table_id AS "tableId"`,
-        [
-          tableData.tableNumber,
-          tableData.capacity,
-          tableData.statusCode || "available",
-        ]
+        [tableData.tableNumber, tableData.capacity, "available"]
       );
 
       return await this.getTableById(result.rows[0].tableId);
@@ -121,10 +117,10 @@ class TableModel {
       await pool.query(
         `UPDATE tables SET
           capacity = $1,
-          statusCode = $2,
+          status = $2,
           updated_at = NOW()
         WHERE table_id = $3`,
-        [tableData.capacity, tableData.statusCode, id]
+        [tableData.capacity, tableData.status, id]
       );
 
       return await this.getTableById(id);
@@ -152,7 +148,7 @@ class TableModel {
           table_id AS "tableId",
           table_number AS "tableNumber",
           capacity,
-          statusCode,
+          status,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM tables 
@@ -206,7 +202,7 @@ class TableModel {
           t.table_id AS "tableId",
           t.table_number AS "tableNumber",
           t.capacity,
-          t.statusCode,
+          t.status,
           t.created_at AS "tableCreatedAt",
           t.updated_at AS "tableUpdatedAt",
           o.order_id AS "currentOrderId",
@@ -229,7 +225,7 @@ class TableModel {
         tableId: row.tableId,
         tableNumber: row.tableNumber,
         capacity: row.capacity,
-        statusCode: row.statusCode,
+        status: row.status,
         createdAt: row.tableCreatedAt,
         updatedAt: row.tableUpdatedAt,
         currentOrder: row.currentOrderId
@@ -248,7 +244,7 @@ class TableModel {
     }
   }
 
-  static async updateTableStatus(id, statusCode) {
+  static async updateTableStatus(id, status) {
     try {
       const result = await pool.query(
         `UPDATE tables SET
@@ -256,7 +252,7 @@ class TableModel {
           updated_at = NOW()
         WHERE table_id = $2
         RETURNING table_id AS "tableId", table_number AS "tableNumber", status`,
-        [statusCode, id]
+        [status, id]
       );
 
       return result.rows[0];
