@@ -8,7 +8,7 @@ const NotificationController = require("../controllers/notificationController");
 
 exports.createOrder = async (req, res) => {
   try {
-    const { tableId, items, customerName, phoneNumber, note } = req.body;
+    const { tableId, data: items, customerName, phoneNumber, note } = req.body;
     const userId = req.user.userId;
 
     // Validate items
@@ -47,10 +47,9 @@ exports.createOrder = async (req, res) => {
     // Create notification for the new order
     await NotificationController.integrateWithOrderCreate(newOrder, userId);
 
-  
     res.status(201).json({
       status: "success",
-      data: items
+      data: items,
     });
   } catch (error) {
     console.error("Error creating order:", error);
