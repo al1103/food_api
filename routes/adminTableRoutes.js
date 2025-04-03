@@ -20,14 +20,15 @@ router.post(
   "/tables/:tableId/orders/:orderId/action",
   adminTableController.removeCustomerFromTable
 );
-router.post("/tables/:tableId/reserve", adminTableController.reserveTable);
 
 // Routes quản lý yêu cầu đặt bàn
-router.get("/reservations", adminTableController.getPendingReservations); // Admin xem danh sách yêu cầu đặt bàn
-router.post("/reservations/confirm", adminTableController.confirmReservation); // Admin xác nhận đặt bàn
+router.get("/reservations", adminTableController.getReservationsByStatus); // Admin xem danh sách yêu cầu đặt bàn theo trạng thái
+router.post(
+  "/reservations/:reservationId/update-status",
+  adminTableController.updateReservationStatus
+); // Admin xác nhận hoặc hủy yêu cầu đặt bàn
 router.post(
   "/reservations/:reservationId/cancel",
   adminTableController.cancelReservationRequest
 );
-
 module.exports = router;

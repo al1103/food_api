@@ -1,4 +1,6 @@
 const TableModel = require("../models/table_model");
+const OrderModel = require("../models/order_model");
+const ReservationModel = require("../models/reservation_model");
 
 exports.getAllTables = async (req, res) => {
   try {
@@ -43,6 +45,56 @@ exports.getTableById = async (req, res) => {
       message: "Lỗi khi lấy thông tin bàn",
       error: error.message,
     });
+  }
+};
+exports.createReservationRequest = async (req, res) => {
+  try {
+    const { reservationTime, partySize, specialRequests, orderedItems } =
+      req.body;
+    const userId = req.user.id;
+
+    // Kiểm tra đầu vào
+    if (!reservationTime || !partySize || !customerName || !phoneNumber) {
+      return ApiResponse.error(
+        res,
+        400,
+        "Vui lòng cung cấp đầy đủ thông tin: thời gian, số khách, tên và số điện thoại"
+      );
+    }
+
+    // Tạo order nếu có orderedItems (các món được đặt trước)
+    let orderId = null;
+    if (orderedItems && orderedItems.length > 0) {
+      // Tạo order mới với status là 'pending' để lưu các món đã đặt trước
+      const newOrder = await OrderModel.createOrder({
+        userId,
+        tableId: null, // Bàn sẽ được cập nhật sau khi xác nhận đặt bàn
+        status: "reserved", // Status đặc biệt cho đơn hàng kèm đặt bàn
+        items: orderedItems,
+      });
+
+      orderId = newOrder.orderId;
+    }
+
+    // Lưu yêu cầu đặt bàn
+    const reservation = await ReservationModel.createReservation(
+      userId,
+      null, // tableId sẽ được cập nhật khi admin xác nhận đặt bàn
+      reservationTime,
+      partySize,
+      specialRequests || null,
+      orderId
+    );
+
+    return ApiResponse.success(
+      res,
+      201,
+      "Yêu cầu đặt bàn đã được gửi",
+      reservation
+    );
+  } catch (error) {
+    console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
+    return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn");
   }
 };
 
