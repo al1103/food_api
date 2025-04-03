@@ -116,15 +116,14 @@ class AdminModel {
       const detailsQuery = `
         SELECT 
           od.id AS "id",
-          od.dish_id AS "dishId",
+          od.id AS "dishId",
           d.name AS "dishName",
-          d.image_url AS "imageUrl",
           od.quantity AS "quantity",
           od.price AS "price",
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.dish_id
+        JOIN dishes d ON od.id = d.id
         WHERE od.order_id = $1
       `;
 
@@ -476,7 +475,7 @@ class AdminModel {
           SUM(od.quantity) AS "count",
           d.price
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.id
+        JOIN dishes d ON od.id = d.id
         JOIN orders o ON od.order_id = o.order_id
         WHERE o.status = 'completed'
         GROUP BY d.id, d.name, d.price
@@ -772,12 +771,12 @@ class AdminModel {
       const result = await client.query(`
         WITH top_dishes AS (
           SELECT 
-            d.dish_id
+            d.id
           FROM dishes d
-          JOIN order_details od ON d.dish_id = od.dish_id
+          JOIN order_details od ON d.id = od.id
           JOIN orders o ON od.order_id = o.order_id
           WHERE o.status = 'completed'
-          GROUP BY d.dish_id
+          GROUP BY d.id
           ORDER BY SUM(od.quantity) DESC
           LIMIT 5
         )
@@ -1120,7 +1119,7 @@ class AdminModel {
           t.capacity,
           u.username,
           u.email,
-          u.phone_number
+          u.phone_number_number
         FROM 
           reservations r
         JOIN 

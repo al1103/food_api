@@ -140,7 +140,7 @@ class OrderModel {
       const detailsQuery = `
         SELECT 
           od.id,
-          od.dish_id AS "dishId",
+          od.id AS "dishId",
           d.name AS "dishName",
           d.image AS "imageUrl",
           od.quantity,
@@ -148,7 +148,7 @@ class OrderModel {
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.id
+        JOIN dishes d ON od.id = d.id
         WHERE od.order_id = $1
       `;
 
@@ -373,7 +373,7 @@ class OrderModel {
       const result = await pool.query(
         `SELECT 
           od.id AS "id",
-          od.dish_id AS "dishId",
+          od.id AS "dishId",
           d.name AS "dishName",
           d.image AS "imageUrl",  /* Changed from image_url to image based on schema */
           od.quantity AS "quantity",
@@ -381,7 +381,7 @@ class OrderModel {
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.id  /* Changed from d.dish_id to d.id based on schema */
+        JOIN dishes d ON od.id = d.id  /* Changed from d.id to d.id based on schema */
         WHERE od.order_id = $1`,
         [orderId]
       );

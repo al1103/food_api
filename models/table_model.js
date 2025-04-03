@@ -8,8 +8,8 @@ class TableModel {
       SELECT 
         r.reservation_id AS "reservationId",
         r.user_id AS "userId", 
-        u.name AS "userName",
-        u.phone AS "userPhone",
+        u.username AS "userName",
+        u.phone_number AS "userPhone",
         r.table_id AS "tableId",
         t.table_number AS "tableNumber",
         r.reservation_time AS "reservationTime",
@@ -40,21 +40,21 @@ class TableModel {
       const result = await pool.query(query, params);
 
       // For each reservation, if there's an order_id, get the ordered items
+      // Fix the query for getting ordered items
       const reservationsWithItems = await Promise.all(
         result.rows.map(async (reservation) => {
           if (reservation.orderId) {
             const orderedItemsResult = await pool.query(
               `SELECT 
-              od.order_detail_id AS "orderDetailId",
-              od.item_id AS "itemId", 
-              d.name AS "itemName",
-              d.image_url AS "itemImage",
-              od.quantity,
-              od.unit_price AS "unitPrice", 
-              od.subtotal
-            FROM order_details od
-            JOIN dishes d ON od.item_id = d.dish_id
-            WHERE od.order_id = $1`,
+          od.id AS "orderDetailId",
+          od.dish_id AS "dishId", 
+          d.name AS "itemName",
+          od.quantity,  
+          od.price AS "unitPrice",
+          od.special_requests AS "specialRequests"
+        FROM order_details od
+        JOIN dishes d ON od.dish_id = d.id
+        WHERE od.order_id = $1`,
               [reservation.orderId]
             );
 
@@ -243,9 +243,9 @@ class TableModel {
           o.total_amount AS "totalAmount",
           o.created_at AS "createdAt",
           o.updated_at AS "updatedAt",
-          u.name AS "userName",
+          u.username AS "userName",
           u.email AS "userEmail",
-          u.phone AS "userPhone"
+          u.phone_number AS "userPhone"
         FROM orders o
         JOIN users u ON o.user_id = u.user_id
         WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
@@ -342,20 +342,20 @@ class TableModel {
         `SELECT 
           o.order_id AS "orderId",
           o.user_id AS "userId",
-          u.name AS "userName",
-          u.phone AS "userPhone",
+          u.username AS "userName",
+          u.phone_number AS "userPhone",
           o.status AS "orderStatus",
           o.total_amount AS "totalAmount",
           o.created_at AS "orderCreatedAt",
           o.updated_at AS "orderUpdatedAt",
-          od.item_id AS "itemId",
+          od.id AS "itemId",
           i.name AS "itemName",
           od.quantity AS "quantity",
           od.price AS "price"
         FROM orders o
         JOIN users u ON o.user_id = u.user_id
         JOIN order_details od ON o.order_id = od.order_id
-        JOIN items i ON od.item_id = i.item_id
+        JOIN items i ON od.id = i.item_id
         WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
         ORDER BY o.created_at ASC`,
         [tableId]
@@ -404,7 +404,7 @@ class TableModel {
   //         o.order_id AS "orderId",
   //         o.user_id AS "userId",
   //         u.username AS "userName",
-  //         u.phone_number AS "userPhone",
+  //         u.phone_number_number AS "userPhone",
   //         o.status AS "status",
   //         o.total_price AS "totalAmount",
   //         o.status AS "paidStatus",
