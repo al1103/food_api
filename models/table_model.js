@@ -1,6 +1,78 @@
 const { pool } = require("../config/database");
 
 class TableModel {
+  // Lấy danh sách yêu cầu đặt bàn theo trạng thái
+  static async getReservationsByStatus(status) {
+    try {
+      let query = `
+      SELECT 
+        r.reservation_id AS "reservationId",
+        r.user_id AS "userId", 
+        u.name AS "userName",
+        u.phone AS "userPhone",
+        r.table_id AS "tableId",
+        t.table_number AS "tableNumber",
+        r.reservation_time AS "reservationTime",
+        r.party_size AS "partySize",
+        r.customer_name AS "customerName",
+        r.phone_number AS "phoneNumber",
+        r.special_requests AS "specialRequests",
+        r.order_id AS "orderId",
+        r.status,
+        r.created_at AS "createdAt",
+        r.updated_at AS "updatedAt"
+      FROM reservations r
+      LEFT JOIN users u ON r.user_id = u.user_id
+      LEFT JOIN tables t ON r.table_id = t.table_id
+    `;
+
+      const params = [];
+
+      // Add WHERE clause for filtering by status if not 'all'
+      if (status !== "all") {
+        query += ` WHERE r.status = $1`;
+        params.push(status);
+      }
+
+      // Add ORDER BY clause for sorting
+      query += ` ORDER BY r.created_at DESC`;
+
+      const result = await pool.query(query, params);
+
+      // For each reservation, if there's an order_id, get the ordered items
+      const reservationsWithItems = await Promise.all(
+        result.rows.map(async (reservation) => {
+          if (reservation.orderId) {
+            const orderedItemsResult = await pool.query(
+              `SELECT 
+              od.order_detail_id AS "orderDetailId",
+              od.item_id AS "itemId", 
+              d.name AS "itemName",
+              d.image_url AS "itemImage",
+              od.quantity,
+              od.unit_price AS "unitPrice", 
+              od.subtotal
+            FROM order_details od
+            JOIN dishes d ON od.item_id = d.dish_id
+            WHERE od.order_id = $1`,
+              [reservation.orderId]
+            );
+
+            reservation.orderedItems = orderedItemsResult.rows;
+          } else {
+            reservation.orderedItems = [];
+          }
+
+          return reservation;
+        })
+      );
+
+      return reservationsWithItems;
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách đặt bàn theo trạng thái:", error);
+      throw error;
+    }
+  }
   static async getAllTables(
     page = 1,
     limit = 10,
@@ -130,15 +202,15 @@ class TableModel {
     }
   }
 
-  static async deleteTable(id) {
-    try {
-      await pool.query("DELETE FROM tables WHERE table_id = $1", [id]);
-      return { message: "Xóa bàn thành công" };
-    } catch (error) {
-      console.error("Lỗi khi xóa bàn:", error);
-      throw error;
-    }
-  }
+  // static async deleteTable(id) {
+  //   try {
+  //     await pool.query("DELETE FROM tables WHERE table_id = $1", [id]);
+  //     return { message: "Xóa bàn thành công" };
+  //   } catch (error) {
+  //     console.error("Lỗi khi xóa bàn:", error);
+  //     throw error;
+  //   }
+  // }
 
   static async getTableWithCustomers(tableId) {
     try {
@@ -325,32 +397,32 @@ class TableModel {
   }
 
   // Method to get all active orders for a specific table
-  static async getActiveOrdersByTableId(tableId) {
-    try {
-      const result = await pool.query(
-        `SELECT 
-          o.order_id AS "orderId",
-          o.user_id AS "userId",
-          u.username AS "userName",
-          u.phone_number AS "userPhone",
-          o.status AS "status",
-          o.total_price AS "totalAmount",
-          o.status AS "paidStatus",
-          o.created_at AS "createdAt",
-          o.updated_at AS "updatedAt"
-        FROM orders o
-        JOIN users u ON o.user_id = u.user_id
-        WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
-        ORDER BY o.created_at ASC`,
-        [tableId]
-      );
+  // static async getActiveOrdersByTableId(tableId) {
+  //   try {
+  //     const result = await pool.query(
+  //       `SELECT
+  //         o.order_id AS "orderId",
+  //         o.user_id AS "userId",
+  //         u.username AS "userName",
+  //         u.phone_number AS "userPhone",
+  //         o.status AS "status",
+  //         o.total_price AS "totalAmount",
+  //         o.status AS "paidStatus",
+  //         o.created_at AS "createdAt",
+  //         o.updated_at AS "updatedAt"
+  //       FROM orders o
+  //       JOIN users u ON o.user_id = u.user_id
+  //       WHERE o.table_id = $1 AND o.status NOT IN ('completed', 'cancelled')
+  //       ORDER BY o.created_at ASC`,
+  //       [tableId]
+  //     );
 
-      return result.rows;
-    } catch (error) {
-      console.error("Error fetching active orders for table:", error);
-      throw error;
-    }
-  }
+  //     return result.rows;
+  //   } catch (error) {
+  //     console.error("Error fetching active orders for table:", error);
+  //     throw error;
+  //   }
+  // }
 
   // Tìm bàn trống phù hợp với số lượng khách
   static async findAvailableTable(numberOfGuests) {
@@ -400,52 +472,52 @@ class TableModel {
   }
 
   // Hủy đặt bàn
-  static async cancelReservation(reservationId) {
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
+  // static async cancelReservation(reservationId) {
+  //   const client = await pool.connect();
+  //   try {
+  //     await client.query("BEGIN");
 
-      // Lấy thông tin yêu cầu đặt bàn
-      const reservationResult = await client.query(
-        `SELECT table_id FROM reservations WHERE reservation_id = $1 AND status = 'confirmed'`,
-        [reservationId]
-      );
+  //     // Lấy thông tin yêu cầu đặt bàn
+  //     const reservationResult = await client.query(
+  //       `SELECT table_id FROM reservations WHERE reservation_id = $1 AND status = 'confirmed'`,
+  //       [reservationId]
+  //     );
 
-      const tableId = reservationResult.rows[0]?.table_id;
+  //     const tableId = reservationResult.rows[0]?.table_id;
 
-      if (!tableId) {
-        throw new Error(
-          "Không thể hủy đặt bàn. Yêu cầu chưa được xác nhận hoặc không tồn tại."
-        );
-      }
+  //     if (!tableId) {
+  //       throw new Error(
+  //         "Không thể hủy đặt bàn. Yêu cầu chưa được xác nhận hoặc không tồn tại."
+  //       );
+  //     }
 
-      // Cập nhật trạng thái của yêu cầu đặt bàn
-      await client.query(
-        `UPDATE reservations
-        SET status = 'cancelled', updated_at = NOW()
-        WHERE reservation_id = $1`,
-        [reservationId]
-      );
+  //     // Cập nhật trạng thái của yêu cầu đặt bàn
+  //     await client.query(
+  //       `UPDATE reservations
+  //       SET status = 'cancelled', updated_at = NOW()
+  //       WHERE reservation_id = $1`,
+  //       [reservationId]
+  //     );
 
-      // Cập nhật trạng thái của bàn
-      await client.query(
-        `UPDATE tables
-        SET status = 'available', updated_at = NOW()
-        WHERE table_id = $1`,
-        [tableId]
-      );
+  //     // Cập nhật trạng thái của bàn
+  //     await client.query(
+  //       `UPDATE tables
+  //       SET status = 'available', updated_at = NOW()
+  //       WHERE table_id = $1`,
+  //       [tableId]
+  //     );
 
-      await client.query("COMMIT");
+  //     await client.query("COMMIT");
 
-      return { message: "Hủy đặt bàn thành công" };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      console.error("Lỗi khi hủy đặt bàn:", error);
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
+  //     return { message: "Hủy đặt bàn thành công" };
+  //   } catch (error) {
+  //     await client.query("ROLLBACK");
+  //     console.error("Lỗi khi hủy đặt bàn:", error);
+  //     throw error;
+  //   } finally {
+  //     client.release();
+  //   }
+  // }
 
   static async cancelReservationRequest(reservationId) {
     try {
@@ -530,42 +602,6 @@ class TableModel {
       return result.rows;
     } catch (error) {
       console.error("Lỗi khi lấy danh sách yêu cầu đặt bàn:", error);
-      throw error;
-    }
-  }
-
-  // Lưu yêu cầu đặt bàn từ client
-  static async createReservationRequest(
-    userId,
-    tableId,
-    reservationTime,
-    partySize,
-    customerName,
-    phoneNumber,
-    specialRequests
-  ) {
-    try {
-      const result = await pool.query(
-        `INSERT INTO reservations (
-          user_id, table_id, reservation_time, party_size, customer_name, phone_number, special_requests, status, created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, 'pending', NOW(), NOW()
-        )
-        RETURNING reservation_id AS "reservationId", user_id AS "userId", table_id AS "tableId", reservation_time AS "reservationTime", party_size AS "partySize", customer_name AS "customerName", phone_number AS "phoneNumber", special_requests AS "specialRequests", status, created_at AS "createdAt", updated_at AS "updatedAt"`,
-        [
-          userId,
-          tableId,
-          reservationTime,
-          partySize,
-          customerName,
-          phoneNumber,
-          specialRequests,
-        ]
-      );
-
-      return result.rows[0];
-    } catch (error) {
-      console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
       throw error;
     }
   }
