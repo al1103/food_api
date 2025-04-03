@@ -42,6 +42,7 @@ const auth = async (req, res, next) => {
 
       // Set the user in the request
       const user = result.rows[0];
+      console.log("user", user);
 
       // Đảm bảo userId và user_id đều được đặt để tương thích với cả hai cách sử dụng
       req.user = {
@@ -58,8 +59,7 @@ const auth = async (req, res, next) => {
       // Log để debug
       console.log("User authentication successful:", {
         user_id: user.user_id,
-        userId: req.user.userId,
-        userDataUserId: req.userData.userId,
+        userId: req.user.user_id,
       });
 
       next();

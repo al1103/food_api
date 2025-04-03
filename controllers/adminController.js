@@ -655,11 +655,12 @@ exports.createTable = async (req, res) => {
     }
 
     // Validate status
-    const validStatuses = ["available", "occupied", "reserved", "maintenance"];
+    const validStatuses = ["available", "occupied"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         statusCode: 500,
-        message: "Trạng thái bàn không hợp lệ",
+        message:
+          "Trạng thái bàn không hợp lệ - Chỉ chấp nhận: available, occupied",
       });
     }
 
@@ -750,61 +751,61 @@ exports.updateTable = async (req, res) => {
 };
 
 // Delete table
-exports.deleteTable = async (req, res) => {
-  try {
-    const tableId = req.params.id;
+// exports.deleteTable = async (req, res) => {
+//   try {
+//     const tableId = req.params.id;
 
-    // Use model to delete table (which includes validation checks)
-    const result = await AdminModel.deleteTable(tableId);
+//     // Use model to delete table (which includes validation checks)
+//     const result = await AdminModel.deleteTable(tableId);
 
-    res.status(200).json({
-      statusCode: 200,
-      message: result.message,
-    });
-  } catch (error) {
-    console.error("Error deleting table:", error);
-    res.status(500).json({
-      statusCode: 500,
-      message: "Không thể xóa bàn",
-      error: error.message,
-    });
-  }
-};
+//     res.status(200).json({
+//       statusCode: 200,
+//       message: result.message,
+//     });
+//   } catch (error) {
+//     console.error("Error deleting table:", error);
+//     res.status(500).json({
+//       statusCode: 500,
+//       message: "Không thể xóa bàn",
+//       error: error.message,
+//     });
+//   }
+// };
 
 // Get tables availability status summary
-exports.getTableAvailability = async (req, res) => {
-  try {
-    // Use model to get availability data
-    const availability = await AdminModel.getTableAvailability();
+// exports.getTableAvailability = async (req, res) => {
+//   try {
+//     // Use model to get availability data
+//     const availability = await AdminModel.getTableAvailability();
 
-    // Get current date and time for client reference
-    const currentDateTime = new Date().toISOString();
+//     // Get current date and time for client reference
+//     const currentDateTime = new Date().toISOString();
 
-    // Format response to match current structure
-    const statusSummary = Object.entries(availability)
-      .filter(([key]) => key !== "total")
-      .map(([status, count]) => ({
-        status,
-        count,
-      }));
+//     // Format response to match current structure
+//     const statusSummary = Object.entries(availability)
+//       .filter(([key]) => key !== "total")
+//       .map(([status, count]) => ({
+//         status,
+//         count,
+//       }));
 
-    res.status(200).json({
-      statusCode: 200,
-      data: {
-        statusSummary,
-        currentDateTime,
-        totalCount: availability.total,
-      },
-    });
-  } catch (error) {
-    console.error("Error getting table availability:", error);
-    res.status(500).json({
-      statusCode: 500,
-      message: "Không thể lấy thông tin khả dụng của bàn",
-      error: error.message,
-    });
-  }
-};
+//     res.status(200).json({
+//       statusCode: 200,
+//       data: {
+//         statusSummary,
+//         currentDateTime,
+//         totalCount: availability.total,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error getting table availability:", error);
+//     res.status(500).json({
+//       statusCode: 500,
+//       message: "Không thể lấy thông tin khả dụng của bàn",
+//       error: error.message,
+//     });
+//   }
+// };
 
 // Get confirmed reserved tables by user
 exports.getConfirmedReservedTables = async (req, res) => {

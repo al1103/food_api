@@ -116,15 +116,14 @@ class AdminModel {
       const detailsQuery = `
         SELECT 
           od.id AS "id",
-          od.dish_id AS "dishId",
+          od.id AS "dishId",
           d.name AS "dishName",
-          d.image_url AS "imageUrl",
           od.quantity AS "quantity",
           od.price AS "price",
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.dish_id
+        JOIN dishes d ON od.id = d.id
         WHERE od.order_id = $1
       `;
 
@@ -476,7 +475,7 @@ class AdminModel {
           SUM(od.quantity) AS "count",
           d.price
         FROM order_details od
-        JOIN dishes d ON od.dish_id = d.id
+        JOIN dishes d ON od.id = d.id
         JOIN orders o ON od.order_id = o.order_id
         WHERE o.status = 'completed'
         GROUP BY d.id, d.name, d.price
@@ -772,12 +771,12 @@ class AdminModel {
       const result = await client.query(`
         WITH top_dishes AS (
           SELECT 
-            d.dish_id
+            d.id
           FROM dishes d
-          JOIN order_details od ON d.dish_id = od.dish_id
+          JOIN order_details od ON d.id = od.id
           JOIN orders o ON od.order_id = o.order_id
           WHERE o.status = 'completed'
-          GROUP BY d.dish_id
+          GROUP BY d.id
           ORDER BY SUM(od.quantity) DESC
           LIMIT 5
         )
@@ -1030,74 +1029,74 @@ class AdminModel {
     }
   }
 
-  static async deleteTable(tableId) {
-    try {
-      // Check if table is used in any active orders
-      const orderCheckQuery = `
-        SELECT 1 FROM orders WHERE table_id = $1 AND status != 'completed' LIMIT 1
-      `;
+  // static async deleteTable(tableId) {
+  //   try {
+  //     // Check if table is used in any active orders
+  //     const orderCheckQuery = `
+  //       SELECT 1 FROM orders WHERE table_id = $1 AND status != 'completed' LIMIT 1
+  //     `;
 
-      const orderCheckResult = await pool.query(orderCheckQuery, [tableId]);
+  //     const orderCheckResult = await pool.query(orderCheckQuery, [tableId]);
 
-      if (orderCheckResult.rows.length > 0) {
-        throw new Error("Không thể xóa bàn đang được sử dụng trong đơn hàng");
-      }
+  //     if (orderCheckResult.rows.length > 0) {
+  //       throw new Error("Không thể xóa bàn đang được sử dụng trong đơn hàng");
+  //     }
 
-      // Check if table is used in any active reservations
-      const reservationCheckQuery = `
-        SELECT 1 FROM reservations WHERE table_id = $1 AND status = 'pending' LIMIT 1
-      `;
+  //     // Check if table is used in any active reservations
+  //     const reservationCheckQuery = `
+  //       SELECT 1 FROM reservations WHERE table_id = $1 AND status = 'pending' LIMIT 1
+  //     `;
 
-      const reservationCheckResult = await pool.query(reservationCheckQuery, [
-        tableId,
-      ]);
+  //     const reservationCheckResult = await pool.query(reservationCheckQuery, [
+  //       tableId,
+  //     ]);
 
-      if (reservationCheckResult.rows.length > 0) {
-        throw new Error("Không thể xóa bàn đang có đặt chỗ");
-      }
+  //     if (reservationCheckResult.rows.length > 0) {
+  //       throw new Error("Không thể xóa bàn đang có đặt chỗ");
+  //     }
 
-      const deleteQuery = "DELETE FROM tables WHERE table_id = $1";
-      await pool.query(deleteQuery, [tableId]);
+  //     const deleteQuery = "DELETE FROM tables WHERE table_id = $1";
+  //     await pool.query(deleteQuery, [tableId]);
 
-      return { success: true, message: "Xóa bàn thành công" };
-    } catch (error) {
-      console.error("Error deleting table:", error);
-      throw error;
-    }
-  }
+  //     return { success: true, message: "Xóa bàn thành công" };
+  //   } catch (error) {
+  //     console.error("Error deleting table:", error);
+  //     throw error;
+  //   }
+  // }
 
-  static async getTableAvailability() {
-    try {
-      const query = `
-        SELECT 
-          status,
-          COUNT(*) AS count
-        FROM tables
-        GROUP BY status
-      `;
+  // static async getTableAvailability() {
+  //   try {
+  //     const query = `
+  //       SELECT
+  //         status,
+  //         COUNT(*) AS count
+  //       FROM tables
+  //       GROUP BY status
+  //     `;
 
-      const result = await pool.query(query);
+  //     const result = await pool.query(query);
 
-      // Transform into a more friendly format
-      const availability = {
-        available: 0,
-        occupied: 0,
-        reserved: 0,
-        maintenance: 0,
-        total: 0,
-      };
+  //     // Transform into a more friendly format
+  //     const availability = {
+  //       available: 0,
+  //       occupied: 0,
+  //       reserved: 0,
+  //       maintenance: 0,
+  //       total: 0,
+  //     };
 
-      result.rows.forEach((row) => {
-        availability[row.status] = parseInt(row.count);
-        availability.total += parseInt(row.count);
-      });
+  //     result.rows.forEach((row) => {
+  //       availability[row.status] = parseInt(row.count);
+  //       availability.total += parseInt(row.count);
+  //     });
 
-      return availability;
-    } catch (error) {
-      console.error("Error getting table availability:", error);
-      throw error;
-    }
-  }
+  //     return availability;
+  //   } catch (error) {
+  //     console.error("Error getting table availability:", error);
+  //     throw error;
+  //   }
+  // }
 
   // Get confirmed reserved tables by user
   static async getConfirmedReservedTables(page = 1, limit = 10, filters = {}) {
@@ -1120,7 +1119,7 @@ class AdminModel {
           t.capacity,
           u.username,
           u.email,
-          u.phone_number
+          u.phone_number_number
         FROM 
           reservations r
         JOIN 
