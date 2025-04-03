@@ -291,172 +291,47 @@ class AdminTableController {
     }
   }
 
-  // Đặt bàn trước
-  async reserveTable(req, res) {
+  
+  // Lấy danh sách yêu cầu đặt bàn theo trạng thái
+  async getReservationsByStatus(req, res) {
     try {
-      const { tableId } = req.params;
-      const { reservationTime } = req.body;
+      const { status } = req.query;
 
-      // Kiểm tra đầu vào
-      if (!reservationTime) {
+      // Default status is 'pending' if not specified
+      const statusFilter = status || "pending";
+
+      // Validate status parameter
+      const validStatuses = ["pending", "confirmed", "canceled"];
+      if (!validStatuses.includes(statusFilter)) {
         return ApiResponse.error(
           res,
           400,
-          "Vui lòng cung cấp thời gian đặt bàn"
+          "Trạng thái không hợp lệ. Các giá trị hợp lệ: pending, confirmed, canceled"
         );
       }
 
-      // Đặt bàn trước
-      const reservedTable = await TableModel.reserveTable(
-        tableId,
-        reservationTime
+      // Get reservations with status filter
+      const reservations = await TableModel.getReservationsByStatus(
+        statusFilter
       );
 
-      return ApiResponse.success(
-        res,
-        200,
-        "Đặt bàn trước thành công",
-        reservedTable
-      );
-    } catch (error) {
-      console.error("Lỗi khi đặt bàn trước:", error);
-      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi đặt bàn trước");
-    }
-  }
-
-  // Đặt bàn trước với số lượng người, ngày giờ và ghi chú
-  async reserveTableWithDetails(req, res) {
-    try {
-      const { numberOfGuests, reservationTime, note } = req.body;
-
-      // Kiểm tra đầu vào
-      if (!numberOfGuests || !reservationTime) {
-        return ApiResponse.error(
-          res,
-          400,
-          "Vui lòng cung cấp số lượng người và thời gian đặt bàn"
-        );
+      // Create appropriate message based on status
+      let message;
+      switch (statusFilter) {
+        case "pending":
+          message = "Lấy danh sách yêu cầu đặt bàn đang chờ thành công";
+          break;
+        case "confirmed":
+          message = "Lấy danh sách đặt bàn đã xác nhận thành công";
+          break;
+        case "canceled":
+          message = "Lấy danh sách đặt bàn đã hủy thành công";
+          break;
+        default:
+          message = "Lấy danh sách tất cả yêu cầu đặt bàn thành công";
       }
 
-      // Đặt bàn trước
-      const reservedTable = await TableModel.reserveTableWithDetails(
-        numberOfGuests,
-        reservationTime,
-        note || null
-      );
-
-      return ApiResponse.success(
-        res,
-        200,
-        "Đặt bàn trước thành công",
-        reservedTable
-      );
-    } catch (error) {
-      console.error("Lỗi khi đặt bàn trước:", error);
-      return ApiResponse.error(res, 500, "Đã xảy ra lỗi khi đặt bàn trước");
-    }
-  }
-
-  // Hủy đặt bàn
-
-  // Client gửi yêu cầu đặt bàn
-  async createReservationRequest(req, res) {
-    try {
-      const {
-        tableId,
-        reservationTime,
-        partySize,
-        customerName,
-        phoneNumber,
-        specialRequests,
-      } = req.body;
-
-      // Lấy userId từ token (giả sử middleware đã giải mã token và lưu userId vào req.user)
-      const userId = req.user.id;
-
-      // Kiểm tra đầu vào
-      if (!reservationTime || !partySize || !customerName || !phoneNumber) {
-        return ApiResponse.error(
-          res,
-          400,
-          "Vui lòng cung cấp đầy đủ thông tin yêu cầu đặt bàn"
-        );
-      }
-
-      // Lưu yêu cầu đặt bàn
-      const reservation = await TableModel.createReservationRequest(
-        userId,
-        tableId || null,
-        reservationTime,
-        partySize,
-        customerName,
-        phoneNumber,
-        specialRequests || null
-      );
-
-      return ApiResponse.success(
-        res,
-        201,
-        "Yêu cầu đặt bàn đã được gửi",
-        reservation
-      );
-    } catch (error) {
-      console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
-      return ApiResponse.error(
-        res,
-        500,
-        "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn"
-      );
-    }
-  }
-
-  // Admin xác nhận yêu cầu đặt bàn
-  async confirmReservation(req, res) {
-    try {
-      const { reservationId, tableId } = req.body;
-
-      // Kiểm tra đầu vào
-      if (!reservationId || !tableId) {
-        return ApiResponse.error(
-          res,
-          400,
-          "Vui lòng cung cấp ID yêu cầu đặt bàn và ID bàn"
-        );
-      }
-
-      // Xác nhận yêu cầu đặt bàn
-      const confirmedReservation = await TableModel.confirmReservation(
-        reservationId,
-        tableId
-      );
-
-      return ApiResponse.success(
-        res,
-        200,
-        "Yêu cầu đặt bàn đã được xác nhận",
-        confirmedReservation
-      );
-    } catch (error) {
-      console.error("Lỗi khi xác nhận yêu cầu đặt bàn:", error);
-      return ApiResponse.error(
-        res,
-        500,
-        "Đã xảy ra lỗi khi xác nhận yêu cầu đặt bàn"
-      );
-    }
-  }
-
-  // Lấy danh sách yêu cầu đặt bàn
-  async getPendingReservations(req, res) {
-    try {
-      const reservations = await TableModel.getPendingReservations();
-
-      return ApiResponse.success(
-        res,
-        200,
-        "Lấy danh sách yêu cầu đặt bàn thành công",
-        reservations
-      );
+      return ApiResponse.success(res, 200, message, reservations);
     } catch (error) {
       console.error("Lỗi khi lấy danh sách yêu cầu đặt bàn:", error);
       return ApiResponse.error(
@@ -466,8 +341,70 @@ class AdminTableController {
       );
     }
   }
+  // Admin xác nhận hoặc hủy yêu cầu đặt bàn
+  async updateReservationStatus(req, res) {
+    try {
+      const { reservationId } = req.params;
+      const { status, tableId } = req.body;
 
-  // Hủy yêu cầu đặt bàn
+      if (!reservationId) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp ID của yêu cầu đặt bàn"
+        );
+      }
+
+      if (!status || !["confirmed", "canceled"].includes(status)) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp trạng thái hợp lệ: confirmed hoặc canceled"
+        );
+      }
+
+      // Nếu xác nhận đặt bàn, cần có tableId
+      if (status === "confirmed" && !tableId) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Vui lòng cung cấp ID bàn để xác nhận đặt bàn"
+        );
+      }
+
+      let result;
+
+      if (status === "confirmed") {
+        // Gọi phương thức xác nhận đặt bàn
+        result = await TableModel.confirmReservation(reservationId, tableId);
+
+        return ApiResponse.success(
+          res,
+          200,
+          "Xác nhận đặt bàn thành công",
+          result
+        );
+      } else {
+        // Gọi phương thức hủy yêu cầu đặt bàn
+        result = await TableModel.cancelReservationRequest(reservationId);
+
+        return ApiResponse.success(
+          res,
+          200,
+          "Hủy yêu cầu đặt bàn thành công",
+          result
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái đặt bàn:", error);
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi cập nhật trạng thái đặt bàn",
+        { error: error.message }
+      );
+    }
+  }
   async cancelReservationRequest(req, res) {
     try {
       const { reservationId } = req.params;
