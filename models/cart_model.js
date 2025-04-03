@@ -22,7 +22,7 @@ class CartModel {
           c.updated_at,
           d.name AS dish_name,
           d.category_id,  -- Thay category bằng category_id
-          d.description,
+          d.idescription,
           d.price AS base_price,
           COALESCE(d.available, true) AS is_available,
           ds.size_name,

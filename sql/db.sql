@@ -276,7 +276,7 @@ SELECT
   od.id,
   od.order_id,
   o.user_id,
-  od.dish_id,
+  od.id,
   d.name AS dish_name,
   d.category AS dish_category,
   od.quantity,
@@ -286,5 +286,5 @@ SELECT
   od.created_at
 FROM order_details od
 JOIN orders o ON od.order_id = o.order_id
-JOIN dishes d ON od.dish_id = d.dish_id;
+JOIN dishes d ON od.id = d.id;
 
