@@ -415,7 +415,7 @@ exports.verifyRegistration = async (req, res) => {
           `INSERT INTO wallet_transactions (
             user_id, amount, transaction_type, reference_id, description, created_at
           ) VALUES (
-            $1, $2, 'signup_bonus', $3, 'Thưởng giới thiệu đăng ký thành công', NOW()
+            $1, $2, 'signup_bonus', $3, 'Thưởng giới thiệu đăng ký thành công', NOW() 
           )`,
           [referrerId, signupBonus, userId]
         );
