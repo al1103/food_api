@@ -789,6 +789,28 @@ class UserModel {
       throw error;
     }
   }
+
+  static async getUserWalletBalance(userId) {
+    try {
+      const result = await pool.query(
+        `SELECT wallet_balance AS "walletBalance" 
+         FROM users 
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Người dùng không tồn tại");
+      }
+
+      return {
+        walletBalance: parseFloat(result.rows[0].walletBalance),
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy số dư ví:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = UserModel;

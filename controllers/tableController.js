@@ -1,5 +1,8 @@
 const TableModel = require("../models/table_model");
 const OrderModel = require("../models/order_model");
+const UserModel = require("../models/user_model");
+const WalletModel = require("../models/wallet_model");
+
 const ReservationModel = require("../models/reservation_model");
 const ApiResponse = require("../utils/apiResponse");
 
@@ -50,8 +53,13 @@ exports.getTableById = async (req, res) => {
 };
 exports.createReservationRequest = async (req, res) => {
   try {
-    const { reservationTime, partySize, specialRequests, orderedItems } =
-      req.body;
+    const {
+      reservationTime,
+      partySize,
+      specialRequests,
+      orderedItems,
+      amount,
+    } = req.body;
     const userId = req.user.userId;
 
     // Log the received time for debugging
@@ -68,6 +76,27 @@ exports.createReservationRequest = async (req, res) => {
         400,
         "Vui lòng cung cấp thời gian đặt bàn hợp lệ và số khách"
       );
+    }
+
+    // Validate amount if provided
+    let transactionAmount = 0;
+    if (amount) {
+      if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        return ApiResponse.error(res, 400, "Số tiền không hợp lệ");
+      }
+      transactionAmount = parseFloat(amount);
+    }
+
+    // Check if user wallet has enough balance if amount is provided
+    if (transactionAmount > 0) {
+      const userWallet = await UserModel.getUserWalletBalance(userId);
+      if (!userWallet || userWallet.walletBalance < transactionAmount) {
+        return ApiResponse.error(
+          res,
+          400,
+          "Số dư ví không đủ để thực hiện giao dịch"
+        );
+      }
     }
 
     // Format the date properly for PostgreSQL
@@ -131,12 +160,24 @@ exports.createReservationRequest = async (req, res) => {
         orderId // This might be null if no order was created
       );
 
-      return ApiResponse.success(
-        res,
-        201,
-        "Yêu cầu đặt bàn đã được gửi",
-        reservation
-      );
+      // Process wallet transaction if amount is provided
+      let transactionData = null;
+      if (transactionAmount > 0) {
+        // Fix: Call createTransaction with individual parameters instead of an object
+        transactionData = await WalletModel.processReservationPayment(
+          userId,
+          transactionAmount,
+          reservation.id,
+          `Thanh toán đặt bàn cho ${partySize} người vào ${new Date(
+            formattedReservationTime
+          ).toLocaleString()}`
+        );
+      }
+
+      return ApiResponse.success(res, 201, "Yêu cầu đặt bàn đã được gửi", {
+        reservation: reservation,
+        transaction: transactionData,
+      });
     } catch (reservationError) {
       console.error("Error creating reservation:", reservationError);
 
@@ -160,7 +201,6 @@ exports.createReservationRequest = async (req, res) => {
     }
   } catch (error) {
     console.error("Lỗi khi tạo yêu cầu đặt bàn:", error);
-    console.error("Error details:", error.stack);
     return ApiResponse.error(
       res,
       500,
