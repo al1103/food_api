@@ -9,6 +9,58 @@ class DishModel {
    * @param {number} categoryId - Optional category ID filter
    * @returns {Promise<Object>} - Pagination details and dish data
    */
+
+  /**
+   * Get top-rated dishes
+   * @param {number} limit - Number of items to return
+   * @returns {Promise<Array>} - Array of top-rated dishes
+   */
+  static async getTopDishes(limit = 5) {
+    try {
+      const query = `
+        SELECT 
+          d.id, 
+          d.name, 
+          d.description,
+          d.price,
+          d.preparation_time AS "preparationTime",
+          d.image,
+          d.category_id AS "categoryId",
+          c.name AS "categoryName",
+          COALESCE(AVG(dr.rating), 0) AS "averageRating",
+          COUNT(dr.id) AS "ratingCount",
+          COUNT(DISTINCT od.order_id) AS "orderCount"
+        FROM dishes d
+        LEFT JOIN categories c ON d.category_id = c.id
+        LEFT JOIN dish_ratings dr ON d.id = dr.dish_id
+        LEFT JOIN order_details od ON d.id = od.dish_id
+        WHERE d.available = true
+        GROUP BY d.id, c.name
+        ORDER BY "averageRating" DESC, "orderCount" DESC
+        LIMIT $1
+      `;
+
+      const result = await pool.query(query, [limit]);
+
+      // Transform results for API response
+      return result.rows.map((dish) => ({
+        id: dish.id,
+        name: dish.name,
+        description: dish.description,
+        price: parseFloat(dish.price),
+        preparationTime: dish.preparationTime,
+        imageUrl: dish.image,
+        categoryId: dish.categoryId,
+        categoryName: dish.categoryName,
+        averageRating: parseFloat(dish.averageRating).toFixed(1),
+        ratingCount: parseInt(dish.ratingCount),
+        orderCount: parseInt(dish.orderCount),
+      }));
+    } catch (error) {
+      console.error("Error getting top dishes:", error);
+      throw error;
+    }
+  }
   static async getAllDishes(page, limit, offset, categoryId) {
     try {
       let countQuery = "SELECT COUNT(*) FROM dishes";
@@ -477,13 +529,14 @@ class DishModel {
    */
   static async getDishCategories() {
     const query = `
-      SELECT DISTINCT category 
-      FROM dishes 
-      ORDER BY category
+      SELECT DISTINCT c.id, c.name
+      FROM dishes d
+      JOIN categories c ON d.category_id = c.id
+      ORDER BY c.name
     `;
 
     const result = await pool.query(query);
-    return result.rows.map((row) => row.category);
+    return result.rows;
   }
 
   /**
@@ -514,11 +567,15 @@ class DishModel {
    * @returns {Promise<Object>} - Count and rows of combo dishes
    */
   static async getComboDishes(limit, offset) {
-    const countQuery = "SELECT COUNT(*) FROM dishes WHERE category = 'Combo'";
+    const countQuery = `
+      SELECT COUNT(*) FROM dishes d
+      JOIN categories c ON d.category_id = c.id
+      WHERE c.name = 'Combo'`;
     const dishesQuery = `
-      SELECT * FROM dishes 
-      WHERE category = 'Combo'
-      ORDER BY created_at DESC 
+      SELECT d.* FROM dishes d
+      JOIN categories c ON d.category_id = c.id
+      WHERE c.name = 'Combo'
+      ORDER BY d.created_at DESC 
       LIMIT $1 OFFSET $2
     `;
 

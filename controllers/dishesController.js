@@ -2,7 +2,30 @@ const DishModel = require("../models/dishes_model");
 const { pool } = require("../config/database");
 const { getPaginationParams } = require("../utils/pagination");
 const cloudinary = require("../config/cloudinary");
+const ApiResponse = require("../utils/apiResponse");
+
 const fs = require("fs");
+
+// Add this to your dishesController.js file
+exports.getTopDishes = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    const dishes = await DishModel.getTopDishes(limit);
+
+    // Fix: Add the status code as the second parameter (200 for success)
+    return ApiResponse.success(res, 200, {
+      message: "Lấy danh sách món ăn phổ biến thành công",
+      data: dishes,
+    });
+  } catch (error) {
+    console.error("Error in getTopDishes controller:", error);
+    return ApiResponse.error(
+      res,
+      500,
+      "Đã xảy ra lỗi khi lấy danh sách món ăn phổ biến"
+    );
+  }
+};
 
 exports.getAllDishes = async (req, res) => {
   try {
@@ -681,7 +704,7 @@ exports.getDishesByCategory = async (req, res) => {
         statusCode: 404,
         message: "Category not found",
       });
-    } 
+    }
 
     const result = await DishModel.getDishesByCategory(
       parseInt(categoryId),

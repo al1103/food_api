@@ -21,7 +21,6 @@ pool
   .then((client) => {
     console.log("🚀 Connected to PostgreSQL database");
     client.release(); // Release the client back to the pool
-    
   })
   .catch((err) => {
     console.error("❌ Database Connection Failed:", err);

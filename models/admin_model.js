@@ -798,33 +798,6 @@ class AdminModel {
     }
   }
 
-  static async getTopDishes() {
-    try {
-      const query = `
-        SELECT 
-          dish_id AS "dishId",
-          name,
-          description,
-          price,
-          image_url AS "imageUrl",
-          category,
-          available,
-          is_top AS "isTop",
-          created_at AS "createdAt",
-          updated_at AS "updatedAt"
-        FROM dishes
-        WHERE is_top = TRUE
-        ORDER BY updated_at DESC
-      `;
-
-      const result = await pool.query(query);
-
-      return result.rows;
-    } catch (error) {
-      console.error("Error getting top dishes:", error);
-      throw error;
-    }
-  }
 
   // --- Table management methods ---
   static async getAllTables(page = 1, limit = 10, filters = {}) {
