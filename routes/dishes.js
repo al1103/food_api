@@ -22,6 +22,10 @@ router.get("/category/:categoryId", dishesController.getDishesByCategory); // Ch
 // Toppings route
 router.get("/toppings", dishesController.getAllToppings);
 
+// Add this route before the general routes
+// Public route for top dishes
+router.get("/top", dishesController.getTopDishes);
+
 // Public routes
 router.get("/", dishesController.getAllDishes);
 router.get("/:id", dishesController.getDishById);
