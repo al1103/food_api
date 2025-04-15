@@ -6,11 +6,13 @@ const dishesRoutes = require("./dishes");
 const orderRoutes = require("./order");
 const orderDetailRoutes = require("./orderdetail");
 const reservationRoutes = require("./Reservations");
-const adminRoutes = require("./adminRoutes"); // Add admin routes
+const adminRoutes = require("./adminRoutes");
 const cartRoutes = require("./cart");
 const uploadRoutes = require("./uploadRoutes");
 const notificationsRoutes = require("./notificationRoutes");
 const adminTableRoutes = require("./adminTableRoutes");
+const paymentRoutes = require("./paymentRoutes");
+
 function routes(app) {
   // User management
   app.use("/api/users", usersRouter);
@@ -37,9 +39,13 @@ function routes(app) {
   // In your app.js file
   app.use("/api/cart", cartRoutes);
 
+  // Payment routes
+  app.use("/api/payments", paymentRoutes);
+
   // Upload management
   app.use("/api/uploads", uploadRoutes);
   app.use("/api/admin", adminTableRoutes);
+
   // Error handling middleware
   app.use((err, req, res, next) => {
     console.error(err.stack);
