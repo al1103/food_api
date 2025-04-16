@@ -4,7 +4,7 @@ const axios = require("axios");
 const CryptoJS = require("crypto-js");
 const moment = require("moment");
 const { pool } = require("../config/database");
-
+const QRCode = require("qrcode"); // Add this import
 const { auth } = require("../middleware/roleAuth"); // Assuming you have auth middleware
 
 // Get payment settings from database
@@ -91,7 +91,7 @@ router.post("/create-payment", auth, async (req, res) => {
       item: JSON.stringify(items),
       embed_data: JSON.stringify(embed_data),
       amount: parseInt(amount),
-      callback_url: "YOUR_CALLBACK_URL", // Replace with your actual callback URL
+      callback_url: "zilongpro.me", // Replace with your actual callback URL
       description: description || `Payment for order #${order_id}`,
       bank_code: req.body.bank_code || "zalopayapp",
     };
@@ -135,13 +135,27 @@ router.post("/create-payment", auth, async (req, res) => {
 
     const payment_id = paymentResult.rows[0].payment_id;
 
-    // Return payment info
+    // Generate QR code from order URL
+    const qrCodeDataURL = await QRCode.toDataURL(result.data.order_url, {
+      margin: 2,
+      width: 300,
+      color: {
+        dark: "#000000",
+        light: "#ffffff",
+      },
+    });
+
+    // Return payment info with QR code
     return res.status(200).json({
       status: "success",
       payment_id: payment_id,
       app_trans_id: appTransId,
       order_url: result.data.order_url,
       zp_trans_token: result.data.zp_trans_token,
+      qr_code: qrCodeDataURL,
+      amount: parseInt(amount),
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes expiry
+      description: description,
     });
   } catch (error) {
     console.error("Payment creation error:", error);
