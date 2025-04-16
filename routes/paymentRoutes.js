@@ -12,8 +12,9 @@ async function getPaymentSettings(provider = "zalopay") {
   try {
     const result = await pool.query(
       "SELECT * FROM payment_settings WHERE provider = $1 AND is_active = true",
-      [provider]
+      [provider],
     );
+
     return result.rows[0];
   } catch (error) {
     console.error("Error getting payment settings:", error);
@@ -30,7 +31,7 @@ router.post("/create-payment", auth, async (req, res) => {
       description = "Payment for order",
       redirect_url,
     } = req.body;
-    const user_id = req.user.id;
+    const user_id = req.user.userId;
 
     // Validate required fields
     if (!order_id || !amount) {
@@ -43,8 +44,10 @@ router.post("/create-payment", auth, async (req, res) => {
     // Get order details to confirm it exists and belongs to user
     const orderResult = await pool.query(
       "SELECT * FROM orders WHERE order_id = $1 AND user_id = $2",
-      [order_id, user_id]
+      [order_id, user_id],
     );
+    console.log("rows");
+    console.log(orderResult.rows);
 
     if (orderResult.rows.length === 0) {
       return res.status(404).json({
@@ -69,8 +72,8 @@ router.post("/create-payment", auth, async (req, res) => {
 
     // Create items array for display
     const orderItems = await pool.query(
-      "SELECT d.dish_name, od.quantity, od.price FROM order_details od JOIN dishes d ON od.dish_id = d.dish_id WHERE od.order_id = $1",
-      [order_id]
+      "SELECT d.name, od.quantity, od.price FROM order_details od JOIN dishes d ON od.dish_id = d.id WHERE od.order_id = $1",
+      [order_id],
     );
 
     const items = orderItems.rows.map((item) => ({
@@ -127,7 +130,7 @@ router.post("/create-payment", auth, async (req, res) => {
         "zalopay",
         "pending",
         redirect_url,
-      ]
+      ],
     );
 
     const payment_id = paymentResult.rows[0].payment_id;
@@ -170,14 +173,14 @@ router.get("/check-status/:app_trans_id", auth, async (req, res) => {
     // Send request to ZaloPay
     const result = await axios.post(
       "https://sb-openapi.zalopay.vn/v2/query",
-      postData
+      postData,
     );
 
     // Update payment status in database
     if (result.data.return_code === 1) {
       await pool.query(
         "UPDATE payments SET status = $1, zp_trans_id = $2, updated_at = NOW() WHERE app_trans_id = $3",
-        ["completed", result.data.zp_trans_id, app_trans_id]
+        ["completed", result.data.zp_trans_id, app_trans_id],
       );
 
       // Log transaction
@@ -192,7 +195,7 @@ router.get("/check-status/:app_trans_id", auth, async (req, res) => {
           result.data.return_message,
           "completed",
           JSON.stringify(result.data),
-        ]
+        ],
       );
     }
 
@@ -247,7 +250,7 @@ router.post("/callback", async (req, res) => {
             dataJson.zp_trans_id,
             JSON.stringify(dataJson),
             dataJson.app_trans_id,
-          ]
+          ],
         );
 
         // Log transaction
@@ -262,13 +265,13 @@ router.post("/callback", async (req, res) => {
             "Success from callback",
             "completed",
             JSON.stringify(dataJson),
-          ]
+          ],
         );
 
         // Update order status
         await pool.query(
           "UPDATE orders SET status = $1, payment_status = $2, updated_at = NOW() WHERE order_id = $3",
-          ["processing", "paid", embedData.orderId]
+          ["processing", "paid", embedData.orderId],
         );
       }
 
