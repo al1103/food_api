@@ -25,7 +25,7 @@ app.use(bodyParser.json());
  * description: tạo đơn hàng và xử lý thanh toán
  */
 app.post("/payment", async (req, res) => {
-  try {
+  try { 
     // Get order data from request body
     const {
       amount = 50000,

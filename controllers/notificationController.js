@@ -1,6 +1,5 @@
 const { pool } = require("../config/database");
 const NotificationModel = require("../models/notification_model");
-const UserModel = require("../models/user_model");
 
 // Store active SSE connections
 const sseClients = {
@@ -21,7 +20,7 @@ class NotificationController {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(userId)) {
       console.warn(
-        `Invalid UUID format for userId: ${userId}. This may cause issues.`
+        `Invalid UUID format for userId: ${userId}. This may cause issues.`,
       );
     }
 
@@ -32,7 +31,7 @@ class NotificationController {
   static async createOrderNotification(orderId, userId, status) {
     try {
       console.log(
-        `Creating notification for order: ${orderId}, status: ${status}`
+        `Creating notification for order: ${orderId}, status: ${status}`,
       );
       userId = NotificationController.validateUserId(userId);
 
@@ -49,7 +48,7 @@ class NotificationController {
       };
 
       const adminNotifResult = await NotificationModel.createNotification(
-        adminNotification
+        adminNotification,
       );
 
       // Send SSE notification to all admins
@@ -69,7 +68,7 @@ class NotificationController {
         };
 
         const userNotifResult = await NotificationModel.createNotification(
-          userNotification
+          userNotification,
         );
 
         // Send SSE notification to the user
@@ -101,7 +100,7 @@ class NotificationController {
       const notifications = await NotificationModel.getNotificationsByUserId(
         userId,
         page,
-        limit
+        limit,
       );
 
       return res.status(200).json({
@@ -125,7 +124,7 @@ class NotificationController {
 
       const notifications = await NotificationModel.getAdminNotifications(
         page,
-        limit
+        limit,
       );
 
       return res.status(200).json({
@@ -202,7 +201,7 @@ class NotificationController {
   static async integrateWithOrderUpdate(orderId, userId, oldStatus, newStatus) {
     try {
       console.log(
-        `Creating notification for order status update: ${orderId}, ${oldStatus} -> ${newStatus}`
+        `Creating notification for order status update: ${orderId}, ${oldStatus} -> ${newStatus}`,
       );
       userId = NotificationController.validateUserId(userId);
 
@@ -220,7 +219,7 @@ class NotificationController {
 
       // Tạo thông báo cho admin
       const adminNotifResult = await NotificationModel.createNotification(
-        adminNotification
+        adminNotification,
       );
       NotificationController.sendSSEToAllAdmins(adminNotifResult);
 
@@ -230,7 +229,7 @@ class NotificationController {
           title: "Cập nhật trạng thái đơn hàng",
           content: NotificationController.getOrderStatusMessage(
             orderId,
-            newStatus
+            newStatus,
           ),
           type: "order_status",
           referenceId: orderId,
@@ -242,7 +241,7 @@ class NotificationController {
 
         // Tạo thông báo cho user
         const userNotifResult = await NotificationModel.createNotification(
-          userNotification
+          userNotification,
         );
         NotificationController.sendSSEToUser(userId, userNotifResult);
       }
@@ -252,7 +251,7 @@ class NotificationController {
     } catch (error) {
       console.error(
         "Error in notificationController.integrateWithOrderUpdate:",
-        error
+        error,
       );
       // Don't throw, just log the error
       return false;
@@ -266,12 +265,12 @@ class NotificationController {
       return await NotificationController.createOrderNotification(
         newOrder.orderId,
         userId,
-        newOrder.status
+        newOrder.status,
       );
     } catch (error) {
       console.error(
         "Error in notificationController.integrateWithOrderCreate:",
-        error
+        error,
       );
       // Don't throw, just log the error
       return false;
@@ -347,7 +346,7 @@ class NotificationController {
         `data: ${JSON.stringify({
           type: "connection",
           message: "SSE connected",
-        })}\n\n`
+        })}\n\n`,
       );
 
       // Lưu kết nối vào Map
@@ -385,7 +384,7 @@ class NotificationController {
         `data: ${JSON.stringify({
           type: "connection",
           message: "Admin SSE connected",
-        })}\n\n`
+        })}\n\n`,
       );
 
       // Lưu kết nối vào Set

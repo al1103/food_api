@@ -135,15 +135,23 @@ router.post("/create-payment", auth, async (req, res) => {
 
     const payment_id = paymentResult.rows[0].payment_id;
 
-    // Generate QR code from order URL
-    const qrCodeDataURL = await QRCode.toDataURL(result.data.order_url, {
-      margin: 2,
-      width: 300,
-      color: {
-        dark: "#000000",
-        light: "#ffffff",
-      },
-    });
+    // Generate QR code from order URL with proper error handling
+    let qrCodeDataURL;
+    try {
+      qrCodeDataURL = await QRCode.toDataURL(result.data.order_url, {
+        margin: 2,
+        width: 300,
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+      console.log("QR code generated successfully");
+    } catch (qrError) {
+      console.error("QR code generation error:", qrError);
+      // Still continue with the response but without QR code
+      qrCodeDataURL = null;
+    }
 
     // Return payment info with QR code
     return res.status(200).json({
@@ -284,8 +292,8 @@ router.post("/callback", async (req, res) => {
 
         // Update order status
         await pool.query(
-          "UPDATE orders SET status = $1, payment_status = $2, updated_at = NOW() WHERE order_id = $3",
-          ["processing", "paid", embedData.orderId],
+          "UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $3",
+          ["paid", embedData.orderId],
         );
       }
 
