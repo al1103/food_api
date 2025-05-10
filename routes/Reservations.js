@@ -11,4 +11,7 @@ router.patch(
   reservationsController.updateReservationStatus
 ); // Any authenticated user
 
+// Thêm route mới để lấy lịch sử đặt bàn của người dùng
+router.get("/history", auth, reservationsController.getUserReservationHistory);
+
 module.exports = router;

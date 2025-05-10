@@ -157,6 +157,65 @@ class ReservationModel {
       throw error;
     }
   }
+
+  static async getReservationsByUserId(userId, page = 1, limit = 10) {
+    try {
+      // Validate and sanitize inputs
+      page = Math.max(1, parseInt(page));
+      limit = Math.max(1, Math.min(100, parseInt(limit)));
+      const offset = (page - 1) * limit;
+
+      // Get total count for this user
+      const countResult = await pool.query(
+        "SELECT COUNT(*) AS total_count FROM reservations WHERE user_id = $1",
+        [userId]
+      );
+      const totalCount = parseInt(countResult.rows[0].total_count);
+
+      // Get paginated data for this user
+      const result = await pool.query(
+        `SELECT 
+          r.reservation_id AS "reservationId",
+          r.user_id AS "userId",
+          u.username,
+          r.table_id AS "tableId",
+          t.table_name AS "tableName",
+          r.reservation_time AS "reservationTime",
+          r.status,
+          r.party_size AS "partySize",
+          r.customer_name AS "customerName",
+          r.phone_number AS "phoneNumber",
+          r.special_requests AS "specialRequests",
+          r.created_at AS "createdAt",
+          r.updated_at AS "updatedAt"
+        FROM reservations r
+        JOIN users u ON r.user_id = u.user_id
+        LEFT JOIN tables t ON r.table_id = t.table_id
+        WHERE r.user_id = $1
+        ORDER BY r.reservation_time DESC
+        LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      );
+
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return {
+        reservations: result.rows,
+        pagination: {
+          totalItems: totalCount,
+          totalPages: totalPages,
+          currentPage: page,
+          pageSize: limit,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      };
+    } catch (error) {
+      console.error("Lỗi khi lấy lịch sử đặt bàn của người dùng:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = ReservationModel;
