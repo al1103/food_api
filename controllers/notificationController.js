@@ -477,6 +477,29 @@ class NotificationController {
       });
     }
   }
+
+  // Add this method to the NotificationController class
+  static async createNotification(notificationData) {
+    try {
+      // Create notification in database
+      const notification = await NotificationModel.createNotification(
+        notificationData,
+      );
+
+      // Send real-time notification via SSE if user is connected
+      if (notificationData.userId) {
+        this.sendSSEToUser(notificationData.userId, notification);
+      } else if (notificationData.userId === null) {
+        // If userId is null, it's a notification for all admins
+        this.sendSSEToAllAdmins(notification);
+      }
+
+      return notification;
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = NotificationController;
