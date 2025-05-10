@@ -1,6 +1,7 @@
 const TableModel = require("../models/table_model");
 const OrderModel = require("../models/order_model");
 const ApiResponse = require("../utils/apiResponse");
+const NotificationController = require("../controllers/notificationController");
 
 // Controller quản lý bàn dành cho Admin
 class AdminTableController {
@@ -48,14 +49,14 @@ class AdminTableController {
           tableNumber: existingTable.tableNumber,
           customers: customers,
           totalCustomers: customers.length,
-        }
+        },
       );
     } catch (error) {
       console.error("Lỗi khi lấy danh sách khách hàng trong bàn:", error);
       return ApiResponse.error(
         res,
         500,
-        "Đã xảy ra lỗi khi lấy danh sách khách hàng"
+        "Đã xảy ra lỗi khi lấy danh sách khách hàng",
       );
     }
   }
@@ -73,7 +74,7 @@ class AdminTableController {
 
       // Lấy thông tin khách hàng và món ăn đã đặt
       const customersAndOrders = await TableModel.getTableCustomersAndOrders(
-        id
+        id,
       );
 
       if (customersAndOrders.length === 0) {
@@ -92,17 +93,17 @@ class AdminTableController {
           tableId: id,
           tableNumber: existingTable.tableNumber,
           customers: customersAndOrders,
-        }
+        },
       );
     } catch (error) {
       console.error(
         "Lỗi khi lấy danh sách khách hàng và món ăn tại bàn:",
-        error
+        error,
       );
       return ApiResponse.error(
         res,
         500,
-        "Đã xảy ra lỗi khi lấy danh sách khách hàng và món ăn"
+        "Đã xảy ra lỗi khi lấy danh sách khách hàng và món ăn",
       );
     }
   }
@@ -118,7 +119,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Vui lòng cung cấp phương thức và số tiền thanh toán"
+          "Vui lòng cung cấp phương thức và số tiền thanh toán",
         );
       }
 
@@ -139,7 +140,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Đơn hàng này không thuộc bàn đã chọn"
+          "Đơn hàng này không thuộc bàn đã chọn",
         );
       }
 
@@ -148,7 +149,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Đơn hàng này đã được hoàn thành hoặc đã hủy"
+          "Đơn hàng này đã được hoàn thành hoặc đã hủy",
         );
       }
 
@@ -170,14 +171,14 @@ class AdminTableController {
         res,
         200,
         "Xác nhận thanh toán thành công",
-        updatedOrder
+        updatedOrder,
       );
     } catch (error) {
       console.error("Lỗi khi xác nhận thanh toán:", error);
       return ApiResponse.error(
         res,
         500,
-        "Đã xảy ra lỗi khi xác nhận thanh toán"
+        "Đã xảy ra lỗi khi xác nhận thanh toán",
       );
     }
   }
@@ -193,7 +194,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Vui lòng chỉ định hành động: 'complete' hoặc 'cancel'"
+          "Vui lòng chỉ định hành động: 'complete' hoặc 'cancel'",
         );
       }
 
@@ -214,7 +215,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Đơn hàng này không thuộc bàn đã chọn"
+          "Đơn hàng này không thuộc bàn đã chọn",
         );
       }
 
@@ -223,7 +224,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Đơn hàng này đã được hoàn thành hoặc đã hủy"
+          "Đơn hàng này đã được hoàn thành hoặc đã hủy",
         );
       }
 
@@ -235,7 +236,7 @@ class AdminTableController {
           return ApiResponse.error(
             res,
             400,
-            "Vui lòng thanh toán đơn hàng trước khi hoàn thành"
+            "Vui lòng thanh toán đơn hàng trước khi hoàn thành",
           );
         }
 
@@ -243,7 +244,7 @@ class AdminTableController {
 
         // Kiểm tra xem còn đơn hàng nào khác đang hoạt động ở bàn này không
         const remainingOrders = await TableModel.getActiveOrdersByTableId(
-          tableId
+          tableId,
         );
 
         // Nếu không còn đơn hàng nào, đổi trạng thái bàn thành available
@@ -257,7 +258,7 @@ class AdminTableController {
           return ApiResponse.error(
             res,
             400,
-            "Không thể hủy đơn hàng đã thanh toán"
+            "Không thể hủy đơn hàng đã thanh toán",
           );
         }
 
@@ -265,7 +266,7 @@ class AdminTableController {
 
         // Kiểm tra xem còn đơn hàng nào khác đang hoạt động ở bàn này không
         const remainingOrders = await TableModel.getActiveOrdersByTableId(
-          tableId
+          tableId,
         );
 
         // Nếu không còn đơn hàng nào, đổi trạng thái bàn thành available
@@ -283,7 +284,7 @@ class AdminTableController {
         {
           order: updatedOrder,
           tableStatus: (await TableModel.getTableById(tableId)).statusCode,
-        }
+        },
       );
     } catch (error) {
       console.error("Lỗi khi xóa khách khỏi bàn:", error);
@@ -291,7 +292,6 @@ class AdminTableController {
     }
   }
 
-  
   // Lấy danh sách yêu cầu đặt bàn theo trạng thái
   async getReservationsByStatus(req, res) {
     try {
@@ -306,13 +306,13 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Trạng thái không hợp lệ. Các giá trị hợp lệ: pending, confirmed, canceled"
+          "Trạng thái không hợp lệ. Các giá trị hợp lệ: pending, confirmed, canceled",
         );
       }
 
       // Get reservations with status filter
       const reservations = await TableModel.getReservationsByStatus(
-        statusFilter
+        statusFilter,
       );
 
       // Create appropriate message based on status
@@ -337,7 +337,7 @@ class AdminTableController {
       return ApiResponse.error(
         res,
         500,
-        "Đã xảy ra lỗi khi lấy danh sách yêu cầu đặt bàn"
+        "Đã xảy ra lỗi khi lấy danh sách yêu cầu đặt bàn",
       );
     }
   }
@@ -351,7 +351,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Vui lòng cung cấp ID của yêu cầu đặt bàn"
+          "Vui lòng cung cấp ID của yêu cầu đặt bàn",
         );
       }
 
@@ -359,7 +359,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Vui lòng cung cấp trạng thái hợp lệ: confirmed hoặc canceled"
+          "Vui lòng cung cấp trạng thái hợp lệ: confirmed hoặc canceled",
         );
       }
 
@@ -368,7 +368,7 @@ class AdminTableController {
         return ApiResponse.error(
           res,
           400,
-          "Vui lòng cung cấp ID bàn để xác nhận đặt bàn"
+          "Vui lòng cung cấp ID bàn để xác nhận đặt bàn",
         );
       }
 
@@ -378,21 +378,62 @@ class AdminTableController {
         // Gọi phương thức xác nhận đặt bàn
         result = await TableModel.confirmReservation(reservationId, tableId);
 
+        // Gửi thông báo cho khách hàng về việc xác nhận đặt bàn
+        try {
+          // Lấy thông tin bàn để hiển thị trong thông báo
+          const tableInfo = await TableModel.getTableById(tableId);
+          const tableNumber = tableInfo?.tableNumber || tableId;
+
+          await NotificationController.createNotification({
+            title: "Đặt bàn đã được xác nhận",
+            content: `Yêu cầu đặt bàn của bạn đã được xác nhận. Bàn số ${tableNumber} đã sẵn sàng cho bạn vào thời gian bạn đã đặt.`,
+            type: "reservation_confirmed",
+            referenceId: String(reservationId),
+            userId: result.userId, // Lấy userId từ kết quả reservation
+            priority: "high",
+          });
+        } catch (notificationError) {
+          console.error(
+            "Lỗi khi gửi thông báo xác nhận đặt bàn:",
+            notificationError,
+          );
+          // Không ảnh hưởng đến kết quả chính
+        }
+
         return ApiResponse.success(
           res,
           200,
           "Xác nhận đặt bàn thành công",
-          result
+          result,
         );
       } else {
         // Gọi phương thức hủy yêu cầu đặt bàn
         result = await TableModel.cancelReservationRequest(reservationId);
 
+        // Gửi thông báo cho khách hàng về việc hủy đặt bàn
+        try {
+          await NotificationController.createNotification({
+            title: "Yêu cầu đặt bàn đã bị hủy",
+            content:
+              "Chúng tôi rất tiếc phải thông báo rằng yêu cầu đặt bàn của bạn đã bị hủy. Vui lòng liên hệ với nhà hàng để biết thêm chi tiết.",
+            type: "reservation_canceled",
+            referenceId: String(reservationId),
+            userId: result.userId, // Lấy userId từ kết quả reservation
+            priority: "medium",
+          });
+        } catch (notificationError) {
+          console.error(
+            "Lỗi khi gửi thông báo hủy đặt bàn:",
+            notificationError,
+          );
+          // Không ảnh hưởng đến kết quả chính
+        }
+
         return ApiResponse.success(
           res,
           200,
           "Hủy yêu cầu đặt bàn thành công",
-          result
+          result,
         );
       }
     } catch (error) {
@@ -401,7 +442,7 @@ class AdminTableController {
         res,
         500,
         "Đã xảy ra lỗi khi cập nhật trạng thái đặt bàn",
-        { error: error.message }
+        { error: error.message },
       );
     }
   }
@@ -411,21 +452,21 @@ class AdminTableController {
 
       // Hủy yêu cầu đặt bàn
       const cancelledReservation = await TableModel.cancelReservationRequest(
-        reservationId
+        reservationId,
       );
 
       return ApiResponse.success(
         res,
         200,
         "Yêu cầu đặt bàn đã được hủy thành công",
-        cancelledReservation
+        cancelledReservation,
       );
     } catch (error) {
       console.error("Lỗi khi hủy yêu cầu đặt bàn:", error);
       return ApiResponse.error(
         res,
         500,
-        "Đã xảy ra lỗi khi hủy yêu cầu đặt bàn"
+        "Đã xảy ra lỗi khi hủy yêu cầu đặt bàn",
       );
     }
   }
