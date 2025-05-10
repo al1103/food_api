@@ -119,3 +119,32 @@ exports.checkAvailability = async (req, res) => {
     });
   }
 };
+
+// Thêm phương thức mới để lấy lịch sử đặt bàn của người dùng
+exports.getUserReservationHistory = async (req, res) => {
+  try {
+    const userId = req.user.userId; // Lấy ID người dùng từ token xác thực
+    const { page, limit } = req.query;
+
+    // Gọi model để lấy lịch sử đặt bàn
+    const result = await ReservationModel.getReservationsByUserId(
+      userId, 
+      page, 
+      limit
+    );
+
+    res.status(200).json({
+      statusCode: 200,
+      message: "Lấy lịch sử đặt bàn thành công",
+      data: result.reservations,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy lịch sử đặt bàn:", error);
+    res.status(500).json({
+      statusCode: 500,
+      message: "Đã xảy ra lỗi khi lấy lịch sử đặt bàn",
+      error: error.message
+    });
+  }
+};
