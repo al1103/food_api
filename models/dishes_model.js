@@ -92,7 +92,7 @@ class DishModel {
 
       const countResult = await pool.query(
         countQuery,
-        categoryId ? [categoryId] : []
+        categoryId ? [categoryId] : [],
       );
       const dishesResult = await pool.query(dishesQuery, queryParams);
 
@@ -147,7 +147,7 @@ class DishModel {
 
       // Create query based on if image column exists
       const hasImageColumn = tableStructure.rows.some(
-        (col) => col.column_name === "image"
+        (col) => col.column_name === "image",
       );
 
       let query;
@@ -181,7 +181,7 @@ class DishModel {
 
         values = [name, description, category_id, price, preparation_time];
         console.warn(
-          "Warning: 'image' column doesn't exist in dishes table. Image will not be saved."
+          "Warning: 'image' column doesn't exist in dishes table. Image will not be saved.",
         );
       }
 
@@ -245,6 +245,36 @@ class DishModel {
       return result.rows[0].id;
     } catch (error) {
       console.error("Error in updateDish:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update dish availability status
+   * @param {number} id - Dish ID
+   * @param {boolean} available - Availability status
+   * @returns {Promise<Object>} - Updated dish data
+   */
+  static async setDishAvailability(id, available) {
+    try {
+      const query = `
+        UPDATE dishes 
+        SET 
+          available = $1,
+          updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, name, available
+      `;
+
+      const result = await pool.query(query, [available, id]);
+
+      if (!result.rows || result.rows.length === 0) {
+        throw new Error(`Dish with ID ${id} not found`);
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Error updating dish availability:", error);
       throw error;
     }
   }
@@ -682,7 +712,7 @@ class DishModel {
     categoryId,
     page = 1,
     limit = 10,
-    offset = 0
+    offset = 0,
   ) {
     try {
       // Validate categoryId
@@ -732,7 +762,7 @@ class DishModel {
             sizes,
             toppings,
           };
-        })
+        }),
       );
 
       return {

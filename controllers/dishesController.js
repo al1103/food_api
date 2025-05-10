@@ -22,7 +22,7 @@ exports.getTopDishes = async (req, res) => {
     return ApiResponse.error(
       res,
       500,
-      "Đã xảy ra lỗi khi lấy danh sách món ăn phổ biến"
+      "Đã xảy ra lỗi khi lấy danh sách món ăn phổ biến",
     );
   }
 };
@@ -37,7 +37,7 @@ exports.getAllDishes = async (req, res) => {
       page,
       limit,
       offset,
-      categoryId
+      categoryId,
     );
 
     return res.status(200).json({
@@ -185,7 +185,7 @@ exports.createDish = async (req, res) => {
     // Add the sizes to the dish
     if (sizesToAdd.length > 0) {
       await Promise.all(
-        sizesToAdd.map((size) => DishModel.addDishSize(dishId, size))
+        sizesToAdd.map((size) => DishModel.addDishSize(dishId, size)),
       );
     }
 
@@ -203,7 +203,7 @@ exports.createDish = async (req, res) => {
 
         if (Array.isArray(newToppingsArray) && newToppingsArray.length > 0) {
           console.log(
-            `Creating ${newToppingsArray.length} new toppings for dish ${dishId}`
+            `Creating ${newToppingsArray.length} new toppings for dish ${dishId}`,
           );
 
           // Tạo và thêm từng topping mới
@@ -341,7 +341,7 @@ exports.updateDish = async (req, res) => {
     // Add the sizes to the dish
     if (sizesToAdd.length > 0) {
       await Promise.all(
-        sizesToAdd.map((size) => DishModel.addDishSize(id, size))
+        sizesToAdd.map((size) => DishModel.addDishSize(id, size)),
       );
     }
 
@@ -366,7 +366,7 @@ exports.updateDish = async (req, res) => {
 
           if (Array.isArray(newToppingsArray) && newToppingsArray.length > 0) {
             console.log(
-              `Creating ${newToppingsArray.length} new toppings for dish ${id}`
+              `Creating ${newToppingsArray.length} new toppings for dish ${id}`,
             );
 
             // Tạo và thêm từng topping mới
@@ -497,14 +497,14 @@ exports.rateDish = async (req, res) => {
       ratingId = existingRating.id;
       await DishModel.updateRating(ratingId, rating);
       console.log(
-        `Updated rating ${ratingId} for dish ${id} by user ${userId} with value ${rating}`
+        `Updated rating ${ratingId} for dish ${id} by user ${userId} with value ${rating}`,
       );
     } else {
       // Add new rating
       try {
         ratingId = await DishModel.addRating(id, userId, rating);
         console.log(
-          `Added new rating ${ratingId} for dish ${id} by user ${userId} with value ${rating}`
+          `Added new rating ${ratingId} for dish ${id} by user ${userId} with value ${rating}`,
         );
       } catch (ratingError) {
         console.error("Detailed error when adding rating:", ratingError);
@@ -710,7 +710,7 @@ exports.getDishesByCategory = async (req, res) => {
       parseInt(categoryId),
       parseInt(page),
       parseInt(limit),
-      parseInt(offset)
+      parseInt(offset),
     );
 
     return res.status(200).json({
@@ -731,5 +731,44 @@ exports.getDishesByCategory = async (req, res) => {
       message: "Server error",
       error: error.message,
     });
+  }
+};
+
+exports.setDishAvailability = async (req, res) => {
+  try {
+    // Parse the ID as an integer and validate it
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Invalid dish ID format",
+      });
+    }
+
+    const { available } = req.body;
+
+    // Convert string to boolean if needed
+    const isAvailable =
+      available === "true" || available === true ? true : false;
+
+    // Check if dish exists
+    const dish = await DishModel.getDishById(id);
+    if (!dish) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Dish not found",
+      });
+    }
+
+    const updatedDish = await DishModel.setDishAvailability(id, isAvailable);
+
+    return ApiResponse.success(res, 200, {
+      message: `Dish ${isAvailable ? "enabled" : "disabled"} successfully`,
+      data: updatedDish,
+    });
+  } catch (error) {
+    console.error("Error setting dish availability:", error);
+    return ApiResponse.error(res, 500, "Failed to update dish availability");
   }
 };
