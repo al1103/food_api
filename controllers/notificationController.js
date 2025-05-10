@@ -21,7 +21,7 @@ class NotificationController {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(userId)) {
       console.warn(
-        `Invalid UUID format for userId: ${userId}. This may cause issues.`
+        `Invalid UUID format for userId: ${userId}. This may cause issues.`,
       );
     }
 
@@ -32,7 +32,7 @@ class NotificationController {
   static async createOrderNotification(orderId, userId, status) {
     try {
       console.log(
-        `Creating notification for order: ${orderId}, status: ${status}`
+        `Creating notification for order: ${orderId}, status: ${status}`,
       );
       userId = NotificationController.validateUserId(userId);
 
@@ -49,7 +49,7 @@ class NotificationController {
       };
 
       const adminNotifResult = await NotificationModel.createNotification(
-        adminNotification
+        adminNotification,
       );
 
       // Send SSE notification to all admins
@@ -69,7 +69,7 @@ class NotificationController {
         };
 
         const userNotifResult = await NotificationModel.createNotification(
-          userNotification
+          userNotification,
         );
 
         // Send SSE notification to the user
@@ -101,7 +101,7 @@ class NotificationController {
       const notifications = await NotificationModel.getNotificationsByUserId(
         userId,
         page,
-        limit
+        limit,
       );
 
       return res.status(200).json({
@@ -125,7 +125,7 @@ class NotificationController {
 
       const notifications = await NotificationModel.getAdminNotifications(
         page,
-        limit
+        limit,
       );
 
       return res.status(200).json({
@@ -202,7 +202,7 @@ class NotificationController {
   static async integrateWithOrderUpdate(orderId, userId, oldStatus, newStatus) {
     try {
       console.log(
-        `Creating notification for order status update: ${orderId}, ${oldStatus} -> ${newStatus}`
+        `Creating notification for order status update: ${orderId}, ${oldStatus} -> ${newStatus}`,
       );
       userId = NotificationController.validateUserId(userId);
 
@@ -220,7 +220,7 @@ class NotificationController {
 
       // Tạo thông báo cho admin
       const adminNotifResult = await NotificationModel.createNotification(
-        adminNotification
+        adminNotification,
       );
       NotificationController.sendSSEToAllAdmins(adminNotifResult);
 
@@ -230,7 +230,7 @@ class NotificationController {
           title: "Cập nhật trạng thái đơn hàng",
           content: NotificationController.getOrderStatusMessage(
             orderId,
-            newStatus
+            newStatus,
           ),
           type: "order_status",
           referenceId: orderId,
@@ -242,7 +242,7 @@ class NotificationController {
 
         // Tạo thông báo cho user
         const userNotifResult = await NotificationModel.createNotification(
-          userNotification
+          userNotification,
         );
         NotificationController.sendSSEToUser(userId, userNotifResult);
       }
@@ -252,7 +252,7 @@ class NotificationController {
     } catch (error) {
       console.error(
         "Error in notificationController.integrateWithOrderUpdate:",
-        error
+        error,
       );
       // Don't throw, just log the error
       return false;
@@ -266,12 +266,83 @@ class NotificationController {
       return await NotificationController.createOrderNotification(
         newOrder.orderId,
         userId,
-        newOrder.status
+        newOrder.status,
       );
     } catch (error) {
       console.error(
         "Error in notificationController.integrateWithOrderCreate:",
-        error
+        error,
+      );
+      // Don't throw, just log the error
+      return false;
+    }
+  }
+
+  // Add this method to handle reservation notifications
+  static async integrateWithReservationCreate(reservation, userId) {
+    try {
+      // Debug the actual reservation object
+      console.log(
+        `Creating notification for new reservation:`,
+        JSON.stringify(reservation, null, 2),
+      );
+
+      // Get the reservation ID safely, checking for different possible property names
+      const reservationId =
+        reservation?.id ||
+        reservation?.reservationId ||
+        reservation?.reservation_id ||
+        "unknown";
+
+      console.log(`Using reservation ID: ${reservationId}`);
+
+      // Create notification for admin
+      const adminNotification = {
+        title: "Yêu cầu đặt bàn mới",
+        content: `Khách hàng đã đặt bàn cho ${
+          reservation?.partySize || "không xác định"
+        } người vào lúc ${new Date(
+          reservation?.reservationTime || new Date(),
+        ).toLocaleString("vi-VN")}`,
+        type: "reservation_new",
+        referenceId: String(reservationId), // Convert to string safely
+        isRead: false,
+        status: "unread",
+        userId: null, // null for admin notifications
+        priority: "high",
+      };
+
+      const adminNotifResult = await NotificationModel.createNotification(
+        adminNotification,
+      );
+
+      // Send SSE notification to all admins
+      NotificationController.sendSSEToAllAdmins(adminNotifResult);
+
+      // Create notification for user
+      const userNotification = {
+        title: "Đặt bàn thành công",
+        content: `Yêu cầu đặt bàn của bạn đã được gửi. Chúng tôi sẽ phản hồi sớm nhất có thể.`,
+        type: "reservation_status",
+        referenceId: String(reservationId), // Convert to string safely
+        isRead: false,
+        status: "unread",
+        userId: userId,
+        priority: "medium",
+      };
+
+      const userNotifResult = await NotificationModel.createNotification(
+        userNotification,
+      );
+
+      // Send SSE notification to the user
+      NotificationController.sendSSEToUser(userId, userNotifResult);
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Error in notificationController.integrateWithReservationCreate:",
+        error,
       );
       // Don't throw, just log the error
       return false;
@@ -347,7 +418,7 @@ class NotificationController {
         `data: ${JSON.stringify({
           type: "connection",
           message: "SSE connected",
-        })}\n\n`
+        })}\n\n`,
       );
 
       // Lưu kết nối vào Map
@@ -385,7 +456,7 @@ class NotificationController {
         `data: ${JSON.stringify({
           type: "connection",
           message: "Admin SSE connected",
-        })}\n\n`
+        })}\n\n`,
       );
 
       // Lưu kết nối vào Set

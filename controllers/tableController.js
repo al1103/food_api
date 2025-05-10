@@ -2,6 +2,7 @@ const TableModel = require("../models/table_model");
 const OrderModel = require("../models/order_model");
 const ReservationModel = require("../models/reservation_model");
 const ApiResponse = require("../utils/apiResponse");
+const NotificationController = require("../controllers/notificationController");
 
 exports.getAllTables = async (req, res) => {
   try {
@@ -11,7 +12,7 @@ exports.getAllTables = async (req, res) => {
       page,
       limit,
       sortBy,
-      sortOrder
+      sortOrder,
     );
 
     res.status(200).json({
@@ -66,7 +67,7 @@ exports.createReservationRequest = async (req, res) => {
       return ApiResponse.error(
         res,
         400,
-        "Vui lòng cung cấp thời gian đặt bàn hợp lệ và số khách"
+        "Vui lòng cung cấp thời gian đặt bàn hợp lệ và số khách",
       );
     }
 
@@ -105,7 +106,7 @@ exports.createReservationRequest = async (req, res) => {
         } else {
           console.error(
             "No order ID found in order creation response:",
-            newOrder
+            newOrder,
           );
         }
       } catch (orderError) {
@@ -113,7 +114,7 @@ exports.createReservationRequest = async (req, res) => {
         return ApiResponse.error(
           res,
           500,
-          "Lỗi khi tạo đơn hàng: " + orderError.message
+          "Lỗi khi tạo đơn hàng: " + orderError.message,
         );
       }
     }
@@ -128,14 +129,28 @@ exports.createReservationRequest = async (req, res) => {
         formattedReservationTime, // Use the formatted time
         partySize,
         specialRequests || null,
-        orderId // This might be null if no order was created
+        orderId, // This might be null if no order was created
       );
+
+      // Add this code to create notification after successful reservation
+      try {
+        await NotificationController.integrateWithReservationCreate(
+          reservation,
+          userId,
+        );
+      } catch (notificationError) {
+        // Just log the error, don't interrupt the flow
+        console.error(
+          "Error sending reservation notification:",
+          notificationError,
+        );
+      }
 
       return ApiResponse.success(
         res,
         201,
         "Yêu cầu đặt bàn đã được gửi",
-        reservation
+        reservation,
       );
     } catch (reservationError) {
       console.error("Error creating reservation:", reservationError);
@@ -146,12 +161,12 @@ exports.createReservationRequest = async (req, res) => {
         try {
           await OrderModel.deleteOrder(orderId);
           console.log(
-            `Deleted orphaned order ${orderId} after reservation creation failed`
+            `Deleted orphaned order ${orderId} after reservation creation failed`,
           );
         } catch (cleanupError) {
           console.error(
             `Failed to delete orphaned order ${orderId}:`,
-            cleanupError
+            cleanupError,
           );
         }
       }
@@ -164,7 +179,7 @@ exports.createReservationRequest = async (req, res) => {
     return ApiResponse.error(
       res,
       500,
-      "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn: " + error.message
+      "Đã xảy ra lỗi khi tạo yêu cầu đặt bàn: " + error.message,
     );
   }
 };

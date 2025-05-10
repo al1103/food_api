@@ -38,14 +38,21 @@ router.post(
   "/",
   adminAuth,
   upload.single("image"),
-  dishesController.createDish
+  dishesController.createDish,
 );
 router.put(
   "/:id",
   adminAuth,
   upload.single("image"),
-  dishesController.updateDish
+  dishesController.updateDish,
 );
 router.delete("/:id", adminAuth, dishesController.deleteDish);
+
+// Admin route to set dish availability
+router.patch(
+  "/:id/availability",
+  adminAuth,
+  dishesController.setDishAvailability,
+);
 
 module.exports = router;
