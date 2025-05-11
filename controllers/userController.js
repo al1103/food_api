@@ -444,7 +444,7 @@ exports.verifyRegistration = async (req, res) => {
         // Set the new user's referral level to 0 (they start at the base of their own tree)
         await client.query(
           `UPDATE users 
-           SET referral_level = 0 
+           SET referral_level = $1
            WHERE user_id = $2`,
           [0, userId],
         );
@@ -452,9 +452,9 @@ exports.verifyRegistration = async (req, res) => {
         // If no referral, still set referral_level to 0
         await client.query(
           `UPDATE users 
-           SET referral_level = 0 
-           WHERE user_id = $1`,
-          [userId],
+           SET referral_level = $1
+           WHERE user_id = $2`,
+          [0, userId],
         );
       }
 
