@@ -415,7 +415,7 @@ exports.verifyRegistration = async (req, res) => {
             // Keep max at F5
             // Create the extended relationship
             await client.query(
-              `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at) v   
+              `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at)    
                VALUES ($1, $2, $3, NOW())`,
               [userId, ancestor.ancestor_id, newLevel],
             );
