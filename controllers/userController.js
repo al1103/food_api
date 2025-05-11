@@ -369,72 +369,92 @@ exports.verifyRegistration = async (req, res) => {
       console.log("User created successfully with ID:", userId);
 
       // Referral processing (insert into referral_tree)
-      const signupBonus = 50000; // Mức thưởng đăng ký (có thể thay đổi tùy theo hệ thống của bạn)
+      const signupBonus = 50000;
 
       if (referrerId) {
-        // Lấy tất cả các cấp của người giới thiệu, từ F1 đến F5 (cấp tối đa)
-        let userReferralLevel = 1;
+        // IMPORTANT - Add this code first to establish the direct F1 relationship
+        // Create the direct relationship (F1) between new user and direct referrer
+        await client.query(
+          `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at) 
+           VALUES ($1, $2, $3, NOW())`,
+          [userId, referrerId, 1],
+        );
 
-        // Lấy các ancestor (người giới thiệu trực tiếp và các cấp trên của họ)
+        // Apply F1 bonus to direct referrer
+        const directBonus = calculateReferralBonus(1, signupBonus); // 10% for F1
+        await client.query(
+          `UPDATE users 
+           SET wallet_balance = wallet_balance + $1 
+           WHERE user_id = $2`,
+          [directBonus, referrerId],
+        );
+
+        // Record the F1 bonus transaction
+        await client.query(
+          `INSERT INTO wallet_transactions (
+            user_id, amount, transaction_type, reference_id, description, created_at
+          ) VALUES (
+            $1, $2, 'referral_bonus', $3, 'Thưởng giới thiệu cấp 1', NOW()
+          )`,
+          [referrerId, directBonus, userId],
+        );
+
+        // Now get ancestors of the referrer (to establish F2-F5 relationships)
         const ancestorsResult = await client.query(
           `SELECT ancestor_id, level 
            FROM referral_tree 
-           WHERE user_id = $1 AND level <= 5`,
+           WHERE user_id = $1 AND level <= 4`, // Max level 4 to create up to F5
           [referrerId],
         );
 
-        // Duyệt qua các ancestors và tính phần thưởng cho mỗi cấp
+        // Process ancestors for F2-F5 relationships
         for (const ancestor of ancestorsResult.rows) {
           const newLevel = ancestor.level + 1;
 
           if (newLevel <= 5) {
-            // Giới hạn ở cấp 5
-            const bonus = calculateReferralBonus(newLevel, signupBonus);
-
-            // Check if this referral relationship already exists to avoid inserting duplicates
-            const referralExistsResult = await client.query(
-              `SELECT 1 FROM referral_tree 
-               WHERE user_id = $1 AND ancestor_id = $2`,
-              [userId, ancestor.ancestor_id],
+            // Keep max at F5
+            // Create the extended relationship
+            await client.query(
+              `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at) v   
+               VALUES ($1, $2, $3, NOW())`,
+              [userId, ancestor.ancestor_id, newLevel],
             );
 
-            if (referralExistsResult.rows.length === 0) {
-              // Insert referral relationship into referral_tree if not already exists
-              await client.query(
-                `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at) 
-                 VALUES ($1, $2, $3, NOW())`,
-                [userId, ancestor.ancestor_id, newLevel],
-              );
+            // Calculate and award the bonus based on level
+            const bonus = calculateReferralBonus(newLevel, signupBonus);
+            await client.query(
+              `UPDATE users 
+               SET wallet_balance = wallet_balance + $1 
+               WHERE user_id = $2`,
+              [bonus, ancestor.ancestor_id],
+            );
 
-              // Cập nhật tài khoản của người giới thiệu theo cấp
-              await client.query(
-                `UPDATE users 
-                 SET wallet_balance = wallet_balance + $1 
-                 WHERE user_id = $2`,
-                [bonus, ancestor.ancestor_id],
-              );
-
-              // Ghi lại giao dịch thưởng
-              await client.query(
-                `INSERT INTO wallet_transactions (
-                  user_id, amount, transaction_type, reference_id, description, created_at
-                ) VALUES (
-                  $1, $2, 'referral_bonus', $3, 'Thưởng giới thiệu cấp ${newLevel}', NOW()
-                )`,
-                [ancestor.ancestor_id, bonus, userId],
-              );
-            }
-
-            userReferralLevel = Math.max(userReferralLevel, newLevel);
+            // Record the bonus transaction
+            await client.query(
+              `INSERT INTO wallet_transactions (
+                user_id, amount, transaction_type, reference_id, description, created_at
+              ) VALUES (
+                $1, $2, 'referral_bonus', $3, 'Thưởng giới thiệu cấp ${newLevel}', NOW()
+              )`,
+              [ancestor.ancestor_id, bonus, userId],
+            );
           }
         }
 
-        // Cập nhật cấp người giới thiệu trong bảng users
+        // Set the new user's referral level to 0 (they start at the base of their own tree)
         await client.query(
           `UPDATE users 
-           SET referral_level = $1 
+           SET referral_level = 0 
            WHERE user_id = $2`,
-          [userReferralLevel, userId],
+          [0, userId],
+        );
+      } else {
+        // If no referral, still set referral_level to 0
+        await client.query(
+          `UPDATE users 
+           SET referral_level = 0 
+           WHERE user_id = $1`,
+          [userId],
         );
       }
 
