@@ -179,7 +179,7 @@ class ReservationModel {
           r.user_id AS "userId",
           u.username,
           r.table_id AS "tableId",
-          t.table_name AS "tableName",
+          t.table_number AS "tableName",
           r.reservation_time AS "reservationTime",
           r.status,
           r.party_size AS "partySize",

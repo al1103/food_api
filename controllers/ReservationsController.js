@@ -131,7 +131,7 @@ exports.getUserReservationHistory = async (req, res) => {
       userId, 
       page, 
       limit
-    );
+    ); 
 
     res.status(200).json({
       statusCode: 200,
