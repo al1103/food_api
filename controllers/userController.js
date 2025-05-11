@@ -442,14 +442,42 @@ exports.verifyRegistration = async (req, res) => {
         }
 
         // Set the new user's referral level to 0 (they start at the base of their own tree)
-        await client.query(
-          `UPDATE users 
-           SET referral_level = $1
-           WHERE user_id = $2`,
-          [0, userId],
-        );
+        if (referrerId) {
+          // First, get the referrer's current level
+          const referrerLevelResult = await client.query(
+            `SELECT referral_level FROM users WHERE user_id = $1`,
+            [referrerId],
+          );
+
+          // Calculate the new user's level (referrer's level + 1, max 5)
+          let newUserLevel = 0;
+          if (referrerLevelResult.rows.length > 0) {
+            const referrerLevel =
+              referrerLevelResult.rows[0].referral_level || 0;
+            newUserLevel = Math.min(referrerLevel + 1, 5); // Max level is 5
+          }
+
+          console.log(
+            `Setting referral level for new user: ${newUserLevel} (referrer's level + 1)`,
+          );
+
+          // Set the new user's referral level
+          await client.query(
+            `UPDATE users 
+             SET referral_level = $1 
+             WHERE user_id = $2`,
+            [newUserLevel, userId],
+          );
+        } else {
+          // If no referral, set referral_level to 0 (base level)
+          await client.query(
+            `UPDATE users 
+             SET referral_level = $1 
+             WHERE user_id = $2`,
+            [0, userId],
+          );
+        }
       } else {
-        // If no referral, still set referral_level to 0
         await client.query(
           `UPDATE users 
            SET referral_level = $1
