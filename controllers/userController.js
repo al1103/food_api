@@ -19,6 +19,21 @@ function generateReferralCode() {
   return result;
 }
 
+// Add this function at the top of the file after the generateReferralCode function
+function calculateReferralBonus(level, baseAmount) {
+  // Commission rates by level
+  const rates = {
+    1: 0.1, // 10% for F1
+    2: 0.05, // 5% for F2
+    3: 0.03, // 3% for F3
+    4: 0.02, // 2% for F4
+    5: 0.01, // 1% for F5
+  };
+
+  // Return the calculated bonus based on level
+  return baseAmount * (rates[level] || 0);
+}
+
 exports.register = async (req, res) => {
   try {
     const {
