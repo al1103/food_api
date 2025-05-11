@@ -198,7 +198,7 @@ exports.verifyRegistration = async (req, res) => {
   try {
     const { email, code } = req.body;
 
-    // Basic validation
+    // Kiểm tra cơ bản
     if (!email) {
       return res.status(400).json({
         statusCode: 400,
@@ -215,7 +215,7 @@ exports.verifyRegistration = async (req, res) => {
 
     console.log(`Verifying registration for ${email} with code ${code}`);
 
-    // Check the column name in verification_codes table
+    // Kiểm tra cột trong bảng verification_codes
     const tableInfoQuery = `
       SELECT column_name 
       FROM information_schema.columns 
@@ -234,7 +234,7 @@ exports.verifyRegistration = async (req, res) => {
       (row) => row.column_name === "expires_at",
     );
 
-    // Use the correct column name based on what's available
+    // Sử dụng tên cột phù hợp
     const expirationColumnName = hasExpirationTime
       ? "expiration_time"
       : hasExpiresAt
@@ -245,22 +245,15 @@ exports.verifyRegistration = async (req, res) => {
       `Using column name: ${expirationColumnName} for expiration check`,
     );
 
-    // Get the verification record using the correct column name
+    // Kiểm tra mã xác nhận
     const verificationResult = await client.query(
       `SELECT * FROM verification_codes 
        WHERE email = $1 AND code = $2 AND ${expirationColumnName} > NOW()`,
       [email, code],
     );
 
-    // Kiểm tra kết quả query cho debugging
-    console.log("Verification result:", {
-      found: verificationResult.rows.length > 0,
-      email: email,
-      code: code,
-      currentTime: new Date(),
-    });
+    console.log("Verification result:", verificationResult.rows.length > 0);
 
-    // Check if verification code exists and is valid
     if (verificationResult.rows.length === 0) {
       return res.status(400).json({
         statusCode: 400,
@@ -268,18 +261,11 @@ exports.verifyRegistration = async (req, res) => {
       });
     }
 
-    // Parse user data from verification record
     let userData;
     try {
       const userDataRaw = verificationResult.rows[0].user_data;
-
-      // Handle different data types based on how PostgreSQL returns JSONB
-      if (typeof userDataRaw === "string") {
-        userData = JSON.parse(userDataRaw);
-      } else {
-        userData = userDataRaw;
-      }
-
+      userData =
+        typeof userDataRaw === "string" ? JSON.parse(userDataRaw) : userDataRaw;
       console.log("User data retrieved successfully:", {
         ...userData,
         password: "[HASHED]",
@@ -292,11 +278,10 @@ exports.verifyRegistration = async (req, res) => {
       });
     }
 
-    // Begin transaction for user creation
     await client.query("BEGIN");
 
     try {
-      // Extract user data for registration
+      // Kiểm tra nếu username hoặc email đã tồn tại
       const {
         username,
         email,
@@ -306,8 +291,6 @@ exports.verifyRegistration = async (req, res) => {
         address,
         referralCode,
       } = userData;
-
-      // THÊM KIỂM TRA NÀY: Kiểm tra lại xem username/email đã tồn tại chưa
       const checkExistingQuery = `
         SELECT 1 FROM users 
         WHERE username = $1 OR email = $2
@@ -325,20 +308,16 @@ exports.verifyRegistration = async (req, res) => {
         });
       }
 
-      // Generate UUID for user and referral code
       const userId = uuidv4();
       const userReferralCode = generateReferralCode();
 
       let referrerId = null;
-
-      // If referral code provided, find the referrer
       if (referralCode) {
         console.log("Looking up referrer with code:", referralCode);
         const referrerResult = await client.query(
           `SELECT user_id FROM users WHERE referral_code = $1`,
           [referralCode],
         );
-
         if (referrerResult.rows.length > 0) {
           referrerId = referrerResult.rows[0].user_id;
           console.log("Found referrer with ID:", referrerId);
@@ -347,7 +326,7 @@ exports.verifyRegistration = async (req, res) => {
         }
       }
 
-      // Insert the new user into database
+      // Insert new user
       const insertUserQuery = `
         INSERT INTO users (
           user_id, username, email, password, 
@@ -366,7 +345,7 @@ exports.verifyRegistration = async (req, res) => {
         password,
         fullName,
         phoneNumber,
-        address, // Thêm trường address
+        address,
         userReferralCode,
         referrerId,
         "customer",
@@ -374,175 +353,81 @@ exports.verifyRegistration = async (req, res) => {
 
       console.log("User created successfully with ID:", userId);
 
-      // If referred by someone, build the referral tree
+      // Referral processing (insert into referral_tree)
+      // Define the referral bonus rates for each level (F1 - F5)
+      const referralRates = {
+        1: 0.1, // F1: 10%
+        2: 0.05, // F2: 5%
+        3: 0.03, // F3: 3%
+        4: 0.02, // F4: 2%
+        5: 0.01, // F5: 1%
+      };
+
+      // Đảm bảo rằng mức thưởng cho cấp giới thiệu của người dùng sẽ được tính theo từng cấp
+      const calculateReferralBonus = (level, amount) => {
+        // Lấy tỷ lệ thưởng tương ứng với cấp
+        const rate = referralRates[level] || 0;
+        return amount * rate;
+      };
+
+      // Giả sử bạn đã có một số lượng tiền để tính hoa hồng từ một người
+      const signupBonus = 50000; // Mức thưởng đăng ký (có thể thay đổi tuỳ theo hệ thống của bạn)
+
+      // Trong phần xử lý người giới thiệu, bạn tính phần thưởng cho các cấp khác nhau
       if (referrerId) {
-        // First, insert direct referral (level 1)
-        await client.query(
-          `INSERT INTO referral_tree (user_id, ancestor_id, level)
-           VALUES ($1, $2, 1)`,
-          [userId, referrerId],
-        );
-
-        // Then get all ancestors of the referrer up to level 4
-        const ancestorsResult = await client.query(
-          `SELECT ancestor_id, level 
-           FROM referral_tree 
-           WHERE user_id = $1 AND level <= 4`,
-          [referrerId],
-        );
-
-        // Insert these ancestors with incremented levels
-        for (const ancestor of ancestorsResult.rows) {
-          await client.query(
-            `INSERT INTO referral_tree (user_id, ancestor_id, level)
-             VALUES ($1, $2, $3)`,
-            [userId, ancestor.ancestor_id, ancestor.level + 1],
-          );
-        }
-
-        // Give signup bonus to direct referrer
-        const signupBonus = 50000;
-
-        await client.query(
-          `UPDATE users 
-           SET wallet_balance = wallet_balance + $1 
-           WHERE user_id = $2`,
-          [signupBonus, referrerId],
-        );
-
-        // Record the transaction
-        await client.query(
-          `INSERT INTO wallet_transactions (
-            user_id, amount, transaction_type, reference_id, description, created_at
-          ) VALUES (
-            $1, $2, 'signup_bonus', $3, 'Thưởng giới thiệu đăng ký thành công', NOW()
-          )`,
-          [referrerId, signupBonus, userId],
-        );
-
-        // Check if the status column exists in referrals table
-        const referralsColumnsResult = await client.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'referrals'
-        `);
-
-        const statusColumnName = referralsColumnsResult.rows.some(
-          (row) => row.column_name === "status",
-        )
-          ? "status"
-          : "statusCode";
-
-        console.log(
-          `Using column name: ${statusColumnName} for referrals status`,
-        );
-
-        // Record the referral with the correct column name
-        await client.query(
-          `INSERT INTO referrals (
-            referrer_id, referred_id, commission, ${statusColumnName}, level, created_at, updated_at
-          ) VALUES (
-            $1, $2, $3, 'completed', 1, NOW(), NOW()
-          )`,
-          [referrerId, userId, signupBonus],
-        );
-
-        console.log(
-          `Signup bonus of ${signupBonus} given to referrer ${referrerId}`,
-        );
-      }
-      if (referrerId) {
-        // Cấp mặc định là 1 (F1)
+        // Lấy tất cả các cấp của người giới thiệu, từ F1 đến F5 (cấp tối đa)
         let userReferralLevel = 1;
 
-        // Ghi người giới thiệu trực tiếp (F1)
-        await client.query(
-          `INSERT INTO referral_tree (user_id, ancestor_id, level)
-     VALUES ($1, $2, 1)`,
-          [userId, referrerId],
-        );
-
-        // Lấy tất cả ancestor của người giới thiệu đến cấp 4
+        // Lấy các ancestor (người giới thiệu trực tiếp và các cấp trên của họ)
         const ancestorsResult = await client.query(
           `SELECT ancestor_id, level 
      FROM referral_tree 
-     WHERE user_id = $1 AND level <= 4`,
+     WHERE user_id = $1 AND level <= 5`, // Cập nhật đến cấp 5
           [referrerId],
         );
 
-        // Thêm các ancestor với level +1
+        // Duyệt qua các ancestors và tính phần thưởng cho mỗi cấp
         for (const ancestor of ancestorsResult.rows) {
           const newLevel = ancestor.level + 1;
 
-          await client.query(
-            `INSERT INTO referral_tree (user_id, ancestor_id, level)
-       VALUES ($1, $2, $3)`,
-            [userId, ancestor.ancestor_id, newLevel],
-          );
+          if (newLevel <= 5) {
+            // Giới hạn ở cấp 5
+            // Tính toán hoa hồng cho mỗi cấp
+            const bonus = calculateReferralBonus(newLevel, signupBonus);
 
-          // Cập nhật cấp cao nhất (nếu lớn hơn F1)
-          if (newLevel > userReferralLevel) {
-            userReferralLevel = newLevel;
+            // Cập nhật tài khoản của người giới thiệu theo cấp
+            await client.query(
+              `UPDATE users 
+         SET wallet_balance = wallet_balance + $1 
+         WHERE user_id = $2`,
+              [bonus, ancestor.ancestor_id],
+            );
+
+            // Ghi lại giao dịch thưởng
+            await client.query(
+              `INSERT INTO wallet_transactions (
+          user_id, amount, transaction_type, reference_id, description, created_at
+        ) VALUES (
+          $1, $2, 'referral_bonus', $3, 'Thưởng giới thiệu cấp ${newLevel}', NOW()
+        )`,
+              [ancestor.ancestor_id, bonus, userId],
+            );
+
+            // Cập nhật người giới thiệu cấp cao nhất
+            userReferralLevel = Math.max(userReferralLevel, newLevel);
           }
         }
 
-        // ✅ Cập nhật cột referral_level trong bảng users
+        // Cập nhật cấp người giới thiệu trong bảng users
         await client.query(
           `UPDATE users 
      SET referral_level = $1 
      WHERE user_id = $2`,
           [userReferralLevel, userId],
         );
-
-        // Thưởng người giới thiệu trực tiếp
-        const signupBonus = 50000;
-
-        await client.query(
-          `UPDATE users 
-     SET wallet_balance = wallet_balance + $1 
-     WHERE user_id = $2`,
-          [signupBonus, referrerId],
-        );
-
-        // Ghi log giao dịch
-        await client.query(
-          `INSERT INTO wallet_transactions (
-      user_id, amount, transaction_type, reference_id, description, created_at
-    ) VALUES (
-      $1, $2, 'signup_bonus', $3, 'Thưởng giới thiệu đăng ký thành công', NOW()
-    )`,
-          [referrerId, signupBonus, userId],
-        );
-
-        // Kiểm tra tên cột referrals.status
-        const referralsColumnsResult = await client.query(`
-    SELECT column_name 
-    FROM information_schema.columns 
-    WHERE table_name = 'referrals'
-  `);
-
-        const statusColumnName = referralsColumnsResult.rows.some(
-          (row) => row.column_name === "status",
-        )
-          ? "status"
-          : "statusCode";
-
-        // Ghi log referral
-        await client.query(
-          `INSERT INTO referrals (
-      referrer_id, referred_id, commission, ${statusColumnName}, level, created_at, updated_at
-    ) VALUES (
-      $1, $2, $3, 'completed', 1, NOW(), NOW()
-    )`,
-          [referrerId, userId, signupBonus],
-        );
-
-        console.log(
-          `Signup bonus of ${signupBonus} given to referrer ${referrerId}`,
-        );
       }
 
-      // Delete the verification code after successful registration
+      // Xóa mã xác nhận sau khi đăng ký thành công
       await client.query(`DELETE FROM verification_codes WHERE email = $1`, [
         email,
       ]);
@@ -550,7 +435,6 @@ exports.verifyRegistration = async (req, res) => {
       // Commit transaction
       await client.query("COMMIT");
 
-      // Return success response
       return res.status(201).json({
         statusCode: 200,
         message: "Đăng ký thành công",
@@ -559,18 +443,15 @@ exports.verifyRegistration = async (req, res) => {
           username: insertedUser.rows[0].username,
           email: insertedUser.rows[0].email,
           fullName: insertedUser.rows[0].full_name,
-          address: insertedUser.rows[0].address, // Thêm trường address
+          address: insertedUser.rows[0].address,
           referralCode: userReferralCode,
         },
       });
     } catch (dbError) {
-      // Rollback transaction on error
       await client.query("ROLLBACK");
       console.error("Error creating user:", dbError);
 
-      // Specific error messages for common issues
       if (dbError.code === "23505") {
-        // Unique violation
         if (dbError.constraint && dbError.constraint.includes("username")) {
           return res.status(400).json({
             statusCode: 400,
@@ -591,12 +472,7 @@ exports.verifyRegistration = async (req, res) => {
       });
     }
   } catch (error) {
-    try {
-      await client.query("ROLLBACK");
-    } catch (rollbackError) {
-      console.error("Error rolling back transaction:", rollbackError);
-    }
-
+    await client.query("ROLLBACK");
     console.error("Lỗi xác nhận đăng ký:", error);
     return res.status(500).json({
       statusCode: 500,
