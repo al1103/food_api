@@ -354,26 +354,8 @@ exports.verifyRegistration = async (req, res) => {
       console.log("User created successfully with ID:", userId);
 
       // Referral processing (insert into referral_tree)
-      // Define the referral bonus rates for each level (F1 - F5)
-      const referralRates = {
-        1: 0.1, // F1: 10%
-        2: 0.05, // F2: 5%
-        3: 0.03, // F3: 3%
-        4: 0.02, // F4: 2%
-        5: 0.01, // F5: 1%
-      };
+      const signupBonus = 50000; // Mức thưởng đăng ký (có thể thay đổi tùy theo hệ thống của bạn)
 
-      // Đảm bảo rằng mức thưởng cho cấp giới thiệu của người dùng sẽ được tính theo từng cấp
-      const calculateReferralBonus = (level, amount) => {
-        // Lấy tỷ lệ thưởng tương ứng với cấp
-        const rate = referralRates[level] || 0;
-        return amount * rate;
-      };
-
-      // Giả sử bạn đã có một số lượng tiền để tính hoa hồng từ một người
-      const signupBonus = 50000; // Mức thưởng đăng ký (có thể thay đổi tuỳ theo hệ thống của bạn)
-
-      // Trong phần xử lý người giới thiệu, bạn tính phần thưởng cho các cấp khác nhau
       if (referrerId) {
         // Lấy tất cả các cấp của người giới thiệu, từ F1 đến F5 (cấp tối đa)
         let userReferralLevel = 1;
@@ -381,8 +363,8 @@ exports.verifyRegistration = async (req, res) => {
         // Lấy các ancestor (người giới thiệu trực tiếp và các cấp trên của họ)
         const ancestorsResult = await client.query(
           `SELECT ancestor_id, level 
-     FROM referral_tree 
-     WHERE user_id = $1 AND level <= 5`, // Cập nhật đến cấp 5
+           FROM referral_tree 
+           WHERE user_id = $1 AND level <= 5`,
           [referrerId],
         );
 
@@ -392,28 +374,42 @@ exports.verifyRegistration = async (req, res) => {
 
           if (newLevel <= 5) {
             // Giới hạn ở cấp 5
-            // Tính toán hoa hồng cho mỗi cấp
             const bonus = calculateReferralBonus(newLevel, signupBonus);
 
-            // Cập nhật tài khoản của người giới thiệu theo cấp
-            await client.query(
-              `UPDATE users 
-         SET wallet_balance = wallet_balance + $1 
-         WHERE user_id = $2`,
-              [bonus, ancestor.ancestor_id],
+            // Check if this referral relationship already exists to avoid inserting duplicates
+            const referralExistsResult = await client.query(
+              `SELECT 1 FROM referral_tree 
+               WHERE user_id = $1 AND ancestor_id = $2`,
+              [userId, ancestor.ancestor_id],
             );
 
-            // Ghi lại giao dịch thưởng
-            await client.query(
-              `INSERT INTO wallet_transactions (
-          user_id, amount, transaction_type, reference_id, description, created_at
-        ) VALUES (
-          $1, $2, 'referral_bonus', $3, 'Thưởng giới thiệu cấp ${newLevel}', NOW()
-        )`,
-              [ancestor.ancestor_id, bonus, userId],
-            );
+            if (referralExistsResult.rows.length === 0) {
+              // Insert referral relationship into referral_tree if not already exists
+              await client.query(
+                `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at) 
+                 VALUES ($1, $2, $3, NOW())`,
+                [userId, ancestor.ancestor_id, newLevel],
+              );
 
-            // Cập nhật người giới thiệu cấp cao nhất
+              // Cập nhật tài khoản của người giới thiệu theo cấp
+              await client.query(
+                `UPDATE users 
+                 SET wallet_balance = wallet_balance + $1 
+                 WHERE user_id = $2`,
+                [bonus, ancestor.ancestor_id],
+              );
+
+              // Ghi lại giao dịch thưởng
+              await client.query(
+                `INSERT INTO wallet_transactions (
+                  user_id, amount, transaction_type, reference_id, description, created_at
+                ) VALUES (
+                  $1, $2, 'referral_bonus', $3, 'Thưởng giới thiệu cấp ${newLevel}', NOW()
+                )`,
+                [ancestor.ancestor_id, bonus, userId],
+              );
+            }
+
             userReferralLevel = Math.max(userReferralLevel, newLevel);
           }
         }
@@ -421,8 +417,8 @@ exports.verifyRegistration = async (req, res) => {
         // Cập nhật cấp người giới thiệu trong bảng users
         await client.query(
           `UPDATE users 
-     SET referral_level = $1 
-     WHERE user_id = $2`,
+           SET referral_level = $1 
+           WHERE user_id = $2`,
           [userReferralLevel, userId],
         );
       }
