@@ -28,7 +28,7 @@ router.post("/create-payment", auth, async (req, res) => {
   try {
     const {
       order_id,
-      amount,
+      amount, // This is the deposit amount
       description = "Payment for order",
       redirect_url,
       payment_method = "zalopay", 
@@ -39,19 +39,11 @@ router.post("/create-payment", auth, async (req, res) => {
     if (!order_id || !amount || !payment_method) {
       return res.status(400).json({
         status: "error",
-        message: "Order ID, amount, and payment method are required",
+        message: "Order ID, deposit amount, and payment method are required",
       });
     }
 
-    // Validate payment method
-    if (!["zalopay", "direct"].includes(payment_method)) {
-      return res.status(400).json({
-        status: "error",
-        message: "Invalid payment method. Must be 'zalopay' or 'direct'",
-      });
-    }
-
-    // Get order with status
+    // Get order with status and total price
     const orderResult = await pool.query(
       `SELECT o.*, u.wallet_balance 
        FROM orders o
@@ -68,20 +60,25 @@ router.post("/create-payment", auth, async (req, res) => {
     }
 
     const order = orderResult.rows[0];
+    const totalAmount = parseFloat(order.total_price);
+    const depositAmount = parseFloat(amount);
+    const remainingAfterDeposit = totalAmount - depositAmount;
 
-    // Check if order is already paid
-    if (order.payment_status === 'paid') {
+    // Validate deposit amount
+    if (depositAmount > totalAmount) {
       return res.status(400).json({
         status: "error",
-        message: "Order is already paid"
+        message: "Deposit amount cannot be greater than total price",
+        total_price: totalAmount,
+        deposit_amount: depositAmount
       });
     }
 
     // If direct payment, handle wallet payment
     if (payment_method === "direct") {
       const walletBalance = parseFloat(order.wallet_balance) || 0;
-      const amountToDeduct = Math.min(walletBalance, parseFloat(amount)); // Convert amount to number
-      const remainingAmount = parseFloat(amount) - amountToDeduct;
+      const amountToDeduct = Math.min(walletBalance, depositAmount);
+      const remainingDeposit = depositAmount - amountToDeduct;
 
       // Begin transaction
       await pool.query('BEGIN');
@@ -93,7 +90,7 @@ router.post("/create-payment", auth, async (req, res) => {
         // Deduct available balance from wallet (if any)
         if (amountToDeduct > 0) {
           await pool.query(
-            "UPDATE users SET wallet_balance = CAST(wallet_balance AS numeric) - $1 WHERE user_id = $2::uuid AND wallet_balance >= $1",
+            "UPDATE users SET wallet_balance = wallet_balance - $1 WHERE user_id = $2::uuid",
             [amountToDeduct, user_id]
           );
 
@@ -105,9 +102,9 @@ router.post("/create-payment", auth, async (req, res) => {
             [
               user_id,
               amountToDeduct,
-              'payment',
+              'deposit',
               order_id,
-              `Partial payment for order #${order_id}`
+              `Deposit payment for order #${order_id}`
             ]
           );
         }
@@ -131,13 +128,16 @@ router.post("/create-payment", auth, async (req, res) => {
             appTransId,
             amountToDeduct,
             1,
-            amountToDeduct > 0 ? 'Partial payment from wallet successful' : 'No wallet balance available',
+            'Deposit payment processed',
             'completed',
             JSON.stringify({
               payment_method: 'direct',
               order_id: order_id,
+              total_price: totalAmount,
+              deposit_amount: depositAmount,
               deducted_from_wallet: amountToDeduct,
-              remaining_amount: remainingAmount
+              remaining_deposit: remainingDeposit,
+              remaining_total: remainingAfterDeposit
             })
           ]
         );
@@ -148,13 +148,14 @@ router.post("/create-payment", auth, async (req, res) => {
           status: "success",
           payment_id: paymentResult.rows[0].payment_id,
           app_trans_id: appTransId,
+          total_price: totalAmount,
+          deposit_amount: depositAmount,
           amount_paid: amountToDeduct,
-          remaining_amount: remainingAmount,
+          remaining_deposit: remainingDeposit,
+          remaining_total: remainingAfterDeposit,
           payment_method: "direct",
           wallet_balance_used: amountToDeduct,
-          message: remainingAmount > 0 
-            ? `Partial payment successful. Used ${amountToDeduct} from wallet. Remaining amount to pay: ${remainingAmount}`
-            : "Payment successful"
+          message: `Deposit payment processed. Total price: ${totalAmount}, Deposit paid: ${amountToDeduct}, Remaining total: ${remainingAfterDeposit}`
         });
 
       } catch (err) {
@@ -407,15 +408,16 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
       });
     }
 
-    // Get order details with user info
+    // Get order details with user info and previous payments
     const orderResult = await pool.query(
-      `SELECT o.order_id, o.user_id, o.total_price, o.status, 
-              p.payment_id, p.amount as payment_amount, p.status as payment_status,
+      `SELECT o.order_id, o.user_id, o.total_price, o.status,
+              COALESCE(SUM(p.amount), 0) as total_paid_amount,
               u.wallet_balance, u.user_id::text as user_id
        FROM orders o 
-       LEFT JOIN payments p ON o.order_id = p.order_id 
+       LEFT JOIN payments p ON o.order_id = p.order_id AND p.status = 'completed'
        JOIN users u ON o.user_id = u.user_id
-       WHERE o.order_id = $1`,
+       WHERE o.order_id = $1
+       GROUP BY o.order_id, u.user_id, u.wallet_balance`,
       [order_id]
     );
 
@@ -427,32 +429,52 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
     }
 
     const order = orderResult.rows[0];
+    const totalPrice = parseFloat(order.total_price);
+    const totalPaidAmount = parseFloat(order.total_paid_amount);
+    const remainingAmount = totalPrice - totalPaidAmount;
+
+    if (remainingAmount <= 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "Order is already fully paid",
+        total_price: totalPrice,
+        total_paid: totalPaidAmount
+      });
+    }
 
     // Begin transaction
     await pool.query('BEGIN');
 
     try {
-      // Update payment status if payment exists
-      if (order.payment_id) {
-        await pool.query(
-          `UPDATE payments 
-           SET status = $1, 
-               admin_confirmed = true, 
-               admin_confirmed_at = NOW(), 
-               admin_confirmed_by = $2::uuid,
-               updated_at = NOW()
-           WHERE order_id = $3`,
-          ['completed', admin_id, order_id]
-        );
-      }
+      const transID = Math.floor(Math.random() * 1000000);
+      const appTransId = `ADMIN_CONFIRM_${moment().format("YYMMDD")}_${transID}`;
 
-      // Update order status only
+      // Create final payment record
+      const paymentResult = await pool.query(
+        `INSERT INTO payments 
+         (order_id, user_id, amount, payment_method, status, app_trans_id,
+          admin_confirmed, admin_confirmed_at, admin_confirmed_by) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8) 
+         RETURNING payment_id`,
+        [
+          order_id, 
+          order.user_id, 
+          remainingAmount,
+          "admin_confirm",
+          "completed",
+          appTransId,
+          true,
+          admin_id
+        ]
+      );
+
+      // Update order status
       await pool.query(
         `UPDATE orders 
          SET status = $1, 
              updated_at = NOW()
          WHERE order_id = $2`,
-        ['paid', order_id]  // Changed from 'completed' to 'paid'
+        ['paid', order_id]
       );
 
       // Log admin confirmation transaction
@@ -461,16 +483,19 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
          (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          order.payment_id,
-          `ADMIN_CONFIRM_${moment().format('YYMMDD')}_${order_id}`,
-          order.total_price,
+          paymentResult.rows[0].payment_id,
+          appTransId,
+          remainingAmount,
           1,
-          'Payment confirmed by admin',
-          'paid',  // Changed from 'completed' to 'paid'
+          'Final payment confirmed by admin',
+          'paid',
           JSON.stringify({
             admin_id: admin_id,
             confirmation_type: 'admin_approval',
-            order_id: order_id
+            order_id: order_id,
+            total_price: totalPrice,
+            previous_paid: totalPaidAmount,
+            final_payment: remainingAmount
           })
         ]
       );
@@ -481,8 +506,10 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
         status: "success",
         message: "Payment confirmed and order status updated",
         order_id: order_id,
-        new_status: "paid",  // Changed from 'completed' to 'paid'
-        amount: order.total_price
+        total_price: totalPrice,
+        previous_paid: totalPaidAmount,
+        final_payment: remainingAmount,
+        new_status: "paid"
       });
 
     } catch (err) {
