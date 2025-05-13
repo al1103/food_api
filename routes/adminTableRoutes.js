@@ -4,7 +4,7 @@ const adminTableController = require("../controllers/adminTableController");
 const { adminAuth, auth } = require("../middleware/roleAuth");
 
 // Áp dụng middleware adminAuth cho tất cả các routes
-router.use(auth);
+router.use(adminAuth);
 
 // Routes mới để quản lý khách hàng trong bàn
 router.get("/tables/:id/customers", adminTableController.getTableCustomers);
