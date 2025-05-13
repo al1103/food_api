@@ -136,11 +136,11 @@ class OrderModel {
       const order = orderResult.rows[0];
       console.log(`Found order: ${order.orderId}`);
 
-      // Get order details
+      // Get order details - FIXED QUERY
       const detailsQuery = `
         SELECT 
           od.id,
-          od.id AS "dishId",
+          od.dish_id AS "dishId",
           d.name AS "dishName",
           d.image AS "imageUrl",
           od.quantity,
@@ -148,14 +148,14 @@ class OrderModel {
           od.special_requests AS "specialRequests",
           od.created_at AS "createdAt"
         FROM order_details od
-        JOIN dishes d ON od.id = d.id
+        JOIN dishes d ON od.dish_id = d.id
         WHERE od.order_id = $1
       `;
 
       console.log(`Getting details for order: ${parsedId}`);
       const detailsResult = await pool.query(detailsQuery, [parsedId]);
       console.log(
-        `Found ${detailsResult.rows.length} items for order ${parsedId}`
+        `Found ${detailsResult.rows.length} items for order ${parsedId}`,
       );
 
       // Add details to order
@@ -168,7 +168,6 @@ class OrderModel {
       throw error;
     }
   }
-
   static async createOrder(orderData) {
     const client = await pool.connect();
     try {
@@ -214,7 +213,7 @@ class OrderModel {
 
         if (dishResult.rows.length === 0) {
           throw new Error(
-            `Món ăn với ID ${dishId} không tồn tại hoặc không khả dụng`
+            `Món ăn với ID ${dishId} không tồn tại hoặc không khả dụng`,
           );
         }
 
@@ -295,7 +294,7 @@ class OrderModel {
       if (orderData.tableId) {
         await client.query(
           "UPDATE tables SET status = 'occupied', updated_at = NOW() WHERE table_id = $1",
-          [orderData.tableId]
+          [orderData.tableId],
         );
         console.log(`Updated table ${orderData.tableId} status to occupied`);
       }
@@ -311,7 +310,7 @@ class OrderModel {
       try {
         console.error(
           "Error encountered, rolling back transaction:",
-          error.message
+          error.message,
         );
         await client.query("ROLLBACK");
       } catch (rollbackError) {
@@ -339,7 +338,7 @@ class OrderModel {
 
       const currentStatus = orderResult.rows[0].status;
       console.log(
-        `Current order status: ${currentStatus}, changing to: ${status}`
+        `Current order status: ${currentStatus}, changing to: ${status}`,
       );
 
       // Update the order status
@@ -372,18 +371,18 @@ class OrderModel {
     try {
       const result = await pool.query(
         `SELECT 
-          od.id AS "id",
-          od.id AS "dishId",
-          d.name AS "dishName",
-          d.image AS "imageUrl",  /* Changed from image_url to image based on schema */
-          od.quantity AS "quantity",
-          od.price AS "price",
-          od.special_requests AS "specialRequests",
-          od.created_at AS "createdAt"
-        FROM order_details od
-        JOIN dishes d ON od.id = d.id  /* Changed from d.id to d.id based on schema */
-        WHERE od.order_id = $1`,
-        [orderId]
+        od.id,
+        od.dish_id AS "dishId",
+        d.name AS "dishName",
+        d.image AS "imageUrl",
+        od.quantity AS "quantity",
+        od.price AS "price",
+        od.special_requests AS "specialRequests",
+        od.created_at AS "createdAt"
+      FROM order_details od
+      JOIN dishes d ON od.dish_id = d.id
+      WHERE od.order_id = $1`,
+        [orderId],
       );
 
       return result.rows;
@@ -402,7 +401,7 @@ class OrderModel {
       // Get total count for pagination
       const countResult = await pool.query(
         `SELECT COUNT(*) AS total_count FROM orders WHERE user_id = $1`,
-        [userId]
+        [userId],
       );
       const totalCount = parseInt(countResult.rows[0].total_count);
 
@@ -420,7 +419,7 @@ class OrderModel {
         WHERE o.user_id = $1
         ORDER BY o.order_date DESC
         LIMIT $2 OFFSET $3`,
-        [userId, limit, offset]
+        [userId, limit, offset],
       );
 
       return {
@@ -475,7 +474,7 @@ class OrderModel {
           updated_at = NOW()
         WHERE order_id = $5
         RETURNING *`,
-        [paidStatus, paidAmount, paymentMethod, paidAt, orderId]
+        [paidStatus, paidAmount, paymentMethod, paidAt, orderId],
       );
 
       if (result.rows.length === 0) {
