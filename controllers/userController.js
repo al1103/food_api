@@ -511,7 +511,7 @@ exports.verifyRegistration = async (req, res) => {
       console.error("Error creating user:", dbError);
 
       if (dbError.code === "23505") {
-        if (dbError.constraint && dbError.constraint.includes("username")) {
+        if (dbError.constraint && dbError.constraint.includes("username")) {   
           return res.status(400).json({
             statusCode: 400,
             message: "Tên đăng nhập đã tồn tại",

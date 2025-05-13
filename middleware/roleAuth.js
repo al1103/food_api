@@ -84,25 +84,84 @@ const auth = async (req, res, next) => {
     res.status(500).json({ statusCode: 500, message: "Lỗi xác thực" });
   }
 };
-
 // Middleware to check if user is an admin
 const adminAuth = async (req, res, next) => {
-  // First authenticate the user
-  auth(req, res, (err) => {
-    if (err) {
-      return next(err);
-    }
-
-    // Check if the user has admin role
-    if (req.user && req.user.role === "admin") {
-      next();
-    } else {
-      return res.status(403).json({
-        statusCode: 500,
-        message: "Không có quyền truy cập. Yêu cầu quyền quản trị viên.",
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ 
+        status: "error",
+        message: "Xác thực không hợp lệ" 
       });
     }
-  });
+
+    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ 
+        status: "error",
+        message: "Xác thực không hợp lệ" 
+      });
+    }
+
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+
+    const result = await pool.query(
+      `SELECT 
+        user_id, 
+        username, 
+        email, 
+        full_name AS "fullName",
+        role
+      FROM users 
+      WHERE user_id = $1`,
+      [decoded.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ 
+        status: "error",
+        message: "Người dùng không tồn tại" 
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return res.status(403).json({
+        status: "error",
+        message: "Không có quyền truy cập. Yêu cầu quyền quản trị viên."
+      });
+    }
+
+    // Set user data in request
+    req.user = {
+      ...user,
+      userId: user.user_id
+    };
+
+    req.userData = {
+      userId: user.user_id,
+      role: user.role
+    };
+
+    next();
+
+  } catch (error) {
+    console.error("Admin auth error:", error);
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        status: "error",
+        message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        expired: true
+      });
+    }
+    return res.status(500).json({ 
+      status: "error",
+      message: "Lỗi xác thực admin" 
+    });
+  }
 };
 
 // Middleware to check if user is staff or admin
