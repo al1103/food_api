@@ -1,5 +1,33 @@
 const ReservationModel = require("../models/reservation_model");
 const { getPaginationParams } = require("../utils/pagination");
+const ApiResponse = require("../utils/apiResponse");
+const TableModel = require("../models/table_model");
+
+
+exports.cancelReservationRequest = async (req, res) => {
+    try {
+      const { reservationId } = req.params;
+
+      // Hủy yêu cầu đặt bàn
+      const cancelledReservation = await TableModel.cancelReservationRequestUser(
+        reservationId,
+      );
+
+      return ApiResponse.success(
+        res,
+        200,
+        "Yêu cầu đặt bàn đã được hủy thành công",
+        cancelledReservation,
+      );
+    } catch (error) {
+      console.error("Lỗi khi hủy yêu cầu đặt bàn:", error);
+      return ApiResponse.error(
+        res,
+        500,
+        "Đã xảy ra lỗi khi hủy yêu cầu đặt bàn",
+      );
+    }
+  }
 
 exports.createReservation = async (req, res) => {
   try {

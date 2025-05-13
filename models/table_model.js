@@ -524,6 +524,29 @@ class TableModel {
       const result = await pool.query(
         `UPDATE reservations
         SET status = 'cancelled', updated_at = NOW()
+        WHERE reservation_id = $1 
+        RETURNING reservation_id AS "reservationId", status`,
+        [reservationId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error(
+          "Không thể hủy yêu cầu đặt bàn. Yêu cầu không tồn tại hoặc đã được xử lý."
+        );
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Lỗi khi hủy yêu cầu đặt bàn:", error);
+      throw error;
+    }
+  }
+
+  static async cancelReservationRequestUser(reservationId) {
+    try {
+      const result = await pool.query(
+        `UPDATE reservations
+        SET status = 'cancelled', updated_at = NOW()
         WHERE reservation_id = $1 AND status = 'pending'
         RETURNING reservation_id AS "reservationId", status`,
         [reservationId]

@@ -14,4 +14,9 @@ router.patch(
 // Thêm route mới để lấy lịch sử đặt bàn của người dùng
 router.get("/history", auth, reservationsController.getUserReservationHistory);
 
+router.post(
+  "/:reservationId/cancel",
+  auth,
+  reservationsController.cancelReservationRequest
+);
 module.exports = router;
