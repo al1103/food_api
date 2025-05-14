@@ -811,7 +811,7 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // Kiểm tra xem email có tồn tại trong hệ thống không
+    // Check if user exists
     const user = await UserModel.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({
@@ -820,45 +820,52 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // Tạo mã xác nhận ngẫu nhiên (6 chữ số)
+    // Generate verification code (6 digits)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Tạo dữ liệu lưu vào user_data (cần được lưu vì bảng yêu cầu NOT NULL)
+    // Create user data
     const userData = {
       type: "password_reset",
       email: email,
     };
 
-    // Xóa mã xác nhận cũ (nếu có)
-    await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
-      email,
-    ]);
-
-    // Thêm mã xác nhận mới với expiration_time 15 phút
-    const expirationTime = new Date();
-    expirationTime.setMinutes(expirationTime.getMinutes() + 15);
-
+    // Delete existing verification codes
     await pool.query(
-      `INSERT INTO verification_codes (email, code, expiration_time, user_data, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [email, code, expirationTime, JSON.stringify(userData)],
+      `DELETE FROM verification_codes WHERE email = $1`,
+      [email]
     );
 
-    // Gửi email chứa mã xác nhận
+    // Calculate expiration time (15 minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    // Insert new verification code using expires_at column
+    await pool.query(
+      `INSERT INTO verification_codes 
+       (email, code, expires_at, user_data, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [email, code, expiresAt, JSON.stringify(userData)]
+    );
+
+    // Send verification email
     await sendRandomCodeEmail(email, code);
 
-    // Log mã xác nhận (chỉ dùng cho môi trường phát triển)
-    console.log(`Verification code for password reset: ${code}`);
+    // Log code in development only
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Verification code for password reset: ${code}`);
+    }
 
     return res.status(200).json({
       statusCode: 200,
       message: "Mã xác nhận đã được gửi đến email của bạn",
     });
+
   } catch (error) {
     console.error("Lỗi quên mật khẩu:", error);
     return res.status(500).json({
       statusCode: 500,
       message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+      error: error.message
     });
   }
 };
@@ -867,6 +874,7 @@ exports.resetPassword = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
 
+    // Validate input
     if (!email || !code || !newPassword) {
       return res.status(400).json({
         statusCode: 400,
@@ -874,6 +882,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    // Validate password length
     if (newPassword.length < 6) {
       return res.status(400).json({
         statusCode: 400,
@@ -881,11 +890,23 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Kiểm tra mã xác nhận
+    // Get table column info
+    const tableInfo = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'verification_codes'
+    `);
+
+    // Determine which expiration column to use
+    const hasExpiresAt = tableInfo.rows.some(row => row.column_name === 'expires_at');
+    const expirationColumn = hasExpiresAt ? 'expires_at' : 'expiration_time';
+
+    // Check verification code
     const verificationResult = await pool.query(
       `SELECT * FROM verification_codes 
-       WHERE email = $1 AND code = $2 AND expiration_time > NOW()`,
-      [email, code],
+       WHERE email = $1 AND code = $2 AND ${expirationColumn} > NOW()
+       AND user_data->>'type' = 'password_reset'`,
+      [email, code]
     );
 
     if (verificationResult.rows.length === 0) {
@@ -895,40 +916,53 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Hash mật khẩu mới nếu cần
-    // const hashedPassword = bcrypt.hashSync(newPassword, 10);
-    const hashedPassword = newPassword; // Nếu không cần hash
+    // Begin transaction
+    await pool.query('BEGIN');
 
-    // Cập nhật mật khẩu trong cơ sở dữ liệu
-    const updateResult = await pool.query(
-      `UPDATE users 
-       SET password = $1, updated_at = NOW()
-       WHERE email = $2
-       RETURNING user_id, email`,
-      [hashedPassword, email],
-    );
+    try {
+      // Update password
+      const updateResult = await pool.query(
+        `UPDATE users 
+         SET password = $1, 
+             updated_at = NOW()
+         WHERE email = $2
+         RETURNING user_id, email`,
+        [newPassword, email]
+      );
 
-    if (updateResult.rows.length === 0) {
-      return res.status(404).json({
-        statusCode: 404,
-        message: "Không tìm thấy tài khoản với email này",
+      if (updateResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({
+          statusCode: 404,
+          message: "Không tìm thấy tài khoản với email này",
+        });
+      }
+
+      // Delete used verification code
+      await pool.query(
+        `DELETE FROM verification_codes WHERE email = $1`,
+        [email]
+      );
+
+      // Commit transaction
+      await pool.query('COMMIT');
+
+      return res.status(200).json({
+        statusCode: 200,
+        message: "Mật khẩu đã được cập nhật thành công",
       });
+
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      throw err;
     }
 
-    // Xóa mã xác nhận sau khi sử dụng
-    await pool.query(`DELETE FROM verification_codes WHERE email = $1`, [
-      email,
-    ]);
-
-    return res.status(200).json({
-      statusCode: 200,
-      message: "Mật khẩu đã được cập nhật thành công",
-    });
   } catch (error) {
     console.error("Lỗi đặt lại mật khẩu:", error);
     return res.status(500).json({
       statusCode: 500,
       message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+      error: error.message
     });
   }
 };
