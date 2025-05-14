@@ -47,9 +47,15 @@ exports.createOrder = async (req, res) => {
     // Create notification for the new order
     await NotificationController.integrateWithOrderCreate(newOrder, userId);
 
+    // Add orderId to each item in the response
+    const itemsWithOrderId = items.map(item => ({
+      ...item,
+      orderId: newOrder.orderId
+    }));
+
     res.status(201).json({
       statusCode: 200,
-      data: items,
+      data: itemsWithOrderId,
     });
   } catch (error) {
     console.error("Error creating order:", error);
