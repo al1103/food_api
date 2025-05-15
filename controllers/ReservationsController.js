@@ -2,6 +2,8 @@ const ReservationModel = require("../models/reservation_model");
 const { getPaginationParams } = require("../utils/pagination");
 const ApiResponse = require("../utils/apiResponse");
 const TableModel = require("../models/table_model");
+const { pool } = require("../config/database");
+const { v4: uuidv4 } = require("uuid");
 
 
 exports.cancelReservationRequest = async (req, res) => {
@@ -173,6 +175,103 @@ exports.getUserReservationHistory = async (req, res) => {
       statusCode: 500,
       message: "Đã xảy ra lỗi khi lấy lịch sử đặt bàn",
       error: error.message
+    });
+  }
+};
+
+// Get all reservations (admin only)
+exports.getAllReservations = async (req, res) => {
+  try {
+    // Extract query parameters for filtering and pagination
+    const { 
+      status, 
+      date, 
+      page = 1, 
+      limit = 10,
+      sortBy = 'reservation_time',
+      sortOrder = 'DESC'
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    let params = [];
+    let whereConditions = [];
+    let paramIndex = 1;
+    
+    // Build WHERE clause based on filters
+    if (status) {
+      whereConditions.push(`r.status = $${paramIndex++}`);
+      params.push(status);
+    }
+    
+    if (date) {
+      whereConditions.push(`DATE(r.reservation_time) = $${paramIndex++}`);
+      params.push(date);
+    }
+    
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}` 
+      : '';
+    
+    // Add pagination parameters
+    params.push(parseInt(limit));
+    params.push(offset);
+    
+    const query = `
+      SELECT 
+        r.reservation_id AS "reservationId",
+        r.user_id AS "userId",
+        r.customer_name AS "customerName",
+        r.phone_number AS "customerPhone",
+        u.email AS "customerEmail",
+        r.party_size AS "partySize",
+        r.reservation_time  AS "reservationTime",
+        r.special_requests AS "specialRequests",
+        r.status,
+        r.table_id AS "tableId",
+        r.order_id AS "orderId",
+        t.capacity AS "tableCapacity",
+        r.created_at  AS "createdAt",
+        r.updated_at  AS "updatedAt"
+      FROM reservations r
+      LEFT JOIN tables t ON r.table_id = t.table_id
+      LEFT JOIN users u ON r.user_id = u.user_id
+      ${whereClause}
+      ORDER BY r.${sortBy} ${sortOrder}
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `;
+    
+    // Count total for pagination
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM reservations r
+      LEFT JOIN users u ON r.user_id = u.user_id
+      ${whereClause}
+    `;
+    
+    const [reservations, countResult] = await Promise.all([
+      pool.query(query, params),
+      pool.query(countQuery, params.slice(0, -2)) // Remove limit and offset
+    ]);
+    
+    const totalCount = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    return res.status(200).json({
+      statusCode: 200,
+      data: reservations.rows,
+      pagination: {
+        total: totalCount,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error fetching reservations:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Lỗi khi lấy danh sách đặt bàn: " + error.message
     });
   }
 };

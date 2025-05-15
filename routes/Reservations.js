@@ -19,4 +19,7 @@ router.post(
   auth,
   reservationsController.cancelReservationRequest
 );
+
+router.get("/admin/all", adminAuth, reservationsController.getAllReservations); // Admin only
+
 module.exports = router;
