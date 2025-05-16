@@ -307,7 +307,7 @@ exports.createDish = async (req, res) => {
         fs.unlink(req.file.path, (err) => {
           if (err) console.error("Không thể xóa file tạm:", err);
         });
-      }
+      }ƒ
       return res.status(400).json({
         statusCode: 400,
         message: "Tên món ăn, giá và danh mục là bắt buộc",
