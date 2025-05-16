@@ -118,7 +118,7 @@ exports.createDish = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !description || !categoryId || !price || !preparation_time) {
+    if (!name) {
       return res.status(400).json({
         statusCode: 400,
         message: "Missing required fields",
