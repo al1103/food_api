@@ -73,7 +73,7 @@ exports.register = async (req, res) => {
 
     // Check if username or email already exists
     const existingUserQuery = `
-      SELECT 1 FROM users 
+      SELECT 1 FROM users
       WHERE username = $1 OR email = $2
     `;
     const existingUserResult = await pool.query(existingUserQuery, [
@@ -122,8 +122,8 @@ exports.register = async (req, res) => {
     // Check if verification_codes table exists and has the correct column name
     try {
       const tableInfoQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
+        SELECT column_name
+        FROM information_schema.columns
         WHERE table_name = 'verification_codes'
       `;
       const tableInfo = await pool.query(tableInfoQuery);
@@ -144,27 +144,36 @@ exports.register = async (req, res) => {
         ? "expiration_time"
         : hasExpiresAt
         ? "expires_at"
-        : "expiration_time";
+        : "expires_at"; // Default to expires_at
 
       console.log(
         `Using column name: ${expirationColumnName} for expiration time`,
       );
 
+      // Calculate expiration time (15 minutes from now) - THIS WAS MISSING!
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 15);
+
       // Insert the new verification record using the correct column name
       await pool.query(
         `INSERT INTO verification_codes (email, code, ${expirationColumnName}, user_data, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
-        [email, code, expirationTime, JSON.stringify(userData)],
+        [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here
       );
     } catch (dbError) {
       console.error("Database error during table check:", dbError);
+
+      // Calculate expiration time here too for the fallback case
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 15);
+
       // If the table doesn't exist or other DB issues, create it
       await pool.query(`
         CREATE TABLE IF NOT EXISTS verification_codes (
           id SERIAL PRIMARY KEY,
           email VARCHAR(255) NOT NULL,
           code VARCHAR(10) NOT NULL,
-          expiration_time TIMESTAMP NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
           user_data JSONB NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
         )
@@ -172,9 +181,9 @@ exports.register = async (req, res) => {
 
       // Then try the insert again with the new structure
       await pool.query(
-        `INSERT INTO verification_codes (email, code, expiration_time, user_data, created_at)
+        `INSERT INTO verification_codes (email, code, expires_at, user_data, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
-        [email, code, expirationTime, JSON.stringify(userData)],
+        [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here too
       );
     }
 
@@ -232,8 +241,8 @@ exports.verifyRegistration = async (req, res) => {
 
     // Kiểm tra cột trong bảng verification_codes
     const tableInfoQuery = `
-      SELECT column_name 
-      FROM information_schema.columns 
+      SELECT column_name
+      FROM information_schema.columns
       WHERE table_name = 'verification_codes'
     `;
     const tableInfo = await client.query(tableInfoQuery);
@@ -262,7 +271,7 @@ exports.verifyRegistration = async (req, res) => {
 
     // Kiểm tra mã xác nhận
     const verificationResult = await client.query(
-      `SELECT * FROM verification_codes 
+      `SELECT * FROM verification_codes
        WHERE email = $1 AND code = $2 AND ${expirationColumnName} > NOW()`,
       [email, code],
     );
@@ -307,7 +316,7 @@ exports.verifyRegistration = async (req, res) => {
         referralCode,
       } = userData;
       const checkExistingQuery = `
-        SELECT 1 FROM users 
+        SELECT 1 FROM users
         WHERE username = $1 OR email = $2
       `;
       const checkExistingResult = await client.query(checkExistingQuery, [
@@ -344,7 +353,7 @@ exports.verifyRegistration = async (req, res) => {
       // Insert new user
       const insertUserQuery = `
         INSERT INTO users (
-          user_id, username, email, password, 
+          user_id, username, email, password,
           full_name, phone_number, address, referral_code,
           referred_by, role, created_at, updated_at
         ) VALUES (
@@ -375,7 +384,7 @@ exports.verifyRegistration = async (req, res) => {
         // IMPORTANT - Add this code first to establish the direct F1 relationship
         // Create the direct relationship (F1) between new user and direct referrer
         await client.query(
-          `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at) 
+          `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at)
            VALUES ($1, $2, $3, NOW())`,
           [userId, referrerId, 1],
         );
@@ -383,8 +392,8 @@ exports.verifyRegistration = async (req, res) => {
         // Apply F1 bonus to direct referrer
         const directBonus = calculateReferralBonus(1, signupBonus); // 10% for F1
         await client.query(
-          `UPDATE users 
-           SET wallet_balance = wallet_balance + $1 
+          `UPDATE users
+           SET wallet_balance = wallet_balance + $1
            WHERE user_id = $2`,
           [directBonus, referrerId],
         );
@@ -401,8 +410,8 @@ exports.verifyRegistration = async (req, res) => {
 
         // Now get ancestors of the referrer (to establish F2-F5 relationships)
         const ancestorsResult = await client.query(
-          `SELECT ancestor_id, level 
-           FROM referral_tree 
+          `SELECT ancestor_id, level
+           FROM referral_tree
            WHERE user_id = $1 AND level <= 4`, // Max level 4 to create up to F5
           [referrerId],
         );
@@ -415,7 +424,7 @@ exports.verifyRegistration = async (req, res) => {
             // Keep max at F5
             // Create the extended relationship
             await client.query(
-              `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at)    
+              `INSERT INTO referral_tree (user_id, ancestor_id, level, created_at)
                VALUES ($1, $2, $3, NOW())`,
               [userId, ancestor.ancestor_id, newLevel],
             );
@@ -423,8 +432,8 @@ exports.verifyRegistration = async (req, res) => {
             // Calculate and award the bonus based on level
             const bonus = calculateReferralBonus(newLevel, signupBonus);
             await client.query(
-              `UPDATE users 
-               SET wallet_balance = wallet_balance + $1 
+              `UPDATE users
+               SET wallet_balance = wallet_balance + $1
                WHERE user_id = $2`,
               [bonus, ancestor.ancestor_id],
             );
@@ -463,23 +472,23 @@ exports.verifyRegistration = async (req, res) => {
 
           // Set the new user's referral level
           await client.query(
-            `UPDATE users 
-             SET referral_level = $1 
+            `UPDATE users
+             SET referral_level = $1
              WHERE user_id = $2`,
             [newUserLevel, userId],
           );
         } else {
           // If no referral, set referral_level to 0 (base level)
           await client.query(
-            `UPDATE users 
-             SET referral_level = $1 
+            `UPDATE users
+             SET referral_level = $1
              WHERE user_id = $2`,
             [0, userId],
           );
         }
       } else {
         await client.query(
-          `UPDATE users 
+          `UPDATE users
            SET referral_level = $1
            WHERE user_id = $2`,
           [0, userId],
@@ -511,7 +520,7 @@ exports.verifyRegistration = async (req, res) => {
       console.error("Error creating user:", dbError);
 
       if (dbError.code === "23505") {
-        if (dbError.constraint && dbError.constraint.includes("username")) {   
+        if (dbError.constraint && dbError.constraint.includes("username")) {
           return res.status(400).json({
             statusCode: 400,
             message: "Tên đăng nhập đã tồn tại",
@@ -659,7 +668,7 @@ exports.updateCommissionRates = async (req, res) => {
         }
 
         await client.query(
-          `UPDATE referral_commission_rates 
+          `UPDATE referral_commission_rates
            SET rate = $1, updated_at = NOW()
            WHERE level = $2`,
           [rate.rate, rate.level],
@@ -704,7 +713,7 @@ exports.getReferralNetwork = async (req, res) => {
     }
 
     const query = `
-      SELECT 
+      SELECT
         u.user_id,
         u.username,
         u.full_name,
@@ -712,7 +721,7 @@ exports.getReferralNetwork = async (req, res) => {
         u.created_at,
         rt.level,
         (SELECT COUNT(*) FROM referral_tree WHERE ancestor_id = u.user_id AND level = 1) as direct_referrals,
-        (SELECT COALESCE(SUM(amount), 0) FROM wallet_transactions 
+        (SELECT COALESCE(SUM(amount), 0) FROM wallet_transactions
          WHERE user_id = $1 AND reference_id = u.user_id AND transaction_type = 'referral_commission') as commission_earned
       FROM referral_tree rt
       JOIN users u ON rt.user_id = u.user_id
@@ -841,7 +850,7 @@ exports.forgotPassword = async (req, res) => {
 
     // Insert new verification code using expires_at column
     await pool.query(
-      `INSERT INTO verification_codes 
+      `INSERT INTO verification_codes
        (email, code, expires_at, user_data, created_at)
        VALUES ($1, $2, $3, $4, NOW())`,
       [email, code, expiresAt, JSON.stringify(userData)]
@@ -892,8 +901,8 @@ exports.resetPassword = async (req, res) => {
 
     // Get table column info
     const tableInfo = await pool.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
+      SELECT column_name
+      FROM information_schema.columns
       WHERE table_name = 'verification_codes'
     `);
 
@@ -903,7 +912,7 @@ exports.resetPassword = async (req, res) => {
 
     // Check verification code
     const verificationResult = await pool.query(
-      `SELECT * FROM verification_codes 
+      `SELECT * FROM verification_codes
        WHERE email = $1 AND code = $2 AND ${expirationColumn} > NOW()
        AND user_data->>'type' = 'password_reset'`,
       [email, code]
@@ -922,8 +931,8 @@ exports.resetPassword = async (req, res) => {
     try {
       // Update password
       const updateResult = await pool.query(
-        `UPDATE users 
-         SET password = $1, 
+        `UPDATE users
+         SET password = $1,
              updated_at = NOW()
          WHERE email = $2
          RETURNING user_id, email`,
