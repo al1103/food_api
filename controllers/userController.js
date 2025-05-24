@@ -836,11 +836,11 @@ exports.forgotPassword = async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
-    // Fix: Insert new verification code with correct parameter count
+    // Fix: Insert new verification code without created_at column
     await pool.query(
       `INSERT INTO verification_codes
-       (email, code, expiration_time, user_data, )
-       VALUES ($1, $2,NOW(), $4, )`,
+       (email, code, expiration_time, user_data)
+       VALUES ($1, $2, $3, $4)`,
       [email, code, expiresAt, JSON.stringify(userData)]
     );
 
