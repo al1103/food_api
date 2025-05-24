@@ -31,7 +31,7 @@ router.post("/create-payment", auth, async (req, res) => {
       amount, // This is the deposit amount
       description = "Payment for order",
       redirect_url,
-      payment_method = "zalopay",
+      payment_method = "zalopay", 
     } = req.body;
     const user_id = req.user.userId;
 
@@ -45,7 +45,7 @@ router.post("/create-payment", auth, async (req, res) => {
 
     // Get order with status and total price
     const orderResult = await pool.query(
-      `SELECT o.*, u.wallet_balance
+      `SELECT o.*, u.wallet_balance 
        FROM orders o
        JOIN users u ON o.user_id = u.user_id
        WHERE o.order_id = $1 AND o.user_id = $2`,
@@ -96,7 +96,7 @@ router.post("/create-payment", auth, async (req, res) => {
 
           // Log wallet transaction
           await pool.query(
-            `INSERT INTO wallet_transactions
+            `INSERT INTO wallet_transactions 
              (user_id, amount, transaction_type, reference_id, description)
              VALUES ($1::uuid, $2, $3, $4, $5)`,
             [
@@ -111,16 +111,16 @@ router.post("/create-payment", auth, async (req, res) => {
 
         // Create payment record
         const paymentResult = await pool.query(
-          `INSERT INTO payments
-           (order_id, user_id, amount, payment_method, status, redirect_url, app_trans_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `INSERT INTO payments 
+           (order_id, user_id, amount, payment_method, status, redirect_url, app_trans_id) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7) 
            RETURNING payment_id`,
           [order_id, user_id, amountToDeduct, "direct", "completed", redirect_url, appTransId]
         );
 
         // Log transaction
         await pool.query(
-          `INSERT INTO payment_transactions
+          `INSERT INTO payment_transactions 
            (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
@@ -176,9 +176,9 @@ router.post("/create-payment", auth, async (req, res) => {
     };
 
     const orderItems = await pool.query(
-      `SELECT d.name, od.quantity, od.price
-       FROM order_details od
-       JOIN dishes d ON od.dish_id = d.dish_id
+      `SELECT d.name, od.quantity, od.price 
+       FROM order_details od 
+       JOIN dishes d ON od.dish_id = d.dish_id 
        WHERE od.order_id = $1`,
       [order_id]
     );
@@ -218,9 +218,9 @@ router.post("/create-payment", auth, async (req, res) => {
 
     // Save ZaloPay payment record
     const paymentResult = await pool.query(
-      `INSERT INTO payments
-       (order_id, user_id, amount, app_trans_id, payment_method, status, redirect_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO payments 
+       (order_id, user_id, amount, app_trans_id, payment_method, status, redirect_url) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING payment_id`,
       [order_id, user_id, amount, appTransId, "zalopay", "pending", redirect_url]
     );
@@ -289,8 +289,8 @@ router.get("/check-status/:app_trans_id", auth, async (req, res) => {
 
       // Log transaction
       await pool.query(
-        `INSERT INTO payment_transactions
-        (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data)
+        `INSERT INTO payment_transactions 
+        (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data) 
         VALUES ((SELECT payment_id FROM payments WHERE app_trans_id = $1), $1, $2, $3, $4, $5, $6)`,
         [
           app_trans_id,
@@ -359,8 +359,8 @@ router.post("/callback", async (req, res) => {
 
         // Log transaction
         await pool.query(
-          `INSERT INTO payment_transactions
-          (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data)
+          `INSERT INTO payment_transactions 
+          (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data) 
           VALUES ((SELECT payment_id FROM payments WHERE app_trans_id = $1), $1, $2, $3, $4, $5, $6)`,
           [
             dataJson.app_trans_id,
@@ -374,9 +374,9 @@ router.post("/callback", async (req, res) => {
 
         // Update order status
         await pool.query(
-          `UPDATE orders
-           SET status = $1,
-               updated_at = NOW()
+          `UPDATE orders 
+           SET status = $1, 
+               updated_at = NOW() 
            WHERE order_id = $2`,
           ["processing", embedData.orderId]
         );
@@ -413,7 +413,7 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
       `SELECT o.order_id, o.user_id, o.total_price, o.status,
               COALESCE(SUM(p.amount), 0) as total_paid_amount,
               u.wallet_balance, u.user_id::text as user_id
-       FROM orders o
+       FROM orders o 
        LEFT JOIN payments p ON o.order_id = p.order_id AND p.status = 'completed'
        JOIN users u ON o.user_id = u.user_id
        WHERE o.order_id = $1
@@ -451,14 +451,14 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
 
       // Create final payment record
       const paymentResult = await pool.query(
-        `INSERT INTO payments
+        `INSERT INTO payments 
          (order_id, user_id, amount, payment_method, status, app_trans_id,
-          admin_confirmed, admin_confirmed_at, admin_confirmed_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+          admin_confirmed, admin_confirmed_at, admin_confirmed_by) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8) 
          RETURNING payment_id`,
         [
-          order_id,
-          order.user_id,
+          order_id, 
+          order.user_id, 
           remainingAmount,
           "admin_confirm",
           "completed",
@@ -470,8 +470,8 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
 
       // Update order status
       await pool.query(
-        `UPDATE orders
-         SET status = $1,
+        `UPDATE orders 
+         SET status = $1, 
              updated_at = NOW()
          WHERE order_id = $2`,
         ['paid', order_id]
@@ -479,7 +479,7 @@ router.post("/admin/confirm-payment/:order_id", auth, async (req, res) => {
 
       // Log admin confirmation transaction
       await pool.query(
-        `INSERT INTO payment_transactions
+        `INSERT INTO payment_transactions 
          (payment_id, app_trans_id, amount, return_code, return_message, status, transaction_data)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [

@@ -135,17 +135,22 @@ exports.register = async (req, res) => {
       const hasExpirationTime = tableInfo.rows.some(
         (row) => row.column_name === "expiration_time",
       );
+      const hasExpiresAt = tableInfo.rows.some(
+        (row) => row.column_name === "expires_at",
+      );
 
       // Use the correct column name based on what's available
-      const expirationColumnName =
-         "expiration_time"
-
+      const expirationColumnName = hasExpirationTime
+        ? "expiration_time"
+        : hasExpiresAt
+        ? "expires_at"
+        : "expires_at"; // Default to expires_at
 
       console.log(
         `Using column name: ${expirationColumnName} for expiration time`,
       );
 
-      // Calculate expiration time (15 minutes from now)
+      // Calculate expiration time (15 minutes from now) - THIS WAS MISSING!
       const expirationTime = new Date();
       expirationTime.setMinutes(expirationTime.getMinutes() + 15);
 
@@ -153,7 +158,7 @@ exports.register = async (req, res) => {
       await pool.query(
         `INSERT INTO verification_codes (email, code, ${expirationColumnName}, user_data, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
-        [email, code, expirationTime, JSON.stringify(userData)],
+        [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here
       );
     } catch (dbError) {
       console.error("Database error during table check:", dbError);
@@ -168,6 +173,7 @@ exports.register = async (req, res) => {
           id SERIAL PRIMARY KEY,
           email VARCHAR(255) NOT NULL,
           code VARCHAR(10) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
           user_data JSONB NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
         )
@@ -175,8 +181,8 @@ exports.register = async (req, res) => {
 
       // Then try the insert again with the new structure
       await pool.query(
-        `INSERT INTO verification_codes (email, code, user_data, created_at)
-         VALUES ($1, $2, $3, NOW())`,
+        `INSERT INTO verification_codes (email, code, expires_at, user_data, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
         [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here too
       );
     }
@@ -248,10 +254,16 @@ exports.verifyRegistration = async (req, res) => {
     const hasExpirationTime = tableInfo.rows.some(
       (row) => row.column_name === "expiration_time",
     );
-
+    const hasExpiresAt = tableInfo.rows.some(
+      (row) => row.column_name === "expires_at",
+    );
 
     // Sử dụng tên cột phù hợp
-    const expirationColumnName = 'expiration_time';
+    const expirationColumnName = hasExpirationTime
+      ? "expiration_time"
+      : hasExpiresAt
+      ? "expires_at"
+      : "expiration_time";
 
     console.log(
       `Using column name: ${expirationColumnName} for expiration check`,
@@ -839,8 +851,8 @@ exports.forgotPassword = async (req, res) => {
     // Fix: Insert new verification code without created_at column
     await pool.query(
       `INSERT INTO verification_codes
-       (email, code, expiration_time, user_data)
-       VALUES ($1, $2, $3, $4)`,
+       (email, code, expires_at, user_data, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
       [email, code, expiresAt, JSON.stringify(userData)]
     );
 
@@ -895,7 +907,8 @@ exports.resetPassword = async (req, res) => {
     `);
 
     // Determine which expiration column to use
-    const expirationColumn = 'expiration_time';
+    const hasExpiresAt = tableInfo.rows.some(row => row.column_name === 'expires_at');
+    const expirationColumn = hasExpiresAt ? 'expires_at' : 'expiration_time';
 
     // Check verification code
     const verificationResult = await pool.query(
