@@ -176,7 +176,7 @@ exports.register = async (req, res) => {
       // Then try the insert again with the new structure
       await pool.query(
         `INSERT INTO verification_codes (email, code, user_data, created_at)
-         VALUES ($1, $2, $4, NOW())`,
+         VALUES ($1, $2, $3, NOW())`,
         [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here too
       );
     }
@@ -840,7 +840,7 @@ exports.forgotPassword = async (req, res) => {
     await pool.query(
       `INSERT INTO verification_codes
        (email, code, user_data, created_at)
-       VALUES ($1, $2,  $4, NOW())`,
+       VALUES ($1, $2,  $3, NOW())`,
       [email, code, expiresAt, JSON.stringify(userData)]
     );
 
