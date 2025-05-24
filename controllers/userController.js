@@ -550,14 +550,6 @@ exports.verifyRegistration = async (req, res) => {
     } finally {
       client.release();
     }
-  } catch (error) {
-    console.error("Lỗi xác nhận đăng ký:", error);
-    return res.status(500).json({
-      statusCode: 500,
-      message: "Đã xảy ra lỗi. Vui lòng thử lại sau.",
-      error: error.message,
-    });
-  }
 };
 
 exports.login = async (req, res) => {
