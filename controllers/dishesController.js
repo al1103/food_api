@@ -118,7 +118,7 @@ exports.createDish = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !description || !categoryId || !price || !preparation_time) {
+    if (!name) {
       return res.status(400).json({
         statusCode: 400,
         message: "Missing required fields",
@@ -126,13 +126,13 @@ exports.createDish = async (req, res) => {
     }
 
     // Validate if category exists
-    const category = await DishModel.getCategoryById(categoryId);
-    if (!category) {
-      return res.status(400).json({
-        statusCode: 400,
-        message: "Invalid category ID",
-      });
-    }
+    // const category = await DishModel.getCategoryById(categoryId);
+    // if (!category) {
+    //   return res.status(400).json({
+    //     statusCode: 400,
+    //     message: "Invalid category ID",
+    //   });
+    // }
 
     let imageUrl = null;
 
