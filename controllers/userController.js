@@ -839,8 +839,8 @@ exports.forgotPassword = async (req, res) => {
     // Fix: Insert new verification code with correct parameter count
     await pool.query(
       `INSERT INTO verification_codes
-       (email, code, expiration_time, user_data, expiration_time)
-       VALUES ($1, $2, $3, $4, NOW())`,
+       (email, code, expiration_time, user_data, )
+       VALUES ($1, $2,NOW(), $4, )`,
       [email, code, expiresAt, JSON.stringify(userData)]
     );
 
