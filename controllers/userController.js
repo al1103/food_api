@@ -135,9 +135,135 @@ exports.register = async (req, res) => {
       const hasExpirationTime = tableInfo.rows.some(
         (row) => row.column_name === "expiration_time",
       );
+      const hasExpiresAt = tableInfo.rows.some(
+        (row) => row.column_name === "expires_at",
+      );
 
-      // Always use expiration_time
-      const expirationColumnName = "expiration_time";
+      // Use the correct column name based on what's available
+      const expirationColumnName = hasExpirationTime
+        ? "expiration_time"
+        : hasExpiresAt
+        ? "expires_at"
+        : "expires_at"; // Default to expires_at
+
+      console.log(
+        `Using column name: ${expirationColumnName} for expiration time`,
+      );
+
+      // Calculate expiration time (15 minutes from now) - THIS WAS MISSING!
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 15);
+
+      // Insert the new verification record using the correct column name
+      await pool.query(
+        `INSERT INTO verification_codes (email, code, ${expirationColumnName}, user_data, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here
+      );
+    } catch (dbError) {
+      console.error("Database error during table check:", dbError);
+
+      // Calculate expiration time here too for the fallback case
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() + 15);
+
+      // If the table doesn't exist or other DB issues, create it
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS verification_codes (
+          id SERIAL PRIMARY KEY,
+          email VARCHAR(255) NOT NULL,
+          code VARCHAR(10) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          user_data JSONB NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      // Then try the insert again with the new structure
+      await pool.query(
+        `INSERT INTO verification_codes (email, code, expires_at, user_data, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [email, code, expirationTime, JSON.stringify(userData)], // Use expirationTime here too
+      );
+    }
+
+    // Log the code being sent (for development only, remove in production)
+    console.log(`Verification code ${code} for ${email}`);
+
+    // Send verification email
+    try {
+      await sendRandomCodeEmail(email, code);
+      console.log(`Verification email sent to ${email}`);
+    } catch (emailError) {
+      console.error("Error sending verification email:", emailError);
+      return res.status(500).json({
+        statusCode: 500,
+        message: "Không thể gửi email xác thực. Vui lòng thử lại sau.",
+      });
+    }
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "Vui lòng kiểm tra email để lấy mã xác nhận",
+      data: { email, code },
+    });
+  } catch (error) {
+    console.error("Lỗi đăng ký:", error);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Đã xảy ra lỗi trong quá trình đăng ký",
+      error: error.message,
+    });
+  }
+};
+
+exports.verifyRegistration = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { email, code } = req.body;
+
+    // Kiểm tra cơ bản
+    if (!email) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Email là bắt buộc",
+      });
+    }
+
+    if (!code) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Mã xác nhận là bắt buộc",
+      });
+    }
+
+    console.log(`Verifying registration for ${email} with code ${code}`);
+
+    // Kiểm tra cột trong bảng verification_codes
+    const tableInfoQuery = `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'verification_codes'
+    `;
+    const tableInfo = await client.query(tableInfoQuery);
+    console.log(
+      "Verification_codes columns:",
+      tableInfo.rows.map((row) => row.column_name),
+    );
+
+    const hasExpirationTime = tableInfo.rows.some(
+      (row) => row.column_name === "expiration_time",
+    );
+    const hasExpiresAt = tableInfo.rows.some(
+      (row) => row.column_name === "expires_at",
+    );
+
+    // Sử dụng tên cột phù hợp
+    const expirationColumnName = hasExpirationTime
+      ? "expiration_time"
+      : hasExpiresAt
+      ? "expires_at"
+      : "expiration_time";
 
       console.log(
         `Using column name: ${expirationColumnName} for expiration check`,
@@ -733,9 +859,9 @@ exports.forgotPassword = async (req, res) => {
     // Insert new verification code using expiration_time only
     await pool.query(
       `INSERT INTO verification_codes
-       (email, code, expiration_time, user_data)
-       VALUES ($1, $2, $3, $4)`,
-      [email, code, expirationTime, JSON.stringify(userData)]
+       (email, code, expires_at, user_data, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [email, code, expiresAt, JSON.stringify(userData)]
     );
 
     // Send verification email
@@ -788,8 +914,9 @@ exports.resetPassword = async (req, res) => {
       WHERE table_name = 'verification_codes'
     `);
 
-
-    const expirationColumn ='expiration_time';
+    // Determine which expiration column to use
+    const hasExpiresAt = tableInfo.rows.some(row => row.column_name === 'expires_at');
+    const expirationColumn = hasExpiresAt ? 'expires_at' : 'expiration_time';
 
     // Check verification code
     const verificationResult = await pool.query(
