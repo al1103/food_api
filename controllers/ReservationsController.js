@@ -91,23 +91,59 @@ exports.createReservation = async (req, res) => {
 exports.updateReservationStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { statusCode } = req.body;
+    const { status, cancelReason } = req.body; // Changed from statusCode to status
 
-    if (
-      !["pending", "confirmed", "cancelled", "completed"].includes(statusCode)
-    ) {
+    // Validate status
+    if (!["pending", "confirmed", "cancelled", "completed"].includes(status)) {
       return res.status(400).json({
         statusCode: 400,
         message: "Trạng thái không hợp lệ",
       });
     }
 
-    await ReservationModel.updateReservationStatus(id, statusCode);
+    // If status is cancelled, require a reason
+    if (status === "cancelled" && !cancelReason) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Vui lòng nhập lý do hủy đặt bàn",
+      });
+    }
+
+    // Validate cancel reason length if provided
+    if (cancelReason && cancelReason.length > 500) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Lý do hủy không được vượt quá 500 ký tự",
+      });
+    }
+
+    const adminId = req.user?.userId;
+
+    // Update reservation status with cancel reason
+    const updatedReservation = await ReservationModel.updateReservationStatus(
+      id,
+      status,
+      cancelReason,
+      adminId
+    );
+
+    if (!updatedReservation) {
+      return res.status(404).json({
+        statusCode: 404,
+        message: "Không tìm thấy đặt bàn",
+      });
+    }
+
     res.status(200).json({
       statusCode: 200,
-      message: "Cập nhật trạng thái đặt bàn thành công",
+      message: status === 'cancelled'
+        ? `Đặt bàn đã được hủy thành công. Lý do: ${cancelReason}`
+        : "Cập nhật trạng thái đặt bàn thành công",
+      data: updatedReservation
     });
+
   } catch (error) {
+    console.error("Error updating reservation status:", error);
     res.status(500).json({
       statusCode: 500,
       message: "Lỗi khi cập nhật trạng thái đặt bàn",
@@ -158,10 +194,10 @@ exports.getUserReservationHistory = async (req, res) => {
 
     // Gọi model để lấy lịch sử đặt bàn
     const result = await ReservationModel.getReservationsByUserId(
-      userId, 
-      page, 
+      userId,
+      page,
       limit
-    ); 
+    );
 
     res.status(200).json({
       statusCode: 200,
@@ -183,41 +219,41 @@ exports.getUserReservationHistory = async (req, res) => {
 exports.getAllReservations = async (req, res) => {
   try {
     // Extract query parameters for filtering and pagination
-    const { 
-      status, 
-      date, 
-      page = 1, 
+    const {
+      status,
+      date,
+      page = 1,
       limit = 10,
       sortBy = 'reservation_time',
       sortOrder = 'DESC'
     } = req.query;
-    
+
     const offset = (page - 1) * limit;
     let params = [];
     let whereConditions = [];
     let paramIndex = 1;
-    
+
     // Build WHERE clause based on filters
     if (status) {
       whereConditions.push(`r.status = $${paramIndex++}`);
       params.push(status);
     }
-    
+
     if (date) {
       whereConditions.push(`DATE(r.reservation_time) = $${paramIndex++}`);
       params.push(date);
     }
-    
-    const whereClause = whereConditions.length > 0 
-      ? `WHERE ${whereConditions.join(' AND ')}` 
+
+    const whereClause = whereConditions.length > 0
+      ? `WHERE ${whereConditions.join(' AND ')}`
       : '';
-    
+
     // Add pagination parameters
     params.push(parseInt(limit));
     params.push(offset);
-    
+
     const query = `
-      SELECT 
+      SELECT
         r.reservation_id AS "reservationId",
         r.user_id AS "userId",
         r.customer_name AS "customerName",
@@ -239,23 +275,23 @@ exports.getAllReservations = async (req, res) => {
       ORDER BY r.${sortBy} ${sortOrder}
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
-    
+
     // Count total for pagination
     const countQuery = `
-      SELECT COUNT(*) 
+      SELECT COUNT(*)
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.user_id
       ${whereClause}
     `;
-    
+
     const [reservations, countResult] = await Promise.all([
       pool.query(query, params),
       pool.query(countQuery, params.slice(0, -2)) // Remove limit and offset
     ]);
-    
+
     const totalCount = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(totalCount / limit);
-    
+
     return res.status(200).json({
       statusCode: 200,
       data: reservations.rows,
@@ -266,7 +302,7 @@ exports.getAllReservations = async (req, res) => {
         totalPages
       }
     });
-    
+
   } catch (error) {
     console.error("Error fetching reservations:", error);
     return res.status(500).json({

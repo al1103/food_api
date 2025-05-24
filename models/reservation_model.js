@@ -16,7 +16,7 @@ class ReservationModel {
 
       // Get paginated data with user information
       const result = await pool.query(
-        `SELECT 
+        `SELECT
           r.reservation_id AS "reservationId",
           r.user_id AS "userId",
           u.username,
@@ -27,6 +27,7 @@ class ReservationModel {
           r.customer_name AS "customerName",
           r.phone_number AS "phoneNumber",
           r.special_requests AS "specialRequests",
+          r.cancel_reason AS "cancelReason",
           r.created_at AS "createdAt",
           r.updated_at AS "updatedAt"
         FROM reservations r
@@ -80,11 +81,11 @@ class ReservationModel {
       const result = await pool.query(
         `INSERT INTO reservations (
           user_id, table_id, reservation_time, party_size,
-          status, special_requests, order_id, 
+          status, special_requests, order_id,
           created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
-        ) RETURNING 
+        ) RETURNING
           reservation_id AS "reservationId",
           user_id AS "userId",
           table_id AS "tableId",
@@ -116,7 +117,7 @@ class ReservationModel {
   static async getReservationById(id) {
     try {
       const result = await pool.query(
-        `SELECT 
+        `SELECT
           r.reservation_id AS "reservationId",
           r.user_id AS "userId",
           u.username,
@@ -142,13 +143,15 @@ class ReservationModel {
     }
   }
 
-  static async updateReservationStatus(id, status) {
+  static async updateReservationStatus(id, status, cancelReason = null) {
     try {
       await pool.query(
-        `UPDATE reservations 
-         SET status = $1, updated_at = NOW()
-         WHERE reservation_id = $2`,
-        [status, id]
+        `UPDATE reservations
+         SET status = $1,
+             cancel_reason = $2,
+             updated_at = NOW()
+         WHERE reservation_id = $3`,
+        [status, status === 'cancelled' ? cancelReason : null, id]
       );
 
       return await this.getReservationById(id);
@@ -174,26 +177,27 @@ class ReservationModel {
 
       // Get paginated data for this user
       const result = await pool.query(
-        `SELECT 
-          r.reservation_id AS "reservationId",
-          r.user_id AS "userId",
-          u.username,
-          r.table_id AS "tableId",
-          t.table_number AS "tableName",
-          r.reservation_time AS "reservationTime",
-          r.status,
-          r.party_size AS "partySize",
-          r.customer_name AS "customerName",
-          r.phone_number AS "phoneNumber",
-          r.special_requests AS "specialRequests",
-          r.created_at AS "createdAt",
-          r.updated_at AS "updatedAt"
-        FROM reservations r
-        JOIN users u ON r.user_id = u.user_id
-        LEFT JOIN tables t ON r.table_id = t.table_id
-        WHERE r.user_id = $1
-        ORDER BY r.reservation_time DESC
-        LIMIT $2 OFFSET $3`,
+        `SELECT
+        r.reservation_id AS "reservationId",
+        r.user_id AS "userId",
+        u.username,
+        r.table_id AS "tableId",
+        t.table_number AS "tableName",
+        r.reservation_time AS "reservationTime",
+        r.status,
+        r.party_size AS "partySize",
+        r.customer_name AS "customerName",
+        r.phone_number AS "phoneNumber",
+        r.special_requests AS "specialRequests",
+        r.cancel_reason AS "cancelReason",
+        r.created_at AS "createdAt",
+        r.updated_at AS "updatedAt"
+      FROM reservations r
+      JOIN users u ON r.user_id = u.user_id
+      LEFT JOIN tables t ON r.table_id = t.table_id
+      WHERE r.user_id = $1
+      ORDER BY r.reservation_time DESC
+      LIMIT $2 OFFSET $3`,
         [userId, limit, offset]
       );
 
