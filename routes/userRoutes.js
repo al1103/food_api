@@ -15,6 +15,12 @@ router.post("/token", userController.token);
 // Protected routes
 router.get("/me", auth, userController.getUserProfile);
 router.put("/me", auth, userController.updateUserProfile);
+router.post('/save-fcm-token', auth, async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ success: false, message: 'Thiếu token' });
+  await require('../models/user_model').saveFcmToken(req.user.userId, token);
+  res.json({ success: true });
+});
 
 // Referral and wallet routes
 router.get("/referrals", auth, userController.getReferralInfo);

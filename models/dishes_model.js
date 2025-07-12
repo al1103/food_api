@@ -402,7 +402,7 @@ class DishModel {
   }
 
   /**
-   * Get ratings for a dish
+   * Get all ratings for a dish
    * @param {number} dishId - Dish ID
    * @returns {Promise<Array>} - Array of ratings
    */
@@ -411,9 +411,12 @@ class DishModel {
       SELECT 
         dr.id, 
         dr.rating, 
+        dr.comment,
         dr.created_at,
+        dr.updated_at,
         u.username,
-        u.full_name
+        u.full_name,
+        u.avatar
       FROM dish_ratings dr
       JOIN users u ON dr.user_id = u.user_id
       WHERE dr.dish_id = $1
@@ -432,7 +435,7 @@ class DishModel {
    */
   static async getUserRating(dishId, userId) {
     const query = `
-      SELECT id, rating
+      SELECT id, rating, comment, created_at, updated_at
       FROM dish_ratings
       WHERE dish_id = $1 AND user_id = $2
     `;
@@ -442,19 +445,21 @@ class DishModel {
   }
 
   /**
-   * Add a rating to a dish
+   * Add a rating for a dish
    * @param {number} dishId - Dish ID
    * @param {string} userId - User ID
    * @param {number} rating - Rating (1-5)
-   * @returns {Promise<number>} - ID of the created ratingb
+   * @param {string} comment - Optional comment
+   * @returns {Promise<number>} - Rating ID
    */
-  static async addRating(dishId, userId, rating) {
+  static async addRating(dishId, userId, rating, comment = null) {
     try {
       // Thêm kiểm tra chi tiết
       console.log("Adding rating with values:", {
         dishId: dishId,
         userId: userId,
         rating: rating,
+        comment: comment,
         typeOfDishId: typeof dishId,
         typeOfUserId: typeof userId,
         typeOfRating: typeof rating,
@@ -484,9 +489,9 @@ class DishModel {
 
       const query = `
         INSERT INTO dish_ratings 
-          (dish_id, user_id, rating, created_at, updated_at) 
+          (dish_id, user_id, rating, comment, created_at, updated_at) 
         VALUES 
-          ($1, $2, $3, NOW(), NOW()) 
+          ($1, $2, $3, $4, NOW(), NOW()) 
         RETURNING id
       `;
 
@@ -494,6 +499,7 @@ class DishModel {
         parsedDishId,
         userId,
         parsedRating,
+        comment,
       ]);
 
       if (!result.rows || result.rows.length === 0) {
@@ -510,6 +516,7 @@ class DishModel {
           dishId,
           userId,
           rating,
+          comment,
         });
       }
       throw error;
@@ -520,18 +527,20 @@ class DishModel {
    * Update a rating
    * @param {number} ratingId - Rating ID
    * @param {number} rating - New rating (1-5)
+   * @param {string} comment - Optional comment
    * @returns {Promise<void>}
    */
-  static async updateRating(ratingId, rating) {
+  static async updateRating(ratingId, rating, comment = null) {
     const query = `
       UPDATE dish_ratings 
       SET 
         rating = $1, 
+        comment = $2,
         updated_at = NOW() 
-      WHERE id = $2
+      WHERE id = $3
     `;
 
-    await pool.query(query, [rating, ratingId]);
+    await pool.query(query, [rating, comment, ratingId]);
   }
 
   /**

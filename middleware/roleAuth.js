@@ -7,14 +7,14 @@ const auth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
-        .statusCode(401)
+        .status(401)
         .json({ statusCode: 500, message: "Xác thực không hợp lệ" });
     }
 
     const token = authHeader.split(" ")[1];
     if (!token) {
       return res
-        .statusCode(401)
+        .status(401)
         .json({ statusCode: 500, message: "Xác thực không hợp lệ" });
     }
 
@@ -36,7 +36,7 @@ const auth = async (req, res, next) => {
 
       if (result.rows.length === 0) {
         return res
-          .statusCode(401)
+          .status(401)
           .json({ statusCode: 500, message: "Người dùng không tồn tại" });
       }
 
@@ -76,7 +76,7 @@ const auth = async (req, res, next) => {
       }
 
       return res
-        .statusCode(401)
+        .status(401)
         .json({ statusCode: 500, message: "Token không hợp lệ" });
     }
   } catch (error) {

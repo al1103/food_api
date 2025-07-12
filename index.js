@@ -10,6 +10,7 @@ require("dotenv").config();
 const cloudinary = require("./config/cloudinary");
 const app = express();
 const server = http.createServer(app);
+const feedbackRoutes = require('./routes/feedback');
 
 const corsOptions = {
   origin: true, // Hoặc địa chỉ cụ thể của client
@@ -26,11 +27,13 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: "Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút",
+  
 });
 
 app.use(limiter);
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use('/api/feedback', feedbackRoutes);
 
 // Simple database connection test before starting server
 pool.query("SELECT NOW()", (err, res) => {

@@ -791,4 +791,36 @@ class UserModel {
   }
 }
 
+async function saveFcmToken(userId, token) {
+  const { pool } = require('../config/database');
+  await pool.query(
+    `INSERT INTO user_fcm_tokens (user_id, token) VALUES ($1, $2)
+     ON CONFLICT (user_id, token) DO NOTHING`,
+    [userId, token]
+  );
+}
+
+async function getFcmTokensByUserId(userId) {
+  const { pool } = require('../config/database');
+  const result = await pool.query(
+    'SELECT token FROM user_fcm_tokens WHERE user_id = $1',
+    [userId]
+  );
+  return result.rows.map(row => row.token);
+}
+
+async function getFcmTokensByRole(role) {
+  const { pool } = require('../config/database');
+  const result = await pool.query(
+    `SELECT t.token FROM user_fcm_tokens t
+     JOIN users u ON t.user_id = u.user_id
+     WHERE u.role = $1`,
+    [role]
+  );
+  return result.rows.map(row => row.token);
+}
+
 module.exports = UserModel;
+module.exports.saveFcmToken = saveFcmToken;
+module.exports.getFcmTokensByUserId = getFcmTokensByUserId;
+module.exports.getFcmTokensByRole = getFcmTokensByRole;

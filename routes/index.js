@@ -21,6 +21,7 @@ function routes(app) {
   app.use("/api/admin", adminRoutes);
 
   app.use("/api/notifications", notificationsRoutes);
+  app.use("/api/notification", notificationsRoutes);
 
   // AI features
   app.use("/api/ai", aiRoutes);

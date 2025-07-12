@@ -11,6 +11,8 @@ const config = {
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000,
   idleTimeoutMillis: 30000,
+  ssl: false,
+
 };
 
 // Create a connection pool

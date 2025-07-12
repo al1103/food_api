@@ -1,127 +1,54 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const OpenAI = require("openai");
-const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const modelPreventive = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const axios = require('axios');
+const DishModel = require('../models/dishes_model');
 
-async function handleNewMessage(prompt) {
+const GEMINI_API_KEY = 'AIzaSyDTcUOSGHgq6sOYRCu4KJXediXtGc90Nhs';
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+exports.chatSuggestDish = async (req, res) => {
   try {
-    const suggestionsPrompt = `Dựa trên cuộc trò chuyện ${JSON.stringify(
-      prompt
-    )} , hãy đưa ra 4 câu trả lời tiếp theo có thể để tiếp tục cuộc trò chuyện. Mỗi câu trả lời cần phù hợp với ngữ cảnh và giữ cuộc trò chuyện tiếp tục tự nhiên. Chỉ trả về 4 câu nói, mỗi câu trên một dòng, không có thêm bất kỳ văn bản nào khác. Không đánh số thứ tự cho các câu trả lời.`;
-    let suggestionsResult;
-    try {
-      suggestionsResult = await model.generateContent(suggestionsPrompt);
-    } catch (error) {
-      suggestionsResult = await modelPreventive.generateContent(
-        suggestionsPrompt
-      );
+    const { message } = req.body;
+    // Lấy thực đơn từ DB (lấy tối đa 20 món, không phân trang)
+    const dishResult = await DishModel.getAllDishes(1, 20, 0, null);
+    let menuText = '';
+    if (dishResult && Array.isArray(dishResult.rows)) {
+      menuText = dishResult.rows.map(d => `- ${d.name}: ${d.description || ''}`).join('\n');
     }
-    const suggestions = suggestionsResult.response
-      .text()
-      .split("\n")
-      .filter((s) => s.trim() !== "");
-    return { statusCode: 200, suggestions };
-  } catch (error) {
-    console.error("Lỗi khi xử lý tin nhắn mới:", error);
-    return { statusCode: 500, message: "Có lỗi xảy ra, vui lòng thử lại sau." };
-  }
-}
+    console.log('MenuText:', menuText);
+    const prompt = `Bạn là trợ lý nhà hàng. Dưới đây là thực đơn hôm nay:\n${menuText}\nNgười dùng hỏi: \"${message}\"\nHãy trả lời ngắn gọn, liệt kê các món phù hợp nếu có.`;
+    console.log('Prompt:', prompt);
 
-async function handleImageAndPrompt(req, res) {
-  try {
-    const { image, prompt } = req.body;
-
-    if (!image || !prompt) {
-      return res.status(400).json({ error: "Thiếu ảnh hoặc prompt" });
-    }
-
-    const imageData = Buffer.from(image.split(",")[1], "base64");
-
-    const imagePart = {
-      inlineData: {
-        data: imageData.toString("base64"),
-        mimeType: "image/jpeg",
+    const geminiRes = await axios.post(
+      GEMINI_API_URL,
+      {
+        contents: [{ parts: [{ text: prompt }] }]
       },
-    };
-
-    try {
-      console.log("Bắt đầu gọi API...");
-      const result = await model.generateContent([prompt, imagePart]);
-      console.log("Kết quả API:", result);
-
-      const generatedText = result.response.text();
-
-      res.status(200).json({
-        message: "Xử lý thành công",
-        generatedText,
-      });
-    } catch (apiError) {
-      console.error("Lỗi API:", apiError);
-      if (apiError.message.includes("Unable to process input image")) {
-        return res.status(400).json({
-          error:
-            "Không thể xử lý ảnh đầu vào. Vui lòng thử lại với một ảnh khác.",
-        });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': GEMINI_API_KEY
+        }
       }
-      throw apiError;
-    }
+    );
+    const aiReply = geminiRes.data.candidates?.[0]?.content?.parts?.[0]?.text || 'Xin lỗi, tôi chưa có câu trả lời phù hợp.';
+    res.json({ reply: aiReply });
   } catch (error) {
-    console.error("Lỗi khi xử lý ảnh và prompt:", error);
-    res
-      .statusCode(500)
-      .json({ message: "Có lỗi xảy ra, vui lòng thử lại sau." });
+    console.error('Gemini AI error:', error?.response?.data || error.message);
+    res.status(500).json({ reply: 'Xin lỗi, đã có lỗi khi kết nối AI.' });
   }
-}
-async function promptAnswer(req, res) {
-  try {
-    const prompt = req.body.prompt;
+};
 
-    if (!prompt) {
-      return res.status(400).json({ error: "Bạn chưa nhập câu hỏi." });
-    }
+// Stub: handleNewMessage
+exports.handleNewMessage = (req, res) => {
+  res.json({ reply: 'Stub: handleNewMessage chưa được triển khai.' });
+};
 
-    let result;
-    try {
-      const openaiResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-      });
-      result = {
-        response: { text: () => openaiResponse.choices[0].message.content },
-      };
-    } catch (error) {
-      console.error("Lỗi khi gọi API OpenAI:", error);
-      if (error.statusCode === 429) {
-        return res.status(429).json({
-          error:
-            "Bạn đã vượt quá hạn mức hiện tại, vui lòng kiểm tra chi tiết kế hoạch và hóa đơn của bạn.",
-        });
-      }
-      throw error;
-    }
+// Stub: handleImageAndPrompt
+exports.handleImageAndPrompt = (req, res) => {
+  res.json({ reply: 'Stub: handleImageAndPrompt chưa được triển khai.' });
+};
 
-    let answer = result.response.text();
-
-    answer = answer.replace(/\n\n/g, "\n");
-    answer = answer.replace(/^##\s/gm, "### ");
-    answer = answer.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    answer = answer.replace(/\*(.*?)\*/g, "<em>$1</em>");
-    answer = answer.replace(/```(.*?)```/g, "<code>$1</code>");
-
-    res.status(200).json({
-      answer,
-      message: "Câu trả lời được tạo thành công.",
-    });
-  } catch (error) {
-    console.error("Lỗi khi sinh câu trả lời:", error);
-    res
-      .statusCode(500)
-      .json({ message: "Có lỗi xảy ra, vui lòng thử lại sau." });
-  }
-}
-
-module.exports = { handleNewMessage, handleImageAndPrompt, promptAnswer };
+// Stub: promptAnswer
+exports.promptAnswer = (req, res) => {
+  res.json({ reply: 'Stub: promptAnswer chưa được triển khai.' });
+};
