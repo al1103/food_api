@@ -15,7 +15,15 @@ exports.chatSuggestDish = async (req, res) => {
       menuText = dishResult.rows.map(d => `- ${d.name}: ${d.description || ''}`).join('\n');
     }
     console.log('MenuText:', menuText);
-    const prompt = `Bạn là trợ lý nhà hàng. Dưới đây là thực đơn hôm nay:\n${menuText}\nNgười dùng hỏi: \"${message}\"\nHãy trả lời ngắn gọn, liệt kê các món phù hợp nếu có.`;
+    const prompt = `# DỮ LIỆU THỰC ĐƠN
+    ${menuText}
+    # HƯỚNG DẪN
+    1. Trả lời câu hỏi của người dùng về các món ăn trong thực đơn trên.
+    2. Nếu người dùng hỏi thông tin chi tiết (như calo, thành phần, cách chế biến...) của một món có trong thực đơn, bạn có thể sử dụng kiến thức của mình để trả lời, ngay cả khi dữ liệu trên không chứa thông tin đó.
+    3. Nếu người dùng hỏi món không có trong danh sách thực đơn, hãy lịch sự trả lời rằng món đó hiện không có trong nhà hàng.
+    4. Không bịa thêm món mới mà không nằm trong danh sách.
+    # CÂU HỎI
+    ${message}`;    
     console.log('Prompt:', prompt);
 
     const geminiRes = await axios.post(

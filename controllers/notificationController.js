@@ -12,3 +12,27 @@ exports.notifyUser = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+// Method to integrate with order creation
+exports.integrateWithOrderCreate = async (order, userId) => {
+  try {
+    // Send FCM notification to user about new order
+    // You can implement the logic to get user's FCM token and send notification
+    console.log(`Order created successfully for user ${userId}: ${order.orderId}`);
+    
+    // TODO: Implement actual FCM notification logic
+    // const userToken = await getUserFCMToken(userId);
+    // if (userToken) {
+    //   await sendFCM(userToken, 'Đơn hàng mới', 'Đơn hàng của bạn đã được tạo thành công', {
+    //     orderId: order.orderId,
+    //     type: 'order_created'
+    //   });
+    // }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in integrateWithOrderCreate:', error);
+    // Don't throw error to prevent order creation from failing
+    return false;
+  }
+};

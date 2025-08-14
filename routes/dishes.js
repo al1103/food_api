@@ -28,10 +28,10 @@ router.get("/toppings", dishesController.getAllToppings);
 router.get("/top", dishesController.getTopDishes);
 
 // Review-related routes
-router.get("/:id/reviews", dishesController.getDishReviews); // Get reviews for a dish
-router.get("/:id/reviews/stats", dishesController.getDishReviewStats); // Get review statistics
-router.get("/reviews/top-rated", dishesController.getTopRatedDishes); // Get top rated dishes
-router.get("/reviews/recent", dishesController.getRecentReviews); // Get recent reviews
+// router.get("/:id/reviews", dishesController.getDishReviews); // Get reviews for a dish
+// router.get("/:id/reviews/stats", dishesController.getDishReviewStats); // Get review statistics
+// router.get("/reviews/top-rated", dishesController.getTopRatedDishes); // Get top rated dishes
+// router.get("/reviews/recent", dishesController.getRecentReviews); // Get recent reviews
 
 // Public routes
 router.get("/", dishesController.getAllDishes);

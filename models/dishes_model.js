@@ -401,6 +401,7 @@ class DishModel {
     await pool.query(query, [dishId]);
   }
 
+  // ==== TẠM THỜI COMMENT CÁC HÀM LIÊN QUAN ĐẾN RATING/COMMENT/REVIEW ====
   /**
    * Get all ratings for a dish
    * @param {number} dishId - Dish ID
@@ -542,6 +543,8 @@ class DishModel {
 
     await pool.query(query, [rating, comment, ratingId]);
   }
+
+  // ==== TẠM THỜI COMMENT CÁC HÀM LIÊN QUAN ĐẾN RATING/COMMENT/REVIEW ====
 
   /**
    * Search dishes by name or description

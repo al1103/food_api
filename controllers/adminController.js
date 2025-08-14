@@ -487,6 +487,7 @@ exports.updateDish = async (req, res) => {
       });
     }
 
+    /*
     // Validate rating if provided
     if (
       rating !== undefined &&
@@ -499,6 +500,7 @@ exports.updateDish = async (req, res) => {
         message: "Đánh giá không hợp lệ (0-5)",
       });
     }
+    */
 
     // Use model to update dish
     const updatedDish = await AdminModel.updateDish(dishId, {
