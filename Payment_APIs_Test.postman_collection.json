@@ -1,0 +1,691 @@
+{
+  "info": {
+    "name": "Payment APIs Test Collection",
+    "description": "Test collection cho các API thanh toán trong Food API system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login để lấy JWT Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('jwt_token', jsonData.token);",
+                  "    pm.environment.set('user_id', jsonData.user.user_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Login để lấy Admin Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('admin_token', jsonData.token);",
+                  "    pm.environment.set('admin_id', jsonData.admin.admin_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment - ZaloPay",
+      "item": [
+        {
+          "name": "Tạo thanh toán ZaloPay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{test_order_id}}\",\n  \"amount\": 50000,\n  \"description\": \"Thanh toán cọc đơn hàng #{{test_order_id}}\",\n  \"redirect_url\": \"https://your-app.com/payment-success\",\n  \"payment_method\": \"zalopay\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-payment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('app_trans_id', jsonData.app_trans_id);",
+                  "    pm.environment.set('payment_id', jsonData.payment_id);",
+                  "    pm.environment.set('order_url', jsonData.order_url);",
+                  "    ",
+                  "    pm.test('Status is success', function () {",
+                  "        pm.expect(jsonData.status).to.eql('success');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Payment ID is returned', function () {",
+                  "        pm.expect(jsonData.payment_id).to.be.a('number');",
+                  "    });",
+                  "    ",
+                  "    pm.test('App Trans ID is returned', function () {",
+                  "        pm.expect(jsonData.app_trans_id).to.be.a('string');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tạo thanh toán ZaloPay - Số tiền vượt quá tổng đơn hàng",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{test_order_id}}\",\n  \"amount\": 999999,\n  \"description\": \"Test thanh toán vượt quá tổng đơn hàng\",\n  \"payment_method\": \"zalopay\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-payment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should return error for amount exceeding total price', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tạo thanh toán ZaloPay - Thiếu thông tin bắt buộc",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{test_order_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-payment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should return 400 for missing required fields', function () {",
+                  "    pm.expect(pm.response.code).to.eql(400);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment - Direct",
+      "item": [
+        {
+          "name": "Tạo thanh toán Direct (Ví điện tử)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{test_order_id}}\",\n  \"amount\": 30000,\n  \"description\": \"Thanh toán trực tiếp từ ví\",\n  \"payment_method\": \"direct\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-payment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    pm.test('Status is success', function () {",
+                  "        pm.expect(jsonData.status).to.eql('success');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Payment method is direct', function () {",
+                  "        pm.expect(jsonData.payment_method).to.eql('direct');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Wallet balance used info is present', function () {",
+                  "        pm.expect(jsonData).to.have.property('wallet_balance_used');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment Status",
+      "item": [
+        {
+          "name": "Kiểm tra trạng thái thanh toán",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payment/check-status/{{app_trans_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "check-status", "{{app_trans_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Response should be successful', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    pm.test('Status is success', function () {",
+                  "        pm.expect(jsonData.status).to.eql('success');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Data object is present', function () {",
+                  "        pm.expect(jsonData).to.have.property('data');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kiểm tra trạng thái thanh toán - App Trans ID không tồn tại",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payment/check-status/invalid_app_trans_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "check-status", "invalid_app_trans_id"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ZaloPay API sẽ trả về return_code khác 1 cho app_trans_id không hợp lệ",
+                  "pm.test('Response should be handled properly', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ZaloPay Callback",
+      "item": [
+        {
+          "name": "ZaloPay Callback - Successful Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "data",
+                  "value": "{\"app_id\":2554,\"app_trans_id\":\"231207_123456\",\"app_time\":1701936000000,\"app_user\":\"user_{{user_id}}\",\"amount\":50000,\"embed_data\":\"{\\\"orderId\\\":\\\"{{test_order_id}}\\\",\\\"userId\\\":\\\"{{user_id}}\\\"}\",\"item\":\"[{\\\"name\\\":\\\"Order #{{test_order_id}}\\\",\\\"quantity\\\":1,\\\"price\\\":50000}]\",\"zp_trans_id\":1234567890,\"server_time\":1701936060000,\"channel\":1,\"merchant_user_id\":\"\",\"user_fee_amount\":0,\"discount_amount\":0}",
+                  "type": "text"
+                },
+                {
+                  "key": "mac",
+                  "value": "mock_mac_signature_for_testing",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/callback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "callback"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Callback should be processed', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    pm.test('Return code should be present', function () {",
+                  "        pm.expect(jsonData).to.have.property('return_code');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ZaloPay Callback - Invalid MAC",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "data",
+                  "value": "{\"app_id\":2554,\"app_trans_id\":\"231207_123456\",\"amount\":50000}",
+                  "type": "text"
+                },
+                {
+                  "key": "mac",
+                  "value": "invalid_mac_signature",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/callback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "callback"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should handle invalid MAC', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.return_code).to.eql(-1);",
+                  "    pm.expect(jsonData.return_message).to.include('Invalid MAC');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin Operations",
+      "item": [
+        {
+          "name": "Admin xác nhận thanh toán",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/admin/confirm-payment/{{test_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "admin", "confirm-payment", "{{test_order_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    pm.test('Status is success', function () {",
+                  "        pm.expect(jsonData.status).to.eql('success');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Order status updated to paid', function () {",
+                  "        pm.expect(jsonData.new_status).to.eql('paid');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Payment details are present', function () {",
+                  "        pm.expect(jsonData).to.have.property('total_price');",
+                  "        pm.expect(jsonData).to.have.property('previous_paid');",
+                  "        pm.expect(jsonData).to.have.property('final_payment');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin xác nhận thanh toán - Không có quyền admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/admin/confirm-payment/{{test_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "admin", "confirm-payment", "{{test_order_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should return 403 for non-admin user', function () {",
+                  "    pm.expect(pm.response.code).to.eql(403);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('error');",
+                  "    pm.expect(jsonData.message).to.include('Unauthorized');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin xác nhận thanh toán - Order không tồn tại",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/admin/confirm-payment/999999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "admin", "confirm-payment", "999999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should return 404 for non-existent order', function () {",
+                  "    pm.expect(pm.response.code).to.eql(404);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('error');",
+                  "    pm.expect(jsonData.message).to.include('Order not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Unauthorized Tests",
+      "item": [
+        {
+          "name": "Tạo thanh toán - Không có token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{test_order_id}}\",\n  \"amount\": 50000,\n  \"payment_method\": \"zalopay\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/create-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "create-payment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should return 401 for missing token', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kiểm tra trạng thái thanh toán - Token không hợp lệ",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid_token_here"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payment/check-status/{{app_trans_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "check-status", "{{app_trans_id}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Should return 401 for invalid token', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Pre-request script chạy trước mỗi request",
+          "// Có thể thêm logic setup chung ở đây"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Test script chạy sau mỗi response",
+          "// Log response time",
+          "console.log('Response time: ' + pm.response.responseTime + 'ms');"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "test_order_id",
+      "value": "1",
+      "type": "string"
+    }
+  ]
+}
