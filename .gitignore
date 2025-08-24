@@ -48,6 +48,23 @@ temp/
 .DS_Store
 *.pem
 
+# Sensitive configuration files
+config/serviceAccountKey.json
+config/*.key
+config/*-key.json
+**/serviceAccount*.json
+*.p12
+*.pfx
+
+# Database backups
+*.sql.backup
+*.db.backup
+
+# API keys and secrets
+secrets/
+credentials/
+keys/
+
 # Test coverage
 coverage/
 .nyc_output/
