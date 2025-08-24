@@ -27,7 +27,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: "Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút",
-  
+
 });
 
 app.use(limiter);

@@ -18,7 +18,7 @@ module.exports = {
     key2: "YOUR_PRODUCTION_KEY2", // Replace with your production Key2
     endpoint: "https://openapi.zalopay.vn/v2/create",
     query_endpoint: "https://openapi.zalopay.vn/v2/query",
-    callback_url: "http://localhost:3000/api/payments/callback", // Production backend
+    callback_url: "https://your-backend-domain.com/api/payments/callback", // Production backend
     default_return_url: "fooddelivery://payment-success" // Deep link for mobile app
   },
 

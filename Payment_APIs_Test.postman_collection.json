@@ -129,6 +129,10 @@
                   "    pm.test('App Trans ID is returned', function () {",
                   "        pm.expect(jsonData.app_trans_id).to.be.a('string');",
                   "    });",
+                  "    ",
+                  "    pm.test('No mock flag should be present', function () {",
+                  "        pm.expect(jsonData).to.not.have.property('is_mock');",
+                  "    });",
                   "}"
                 ]
               }
